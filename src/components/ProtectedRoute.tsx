@@ -31,7 +31,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ requiredRole, children 
 
     // Soporta tanto "Administrador" (backend) como "admin" (frontend)
     const synonyms: Record<string, string[]> = {
-      admin: ['admin', 'administrador'],
+      admin: ['admin', 'super administrador'],
     };
     const accepted = new Set(synonyms[required] ?? [required]);
 

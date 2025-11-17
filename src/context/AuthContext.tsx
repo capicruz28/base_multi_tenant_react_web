@@ -414,8 +414,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		// Sinónimos de roles (admin = administrador)
 		const getRoleSynonyms = (role: string): string[] => {
 			const normalized = role.toLowerCase();
-			if (normalized === 'admin' || normalized === 'administrador') {
-				return ['admin', 'administrador'];
+			if (normalized === 'admin' || normalized === 'super administrador') {
+				return ['admin', 'super administrador'];
 			}
 			return [normalized];
 			//... (otros sinónimos)

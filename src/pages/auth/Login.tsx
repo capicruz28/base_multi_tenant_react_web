@@ -51,7 +51,7 @@ const Login: React.FC = () => { // Añadir tipo explícito React.FC
         const userRoles = userData.roles || []; // Asegurarse de que roles sea un array
         let destination: string;
 
-        if (userRoles.includes('Administrador')) {
+        if (userRoles.includes('Super Administrador')) {
           // Si es admin, redirigir a la página principal de admin
           destination = adminHome;
           console.log('Admin user detected, navigating to', destination);
