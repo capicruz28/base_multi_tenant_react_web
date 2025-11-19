@@ -1,4 +1,4 @@
- // src/context/AuthContext.tsx
+// src/context/AuthContext.tsx
 import React, { 
 	createContext, 
 	useContext, 
@@ -21,7 +21,6 @@ import type { AuthResponse, UserData } from '../types/auth.types';
 
 // ============================================================================
 // BLOQUEO DE CONCURRENCIA GLOBAL (CRÍTICO)
-// Esta variable almacenará la promesa del refresh token, previniendo carreras.
 // ============================================================================
 type RefreshPromise = Promise<string> | null;
 let isRefreshingPromise: RefreshPromise = null;
@@ -29,7 +28,6 @@ let isRefreshingPromise: RefreshPromise = null;
 // ============================================================================
 // TIPOS
 // ============================================================================
-
 type AuthState = { 
 	user: UserData | null; 
 	token: string | null;
@@ -42,12 +40,20 @@ interface AuthContextType {
 	isAuthenticated: boolean;
 	loading: boolean;
 	hasRole: (...roles: string[]) => boolean;
+	// ✅ CORREGIDO: Campos alineados con el backend
+	accessLevel: number;
+	isSuperAdmin: boolean;
+	userType: string;
+	clienteInfo: {
+		id: number;
+		nombre: string;
+		subdominio: string;
+	} | null;
 }
 
 // ============================================================================
 // CONSTANTES
 // ============================================================================
-
 const initialAuth: AuthState = { user: null, token: null };
 
 const AuthContext = createContext<AuthContextType>({
@@ -57,38 +63,44 @@ const AuthContext = createContext<AuthContextType>({
 	isAuthenticated: false,
 	loading: true,
 	hasRole: () => false,
+	accessLevel: 0,
+	isSuperAdmin: false,
+	userType: 'user',
+	clienteInfo: null,
 });
 
 // ============================================================================
 // PROVIDER
 // ============================================================================
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 	const [auth, setAuth] = useState<AuthState>(initialAuth);
 	const [loading, setLoading] = useState(true);
 	
-	// Ref para acceder al estado más reciente
+	// ✅ Estados para información de niveles de acceso
+	const [accessLevel, setAccessLevel] = useState<number>(0);
+	const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false);
+	const [userType, setUserType] = useState<string>('user');
+	const [clienteInfo, setClienteInfo] = useState<{
+		id: number;
+		nombre: string;
+		subdominio: string;
+	} | null>(null);
+	
+	// Refs para acceder al estado más reciente sin re-renders
 	const authRef = useRef(auth);
-	// ✅ NUEVO: Ref para acceder al estado 'loading' más reciente
 	const loadingRef = useRef(loading);
-	
-	// ✅ NUEVO: Ref para asegurar que la inicialización solo corra una vez
 	const isInitializedRef = useRef(false);
-	
-	// Ref para asegurar que el interceptor se monta solo una vez (necesario por las dependencias)
-	// Eliminada la referencia manual, usaremos solo el cleanup de useEffect
 	
 	const failedQueueRef = useRef<Array<{
 		resolve: (value: string) => void;
 		reject: (reason?: Error) => void;
 	}>>([]);
 
-	// Mantener authRef sincronizado con auth
+	// Sincronizar refs
 	useEffect(() => {
 		authRef.current = auth;
 	}, [auth]);
 
-	// ✅ NUEVO: Mantener loadingRef sincronizado con loading
 	useEffect(() => {
 		loadingRef.current = loading;
 	}, [loading]);
@@ -96,6 +108,55 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 	// ============================================================================
 	// HELPERS
 	// ============================================================================
+
+	/**
+	 * ✅ CORREGIDO: Determina el tipo de usuario basado en nivel de acceso
+	 */
+	const determineUserType = useCallback((level: number, isSuper: boolean): string => {
+		if (isSuper) return 'super_admin';
+		if (level >= 4) return 'tenant_admin';
+		return 'user';
+	}, []);
+
+	/**
+	 * ✅ CORREGIDO: Actualiza estados de nivel de acceso desde datos de usuario
+	 */
+	const updateAccessLevels = useCallback((userData: UserData | null) => {
+		if (!userData) {
+			setAccessLevel(0);
+			setIsSuperAdmin(false);
+			setUserType('user');
+			setClienteInfo(null);
+			return;
+		}
+
+		// ✅ CORRECCIÓN CRÍTICA: Leer directamente del usuario
+		const level = userData.access_level || 0;
+		const isSuper = userData.is_super_admin || false;
+		const type = determineUserType(level, isSuper);
+		
+		console.log('🔍 [AuthContext] Actualizando niveles de acceso:', {
+			level,
+			isSuper,
+			type,
+			hasCliente: !!userData.cliente
+		});
+		
+		setAccessLevel(level);
+		setIsSuperAdmin(isSuper);
+		setUserType(type);
+		
+		// Actualizar información del cliente si está disponible
+		if (userData.cliente) {
+			setClienteInfo({
+				id: userData.cliente.id,
+				nombre: userData.cliente.nombre,
+				subdominio: userData.cliente.subdominio,
+			});
+		} else {
+			setClienteInfo(null);
+		}
+	}, [determineUserType]);
 
 	/**
 	 * Detecta si la URL es de autenticación (login/refresh)
@@ -131,13 +192,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			}
 		} catch (error) {
 			const axiosError = error as AxiosError;
-			console.error('Logout error:', axiosError.message);
+			console.error('❌ [Logout] Error:', axiosError.message);
 		} finally {
+			console.log('🚪 [Logout] Limpiando estado...');
+			
+			// ✅ CORRECCIÓN CRÍTICA: Eliminar cookie del navegador SIEMPRE
+			document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+			
 			setAuth(initialAuth);
 			authRef.current = initialAuth;
-			// 🛑 FIX CRÍTICO: Asegurar que el bloqueo global de refresh se libere al cerrar sesión.
+			setAccessLevel(0);
+			setIsSuperAdmin(false);
+			setUserType('user');
+			setClienteInfo(null);
 			isRefreshingPromise = null;
-			// Limpiar la cola en caso de que haya fallado el refresh
 			processQueue(new Error('Session expired'), null);
 		}
 	}, [processQueue]);
@@ -148,17 +216,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 	/**
 	 * ✅ INTERCEPTOR DE REQUEST
-	 * Agrega el token de autorización a todas las peticiones (excepto login/refresh)
 	 */
 	useEffect(() => {
-		// La dependencia es authRef.current.token, pero como es un objeto, lo sincronizamos
-		// con auth y usamos authRef para el valor más reciente sin re-montar el interceptor
 		const requestInterceptor = api.interceptors.request.use(
 			(config: InternalAxiosRequestConfig) => {
 				const headers = (config.headers ?? {}) as AxiosRequestHeaders;
 				const currentToken = authRef.current.token;
 				
-				// Solo agregar token si existe y no es endpoint de auth
+				// ✅ CORRECCIÓN: Solo agregar token si existe y no es endpoint de auth
 				if (currentToken && !isAuthEndpoint(config.url)) {
 					headers.Authorization = `Bearer ${currentToken}`;
 				}
@@ -167,24 +232,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 				return config;
 			},
 			(error: AxiosError) => {
-				console.error('Request interceptor error:', error.message);
+				console.error('❌ [Request Interceptor] Error:', error.message);
 				return Promise.reject(error);
 			}
 		);
 
 		return () => {
-			// El interceptor se ejecta solo en el desmontaje final, no en re-renders
 			api.interceptors.request.eject(requestInterceptor);
 		};
 	}, [isAuthEndpoint]);
 
 	/**
-	 * ✅ INTERCEPTOR DE RESPONSE (CON BLOQUEO DE CONCURRENCIA DENTRO)
-	 * FIX: Se reescribe la lógica de montaje para mayor robustez
+	 * ✅ INTERCEPTOR DE RESPONSE
 	 */
 	useEffect(() => {
-		// No usamos isInterceptorMounted.current, dependemos de que las dependencias
-		// del useEffect (que son useCallback) sean estables.
 		const responseInterceptor = api.interceptors.response.use(
 			(response: AxiosResponse) => response,
 			async (error: AxiosError) => {
@@ -192,100 +253,76 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 					_retry?: boolean 
 				}) | undefined;
 				
-				// Si no hay config o es endpoint de auth, rechazar directamente
 				if (!originalRequest || isAuthEndpoint(originalRequest.url)) {
 					return Promise.reject(error);
 				}
 
-				// Si es 401 y no se ha reintentado
 				if (error.response?.status === 401 && !originalRequest._retry) {
-					// ✅ LOG CRÍTICO: Para confirmar que el interceptor está funcionando.
-					console.warn(`🚨 401 CAPTURADO en ${originalRequest.url}. Iniciando o encolando refresh...`);
+					console.warn(`🚨 [Response Interceptor] 401 capturado en ${originalRequest.url}`);
 
-					// ------------------------------------------------------------------
-					// 1. 🛑 CONTROL DE CONCURRENCIA INTERNO
+					// Control de concurrencia
 					if (isRefreshingPromise) {
-						console.log('🔄 Refresh ya en curso. Agregando petición a la cola.');
+						console.log('🔄 [Response Interceptor] Refresh en curso, encolando...');
 						return new Promise<string>((resolve, reject) => {
 							failedQueueRef.current.push({ resolve, reject });
 						})
 							.then(token => {
-								// Reintentar con el nuevo token obtenido de la promesa en curso
 								const headers = (originalRequest.headers ?? {}) as AxiosRequestHeaders;
 								headers.Authorization = `Bearer ${token}`;
 								originalRequest.headers = headers;
-								originalRequest._retry = true; // Aseguramos que tenga el retry tag
+								originalRequest._retry = true;
 								return api(originalRequest);
 							})
 							.catch(err => {
-								console.error('Failed queue error:', err);
-								// Si la promesa de refresh falló (resultando en logout), esta petición también falla.
+								console.error('❌ [Response Interceptor] Error en cola:', err);
 								return Promise.reject(err);
 							});
 					}
-					// ------------------------------------------------------------------
 
-					// 2. 🚦 INICIAR NUEVO REFRESH Y PONER BLOQUEO
 					originalRequest._retry = true;
 					
-					// Crea la promesa de refresh y la almacena en la variable global
 					isRefreshingPromise = (async () => {
 						try {
-							console.log('🔄 Access token expirado, iniciando refresh...');
+							console.log('🔄 [Response Interceptor] Iniciando refresh...');
 							
 							const newToken = await authService.refreshToken();
 							
-							console.log('✅ Token refrescado exitosamente');
+							console.log('✅ [Response Interceptor] Token refrescado');
 
-							// Actualizar estado y ref
 							const newAuth = { ...authRef.current, token: newToken };
 							
-							// 🛑 CRÍTICO: Solo actualizamos el estado con setAuth si la fase inicial de carga
-							// ha terminado (loadingRef.current === false). Siempre actualizamos la ref.
 							if (!loadingRef.current) { 
 								setAuth(newAuth);
 							}
-							authRef.current = newAuth; // Siempre actualizamos la ref para el siguiente request
+							authRef.current = newAuth;
 
-							// Devolver el nuevo token para el reintento
+							processQueue(null, newToken);
+
 							return newToken; 
 						} catch (refreshError) {
-							// ✅ Si falla el refresh (ej: token reused/expired), hacer logout
 							const axiosError = refreshError as AxiosError;
-							console.error('❌ Token refresh failed, logging out:', axiosError.message);
+							console.error('❌ [Response Interceptor] Refresh falló:', axiosError.message);
 							
-							// Notificar a la cola que falló
 							processQueue(new Error('Token refresh failed'), null);
-							
-							// El doLogout se encarga de limpiar el estado y el bloqueo isRefreshingPromise
 							await doLogout(false);
 							
-							// Relanzar el error para la petición original
 							throw refreshError;
 						} finally {
-							// 6. 🔓 LIBERAR BLOQUEO si falló y no lo hizo doLogout, aunque doLogout ya lo hace,
-							// es seguro forzarlo aquí también si el catch no se ejecutó.
 							if (isRefreshingPromise !== null) {
 								isRefreshingPromise = null;
 							}
 						}
 					})();
 					
-					// 3. ⏱️ ESPERAR RESULTADO DEL REFRESH BLOQUEADO (Esta promesa se ejecutó arriba, pero se espera aquí)
 					try {
 						const newToken = await isRefreshingPromise;
 						
-						// 4. Procesar cola de peticiones pendientes (Solo si el refresh fue exitoso)
-						// NOTA: isRefreshingPromise ya se liberó en el finally del async de arriba.
-						
-						// 5. Reintentar petición original con nuevo token
 						const headers = (originalRequest.headers ?? {}) as AxiosRequestHeaders;
 						headers.Authorization = `Bearer ${newToken}`;
 						originalRequest.headers = headers;
 						
 						return api(originalRequest);
 					} catch (e) {
-						// Si el isRefreshingPromise lanza error (el refresh falló), esta petición también falla.
 						return Promise.reject(error);
 					}
 				}
@@ -295,112 +332,114 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		);
 
 		return () => {
-			// Ejectar el interceptor cuando el componente se desmonte o las dependencias cambien
 			api.interceptors.response.eject(responseInterceptor);
 		};
-	// Dependencias son los useCallbacks definidos arriba, que son estables
-	}, [isAuthEndpoint, processQueue, doLogout]); 
+	}, [isAuthEndpoint, processQueue, doLogout]);
 
 	// ============================================================================
-	// BOOTSTRAP - Verificar sesión al cargar la aplicación (Bloqueado para ejecución única)
+	// BOOTSTRAP - ✅ CORRECCIÓN CRÍTICA
 	// ============================================================================
-// ... (El resto del código de initializeAuth permanece igual)
 	useEffect(() => {
-		// 🛑 BLOQUEO CRÍTICO: Asegura que la lógica de bootstrap solo se ejecute una vez
 		if (isInitializedRef.current) {
 			return;
 		}
-		isInitializedRef.current = true; // Set block early
-
-		// REMOVIDA: La lógica de `cancelled` ya no es necesaria, dependemos solo de `isInitializedRef`.
+		isInitializedRef.current = true;
 		
 		const initializeAuth = async () => {
 			try {
-				// ------------------ LOGGING EXTREMO PARA DEPURAR ------------------
-				console.log('🔍 1. Verificando sesión existente (Bootstrap)...'); 
+				console.log('🔍 [Bootstrap] Verificando sesión existente...');
 				
-				// Paso 2: Ejecuta el refresh. El backend devuelve 200 OK.
-				const newToken = await authService.refreshToken(); 
-
-                // LOG DE VERIFICACIÓN CRÍTICA (Debe aparecer si el await tuvo éxito)
-                console.log('✅ 1.5. Refresh Token Promesa Resuelta. Continuando...'); 
+				// ✅ CORRECCIÓN CRÍTICA: Obtener token primero
+				const newToken = await authService.refreshToken();
+				console.log('✅ [Bootstrap] Token obtenido, actualizando ref...');
 				
-				// --- NUEVO LOG DE DEBUG PARA CAPTURAR EL ESTADO DE CANCELACIÓN ---
-				console.log(`Debug: Flujo de inicialización continua. Next: ➡️ 2.`);
-                
-                // PASO CLAVE PARA LA CORRECCIÓN: Evitar el re-render intermedio
+				// ✅ CORRECCIÓN CRÍTICA: Actualizar ref ANTES de llamar a /me/
+				authRef.current = { ...authRef.current, token: newToken };
 				
-				// Paso 4: Intenta obtener el perfil usando el NUEVO token, pasándolo manualmente
-                // FIX: Cambiar la URL de '/api/v1/auth/me/' a '/auth/me/' para evitar la duplicación de '/api/v1/'
-                // causada por la `baseURL` de axios.
-                console.log(`➡️ 2. Token de Acceso recibido. Intentando obtener perfil en /me/ con token: ${newToken.substring(0, 10)}...`); 
-				
-				// Reemplazamos authService.getCurrentUserProfile() con una llamada directa
-                // usando el newToken para asegurar que el interceptor no falle al buscarlo en el estado.
-				const { data: userData } = await api.get<UserData>('/auth/me/', {
-                    headers: {
-                        Authorization: `Bearer ${newToken}`,
-                    },
-                });
+				// ✅ CORRECCIÓN: Ahora el interceptor puede leer el token correctamente
+				console.log('➡️ [Bootstrap] Obteniendo perfil de usuario...');
+				const { data: userData } = await api.get<UserData>('/auth/me/');
 				
 				if (userData) {
-                    // Paso 5: Autenticación completa (ACTUALIZACIÓN ATÓMICA DE ESTADO)
+					console.log('✅ [Bootstrap] Perfil obtenido:', {
+						usuario: userData.nombre_usuario,
+						accessLevel: userData.access_level,
+						isSuperAdmin: userData.is_super_admin,
+						tipo: determineUserType(userData.access_level || 0, userData.is_super_admin || false)
+					});
+					
 					const newAuth = { token: newToken, user: userData };
 					setAuth(newAuth);
 					authRef.current = newAuth;
-					console.log('✅ 3. Perfil de usuario obtenido. Autenticación completa para:', userData.nombre_usuario);
+					
+					updateAccessLevels(userData);
 				} else {
-                    // Si el /me/ no devuelve datos (falla), forzamos logout.
-                    console.log('❌ 4. Fallo al obtener perfil de usuario con token fresco. Redirigiendo a login.');
-                    await doLogout(false);
+					console.log('❌ [Bootstrap] No se pudo obtener perfil');
+					await doLogout(false);
 				}
 			} catch (error) {
 				const axiosError = error as AxiosError;
-				// Si el error es una instancia de Error lanzada por nosotros, podemos usar su mensaje
 				const errorMessage = error instanceof Error ? error.message : axiosError.message;
-				console.log('ℹ️ 5. Error en el proceso de inicialización (Refresh, /me/ falló):', errorMessage);
-                // Si el refreshToken o /me/ falla, limpiamos la sesión local.
-                await doLogout(false);
+				const statusCode = axiosError.response?.status;
+				
+				// ✅ CORRECCIÓN CRÍTICA: Distinguir entre errores 401 (token inválido) y otros errores
+				if (statusCode === 401) {
+					console.log('🚫 [Bootstrap] Token inválido o revocado (401), limpiando sesión...');
+					// ✅ IMPORTANTE: Limpiar la cookie del navegador también
+					document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+				} else {
+					console.log('ℹ️ [Bootstrap] Error en inicialización:', errorMessage);
+				}
+				
+				await doLogout(false);
 			} finally {
-				// 6. Garantía de finalización
-				setLoading(false); 
-				console.log('🏁 6. Proceso de inicialización finalizado.');
+				setLoading(false);
+				console.log('🏁 [Bootstrap] Inicialización finalizada');
 			}
 		};
 
 		initializeAuth();
 		
-	}, []); // FIX: Dependencia vacía para garantizar una única ejecución del efecto.
+	}, [doLogout, determineUserType, updateAccessLevels]);
 
 	// ============================================================================
 	// FUNCIONES PÚBLICAS
 	// ============================================================================
-// ... (El resto del código permanece igual)
+
 	/**
-	 * Establece la autenticación después del login
+	 * ✅ Establece la autenticación después del login
 	 */
 	const setAuthFromLogin = useCallback((response: AuthResponse): UserData | null => {
 		if (!response?.access_token || !response?.user_data) {
-			console.error('❌ Respuesta de login inválida');
+			console.error('❌ [Login] Respuesta inválida');
 			setAuth(initialAuth);
 			authRef.current = initialAuth;
+			updateAccessLevels(null);
 			return null;
 		}
+		
+		console.log('✅ [Login] Configurando autenticación:', {
+			usuario: response.user_data.nombre_usuario,
+			accessLevel: response.user_data.access_level,
+			isSuperAdmin: response.user_data.is_super_admin
+		});
 		
 		const newAuth = { token: response.access_token, user: response.user_data };
 		setAuth(newAuth);
 		authRef.current = newAuth;
-		console.log('✅ Login exitoso:', response.user_data.nombre_usuario);
+		
+		updateAccessLevels(response.user_data);
+		
 		return response.user_data;
-	}, []);
+	}, [updateAccessLevels]);
 
 	/**
 	 * Cierra la sesión del usuario
 	 */
 	const logout = useCallback(async () => {
-		console.log('🚪 Cerrando sesión...');
+		console.log('🚪 [Logout] Cerrando sesión...');
 		await doLogout(true);
-		console.log('✅ Sesión cerrada');
+		console.log('✅ [Logout] Sesión cerrada');
 	}, [doLogout]);
 
 	/**
@@ -409,16 +448,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 	const hasRole = useCallback((...roles: string[]): boolean => {
 		if (!authRef.current.user?.roles?.length) return false;
 		
-		const userRoles = new Set(authRef.current.user.roles.map(r => r.toLowerCase()));
+		// ✅ CORRECCIÓN: Convertir roles a string explícitamente
+		const userRoles = new Set(
+			authRef.current.user.roles.map((r: any) => {
+				const roleStr = typeof r === 'string' ? r : String(r);
+				return roleStr.toLowerCase();
+			})
+		);
 		
-		// Sinónimos de roles (admin = administrador)
 		const getRoleSynonyms = (role: string): string[] => {
 			const normalized = role.toLowerCase();
 			if (normalized === 'admin' || normalized === 'super administrador') {
 				return ['admin', 'super administrador'];
 			}
 			return [normalized];
-			//... (otros sinónimos)
 		};
 		
 		return roles.some(role => 
@@ -429,7 +472,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 	// ============================================================================
 	// CONTEXT VALUE
 	// ============================================================================
-
 	const value = useMemo<AuthContextType>(
 		() => ({
 			auth,
@@ -438,8 +480,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			isAuthenticated: !!auth.token && !!auth.user,
 			loading,
 			hasRole,
+			accessLevel,
+			isSuperAdmin,
+			userType,
+			clienteInfo,
 		}),
-		[auth, loading, setAuthFromLogin, logout, hasRole]
+		[auth, loading, setAuthFromLogin, logout, hasRole, accessLevel, isSuperAdmin, userType, clienteInfo]
 	);
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -448,7 +494,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 // ============================================================================
 // HOOK
 // ============================================================================
-
 export const useAuth = () => {
 	const context = useContext(AuthContext);
 	if (!context) {

@@ -3,7 +3,8 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useBreadcrumb } from '../../context/BreadcrumbContext';
-import { User, Mail, Settings, LogOut, ChevronDown, ChevronRight, Home } from 'lucide-react';
+import { User, Mail, Settings, LogOut, ChevronDown, ChevronRight, Home, Shield, Building2, Crown } from 'lucide-react';
+import useUserType from '../../hooks/useUserType';
 
 const Header = () => {
   const { auth, logout } = useAuth();
@@ -11,6 +12,14 @@ const Header = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  
+  // ✅ CORREGIDO: Eliminadas variables no utilizadas
+  const { 
+    isSuperAdminUser, 
+    isTenantAdminUser, 
+    accessLevel, 
+    clienteInfo 
+  } = useUserType();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -36,6 +45,35 @@ const Header = () => {
       navigate(normalizedPath);
     }
   };
+
+  // ✅ NUEVO: Obtener badge de tipo de usuario
+  const getUserTypeBadge = () => {
+    if (isSuperAdminUser) {
+      return {
+        text: 'ADMINISTRADOR GLOBAL',
+        icon: Crown,
+        color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+        iconColor: 'text-purple-600 dark:text-purple-400'
+      };
+    }
+    if (isTenantAdminUser) {
+      return {
+        text: clienteInfo?.nombre || 'ADMINISTRADOR',
+        icon: Building2,
+        color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+        iconColor: 'text-blue-600 dark:text-blue-400'
+      };
+    }
+    return {
+      text: 'USUARIO',
+      icon: User,
+      color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+      iconColor: 'text-gray-600 dark:text-gray-400'
+    };
+  };
+
+  const userBadge = getUserTypeBadge();
+  const BadgeIcon = userBadge.icon;
 
   return (
     <header className="bg-white dark:bg-gray-800 shadow-sm h-16 flex-shrink-0 w-full border-b border-gray-200 dark:border-gray-700"> 
@@ -96,6 +134,16 @@ const Header = () => {
           )}
         </div>
 
+        {/* ✅ NUEVO: Badge de tipo de usuario (solo en desktop) */}
+        {!isMenuOpen && (
+          <div className="hidden md:flex items-center mr-4">
+            <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold ${userBadge.color}`}>
+              <BadgeIcon className={`w-3 h-3 ${userBadge.iconColor}`} />
+              <span className="truncate max-w-32">{userBadge.text}</span>
+            </div>
+          </div>
+        )}
+
         {/* User Menu Section */}
         <div className="relative ml-4 flex-shrink-0" ref={menuRef}>
           <button
@@ -112,7 +160,52 @@ const Header = () => {
           </button>
           
           {isMenuOpen && (
-            <div className="absolute right-0 mt-2 w-56 origin-top-right bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 z-50">
+            <div className="absolute right-0 mt-2 w-64 origin-top-right bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 z-50">
+              
+              {/* ✅ NUEVO: Información de usuario y tipo */}
+              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600 text-white font-semibold text-sm">
+                    {getInitials()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {auth.user?.nombre} {auth.user?.apellido}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      {auth.user?.correo}
+                    </p>
+                    <div className="flex items-center space-x-1 mt-1">
+                      <div className={`flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs font-medium ${userBadge.color}`}>
+                        <BadgeIcon className={`w-3 h-3 ${userBadge.iconColor}`} />
+                        <span>{userBadge.text}</span>
+                      </div>
+                      {accessLevel > 0 && (
+                        <div className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs font-medium">
+                          Nivel {accessLevel}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ✅ NUEVO: Información del cliente para tenant admin */}
+              {clienteInfo && (
+                <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-400">
+                    <Building2 className="w-3 h-3" />
+                    <span className="truncate" title={clienteInfo.nombre}>
+                      {clienteInfo.nombre}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                    Subdominio: {clienteInfo.subdominio}
+                  </div>
+                </div>
+              )}
+
+              {/* Menú de opciones */}
               <button
                 className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
               >
@@ -134,12 +227,33 @@ const Header = () => {
                 Configuraciones de la cuenta
               </button>
 
+              {/* ✅ NUEVO: Enlace rápido a administración según tipo de usuario */}
+              {(isSuperAdminUser || isTenantAdminUser) && (
+                <>
+                  <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                  <button
+                    onClick={() => {
+                      if (isSuperAdminUser) {
+                        navigate('/super-admin/clientes');
+                      } else {
+                        navigate('/admin/usuarios');
+                      }
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full px-4 py-2 text-sm text-left text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 flex items-center"
+                  >
+                    <Shield className="w-4 h-4 mr-3" />
+                    {isSuperAdminUser ? 'Administración Global' : 'Administración del Tenant'}
+                  </button>
+                </>
+              )}
+
               <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
 
               <button
                 onClick={logout}
                 className="w-full px-4 py-2 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center"
-              >
+                  >
                 <LogOut className="w-4 h-4 mr-3" />
                 Cerrar Sesión
               </button>

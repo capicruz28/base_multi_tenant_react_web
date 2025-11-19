@@ -11,15 +11,30 @@ export default defineConfig({
     },
   },
   server: {
-    host: true,
+    host: '0.0.0.0',  // ✅ Permite acceso desde subdominios
     port: 5173,
-    allowedHosts: ['.midominio.com'],
+    strictPort: true,  // ✅ Falla si el puerto está ocupado
+    
+    // ✅ CORRECCIÓN CRÍTICA: Permitir todos los subdominios
+    allowedHosts: [
+      'localhost',
+      '.app.local',  // ✅ Permite platform.app.local, acme.app.local, etc.
+      '.midominio.com',  // ✅ Mantener para producción
+    ],
+    
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
-        //rewrite: (path) => path,
+        ws: true,  // ✅ Habilita WebSockets
+        configure: (proxy) => {
+          // ✅ CORRECCIÓN: Solo usar 'proxy', eliminar parámetros no usados
+          proxy.on('proxyReq', (proxyReq, req) => {
+            // ✅ Log para debugging (opcional, puedes comentar si no lo necesitas)
+            console.log(`[PROXY] ${req.method} ${req.url} → ${proxyReq.path}`);
+          });
+        },
       }
     }
   }

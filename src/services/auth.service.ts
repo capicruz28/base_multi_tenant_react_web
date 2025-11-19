@@ -9,6 +9,20 @@ interface RefreshRequestConfig extends AxiosRequestConfig {
     _retry?: boolean;
 }
 
+// ✅ NUEVO: Interfaz extendida para la respuesta de login con campos de nivel de acceso
+interface ExtendedAuthResponse extends AuthResponse {
+    user_data: UserData & {
+        access_level?: number;
+        is_super_admin?: boolean;
+        user_type?: string;
+        cliente?: {
+            id: number;
+            nombre: string;
+            subdominio: string;
+        };
+    };
+}
+
 /**
  * Servicio de autenticación
  * Este servicio asume que el Refresh Token es manejado automáticamente
@@ -28,15 +42,32 @@ const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
 		params.append('password', credentials.password);
 
 		// Realizar petición de login. El Refresh Token se recibe como cookie HttpOnly.
-		const { data } = await api.post<AuthResponse>('/auth/login/', params, {
+		// ✅ MODIFICADO: Usar ExtendedAuthResponse para tipar la respuesta
+		const { data } = await api.post<ExtendedAuthResponse>('/auth/login/', params, {
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded',
 				'X-Client-Type': 'web',
 			},
 		});
 
-		// Debería devolver el access_token y user_data
-		return data;
+		// ✅ NUEVO: Validar y normalizar campos de nivel de acceso
+		const normalizedResponse: AuthResponse = {
+			...data,
+			user_data: {
+				...data.user_data,
+				// Asegurar que los campos de nivel de acceso estén presentes
+				access_level: data.user_data.access_level || 0,
+				is_super_admin: data.user_data.is_super_admin || false,
+				user_type: data.user_data.user_type || 'user',
+				cliente: data.user_data.cliente || null,
+			}
+		};
+
+		console.log('✅ Login exitoso - Nivel de acceso:', normalizedResponse.user_data.access_level, 
+			'Super Admin:', normalizedResponse.user_data.is_super_admin,
+			'Tipo:', normalizedResponse.user_data.user_type);
+
+		return normalizedResponse;
 	} catch (error) {
 		const axiosError = error as AxiosError<{ detail?: string }>;
 		console.error('Login failed:', axiosError.response?.data || axiosError.message);
@@ -51,8 +82,32 @@ const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
  */
 const getCurrentUserProfile = async (): Promise<UserData | null> => {
 	try {
-		const response = await api.get<UserData>('/auth/me/');
-		return response.data;
+		// ✅ MODIFICADO: Usar ExtendedAuthResponse para tipar la respuesta
+		const response = await api.get<UserData & {
+			access_level?: number;
+			is_super_admin?: boolean;
+			user_type?: string;
+			cliente?: {
+				id: number;
+				nombre: string;
+				subdominio: string;
+			};
+		}>('/auth/me/');
+		
+		// ✅ NUEVO: Normalizar campos de nivel de acceso
+		const userData: UserData = {
+			...response.data,
+			access_level: response.data.access_level || 0,
+			is_super_admin: response.data.is_super_admin || false,
+			user_type: response.data.user_type || 'user',
+			cliente: response.data.cliente || null,
+		};
+
+		console.log('✅ Perfil obtenido - Nivel de acceso:', userData.access_level, 
+			'Super Admin:', userData.is_super_admin,
+			'Tipo:', userData.user_type);
+
+		return userData;
 	} catch (error) {
 		const axiosError = error as AxiosError;
 		console.error('Error fetching user profile:', axiosError.response?.data || axiosError.message);
@@ -80,6 +135,7 @@ const logout = async (): Promise<void> => {
 				'X-Client-Type': 'web',
 			},
 		});
+		console.log('✅ Logout exitoso en servidor');
 	} catch (error) {
 		const axiosError = error as AxiosError;
 		console.error('Logout error:', axiosError.response?.data || axiosError.message);
@@ -106,12 +162,13 @@ const refreshToken = async (): Promise<string> => {
 		} as RefreshRequestConfig); // Añadir aserción de tipo aquí
 		
 		// Si el backend es exitoso, solo devuelve el nuevo Access Token
+		console.log('✅ Token refrescado exitosamente');
 		return data.access_token;
 	} catch (error) {
 		const axiosError = error as AxiosError;
         // Si el refresh falla (ej: cookie expirada o invalidada por el servidor)
         // PROPAGAMOS el error para que el AuthContext lo capture y fuerce el logout.
-		console.error('Token refresh failed (Cookie issue):', axiosError.response?.data || axiosError.message);
+		console.error('❌ Token refresh failed (Cookie issue):', axiosError.response?.data || axiosError.message);
 		throw error;
 	}
 };

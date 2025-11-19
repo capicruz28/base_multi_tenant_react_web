@@ -1,38 +1,43 @@
-// src/App.tsx (MODIFICADO PARA USAR AdminLayout)
+// src/App.tsx
 import './index.css'
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider } from './context/ThemeContext'; // Ajusta ruta
-import { AuthProvider } from './context/AuthContext';   // Ajusta ruta
+import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider } from './context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 
-import { DndProvider } from 'react-dnd'; // <<< Importa DndProvider
-import { HTML5Backend } from 'react-dnd-html5-backend'; // <<< Importa el Backend
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 
 // Layouts y Protección
-import ProtectedRoute from './components/ProtectedRoute'; // Ajusta ruta
-//import MainLayout from './components/layout/MainLayout'; // Ajusta ruta
-//import AdminLayout from './components/layout/AdminLayout'; // <-- IMPORTAR NUEVO LAYOUT
-import NewLayout from './components/layout/NewLayout'; // <-- AÑADIR NUEVO LAYOUT
+import ProtectedRoute from './components/ProtectedRoute';
+import NewLayout from './components/layout/NewLayout';
+import SmartRedirect from './components/SmartRedirect'; // ✅ NUEVO
 
 // Páginas Públicas
-import Login from './pages/auth/Login'; // Ajusta ruta
-import UnauthorizedPage from './pages/UnauthorizedPage'; // Ajusta ruta
+import Login from './pages/auth/Login';
+import UnauthorizedPage from './pages/UnauthorizedPage';
 
-// Páginas Principales/Normales (Importaciones sin cambios)
-import Home from './pages/Home'; // Ajusta ruta
+// Páginas Principales/Normales
+import Home from './pages/Home';
 
 // Páginas de Administración
-import UserManagementPage from './pages/admin/UserManagementPage'; // Ajusta ruta
-import RoleManagementPage from './pages/admin/RoleManagementPage'; // Ajusta ruta
+import UserManagementPage from './pages/admin/UserManagementPage';
+import RoleManagementPage from './pages/admin/RoleManagementPage';
 import AreaManagementPage from './pages/admin/AreaManagementPage';
 import MenuManagementPage from './pages/admin/MenuManagementPage';
-import ActiveSessionsPage from './pages/admin/ActiveSessionsPage'; // 🆕 NUEVA PÁGINA
-// ... (importa otras páginas de admin si las tienes) ...
+import ActiveSessionsPage from './pages/admin/ActiveSessionsPage';
 import AutorizacionPage from './pages/AutorizacionPage';
 import FinalizarTareoPage from './pages/FinalizarTareoPage';
 import ReporteAutorizacionPage from './pages/ReporteAutorizacionPage';
+
+// Páginas de Super Admin
+import ClientManagementPage from './pages/super-admin/ClientManagementPage';
+import ClientDetailPage from './pages/super-admin/ClientDetailPage';
+import ModuleManagementPage from './pages/super-admin/ModuleManagementPage';
+import ConnectionManagementPage from './pages/super-admin/ConnectionManagementPage';
+import SuperAdminDashboard from './pages/super-admin/SuperAdminDashboard';
 
 const queryClient = new QueryClient();
 
@@ -40,77 +45,71 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider> {/* Envuelve todo en AuthProvider */}
+        <AuthProvider>
           <BrowserRouter>
             <Routes>
               {/* --- Rutas Públicas --- */}
               <Route path="/login" element={<Login />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-              {/* --- Rutas Protegidas (Usuario Normal - Usan MainLayout) --- */}
-              {/* Protección base: Requiere estar autenticado */}
+              {/* --- Rutas Protegidas (Usuario Normal) --- */}
               <Route element={<ProtectedRoute />}>
-                {/* Layout principal para usuarios autenticados */}
-                <Route path="/" element={<NewLayout  />}>
-                  {/* Redirección del índice a la página principal */}
-                  <Route index element={<Navigate to="/home" replace />} />
+                <Route path="/" element={<NewLayout />}>
+                  {/* ✅ CORRECCIÓN: Redirección inteligente según tipo de usuario */}
+                  <Route index element={<SmartRedirect />} />
 
                   {/* Rutas accesibles para cualquier usuario autenticado */}
                   <Route path="home" element={<Home />} />                  
-                  {/* Si /administracion es una página normal, va aquí */}
                   <Route path="finalizartareo" element={<FinalizarTareoPage />} />
                   <Route path="autorizacion" element={<AutorizacionPage />} />
                   <Route path="reportedestajo" element={<ReporteAutorizacionPage />} />
 
-                  {/* Catch-all DENTRO de MainLayout: redirige a /home si la ruta no existe */}
-                  <Route path="*" element={<Navigate to="/home" replace />} />
-                </Route> {/* Fin MainLayout */}
-              </Route> {/* Fin ProtectedRoute base */}
+                  {/* Catch-all: redirige según tipo de usuario */}
+                  <Route path="*" element={<SmartRedirect />} />
+                </Route>
+              </Route>
 
-
-              {/* --- Rutas de Administración (Usan AdminLayout) --- */}
-              {/* Ruta padre para toda la sección /admin */}
+              {/* --- Rutas de Administración (Tenant Admin) --- */}
               <Route
                 path="/admin"
                 element={
-                  // Protección específica: Requiere rol 'admin' para acceder a CUALQUIER ruta /admin/*
-                  <ProtectedRoute requiredRole="admin">
+                  <ProtectedRoute requiredLevel={4}>
                     <DndProvider backend={HTML5Backend}>
-                    <NewLayout  /> {/* Usar el layout específico de admin */}
+                      <NewLayout />
                     </DndProvider>
                   </ProtectedRoute>
                 }
               >
-                {/* Las rutas anidadas se renderizarán dentro del <Outlet /> de AdminLayout */}
-
-                {/* Redirigir la ruta base /admin a la página de usuarios por defecto */}
                 <Route index element={<Navigate to="usuarios" replace />} />
-
-                {/* Páginas específicas de administración (ya no necesitan ProtectedRoute individual) */}
-                
                 <Route path="usuarios" element={<UserManagementPage />} />
                 <Route path="roles" element={<RoleManagementPage />} />
                 <Route path="areas" element={<AreaManagementPage />} />                
                 <Route path="menus" element={<MenuManagementPage />} />
-                       {/* 🆕 NUEVA RUTA: Gestión de Sesiones Activas */}
                 <Route path="sesiones" element={<ActiveSessionsPage />} />
-                
-                {/* Añade aquí más rutas específicas de admin si las tienes */}
-                {/* Ejemplo: <Route path="permisos" element={<PermissionPage />} /> */}
+                <Route path="*" element={<Navigate to="/admin/usuarios" replace />} />
+              </Route>
 
-                 {/* Catch-all DENTRO de AdminLayout: redirige a /admin/usuarios si la ruta admin no existe */}
-                 <Route path="*" element={<Navigate to="/admin/usuarios" replace />} />
-
-              </Route> {/* Fin de rutas /admin */}
-
-
-              {/* --- Catch-all Global (Opcional) --- */}
-              {/* Si ninguna ruta coincide (ni pública, ni normal, ni admin), */}
-              {/* puedes redirigir a login o mostrar una página 404 general. */}
-              {/* Ejemplo: <Route path="*" element={<Navigate to="/login" replace />} /> */}
-
+              {/* --- Rutas de Super Admin --- */}
+              <Route
+                path="/super-admin"
+                element={
+                  <ProtectedRoute requireSuperAdmin={true}>
+                    <DndProvider backend={HTML5Backend}>
+                      <NewLayout />
+                    </DndProvider>
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<SuperAdminDashboard />} />
+                <Route path="clientes" element={<ClientManagementPage />} />
+                <Route path="clientes/:id" element={<ClientDetailPage />} />
+                <Route path="modulos" element={<ModuleManagementPage />} />
+                <Route path="conexiones" element={<ConnectionManagementPage />} />
+                <Route path="*" element={<Navigate to="/super-admin/dashboard" replace />} />
+              </Route>
             </Routes>
-            <Toaster position="top-right" /> {/* Configuración global de Toaster */}
+            <Toaster position="top-right" />
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>

@@ -1,5 +1,5 @@
 // src/services/error.service.ts
-import { ApiError } from '../types/auth.types';
+import { /*ApiError,*/ SimplifiedApiError } from '../types/auth.types';
 import axios, { AxiosError } from 'axios'; // Importar AxiosError para tipado más preciso
 
 // Interfaz para la estructura esperada del error de FastAPI
@@ -7,7 +7,7 @@ interface FastAPIErrorDetail {
   detail: string | { msg: string; type: string }[]; // Puede ser string o una lista de errores de validación Pydantic
 }
 
-export const getErrorMessage = (error: unknown): ApiError => {
+export const getErrorMessage = (error: unknown): SimplifiedApiError => {
   // Primero, verificar si es un error de Axios
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<FastAPIErrorDetail>; // Tipar la data esperada

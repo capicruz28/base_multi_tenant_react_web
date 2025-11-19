@@ -1,27 +1,31 @@
-// src/config/adminMenu.ts (CORREGIDO)
+// src/config/adminMenu.ts (RENOMBRADO Y AJUSTADO)
 
 import { SidebarMenuItem } from '../types/menu.types'; 
-// Asegúrate de que SidebarMenuItem y los iconos de Lucide estén disponibles
+
+/**
+ * Menú de Administración de Tenant - Para Administradores de Cliente
+ * Este menú permite gestionar usuarios, roles y configuración dentro del tenant específico
+ */
 
 // El campo 'icono' debe coincidir con el nombre de un componente en LucideIcons
-export const administrationNavItems: SidebarMenuItem[] = [
-  // Título/Separador
+export const tenantAdminNavItems: SidebarMenuItem[] = [
+  // Título/Separador para Administración del Tenant
   { 
-    menu_id: 'admin_header', // <-- menu_id ahora es string
-    nombre: '', 
+    menu_id: 'tenant_admin_header',
+    nombre: 'Administración del Tenant', 
     ruta: null, 
     icono: null,
-    isSeparator: true, // <-- Propiedad ahora permitida
-    children: [], // Asegurar que children está presente si no es opcional en tu SidebarMenuItem original
-    es_activo: true, // Asumir activo
+    isSeparator: true,
+    children: [],
+    es_activo: true,
     padre_menu_id: null,
     area_id: null,
     area_nombre: null,
     orden: null,
   }, 
-  // Opciones de gestión estática
+  // Opciones de gestión dentro del tenant
   {
-    menu_id: 'user_management', // <-- menu_id ahora es string
+    menu_id: 'user_management',
     nombre: 'Gestión de Usuarios',
     ruta: '/admin/usuarios',
     icono: 'Users',
@@ -33,7 +37,7 @@ export const administrationNavItems: SidebarMenuItem[] = [
     orden: 1,
   },
   {
-    menu_id: 'role_management', // <-- menu_id ahora es string
+    menu_id: 'role_management',
     nombre: 'Roles y Permisos',
     ruta: '/admin/roles',
     icono: 'ShieldCheck',
@@ -45,7 +49,7 @@ export const administrationNavItems: SidebarMenuItem[] = [
     orden: 2,
   },
   {
-    menu_id: 'area_management', // <-- menu_id ahora es string
+    menu_id: 'area_management',
     nombre: 'Gestión de Áreas',
     ruta: '/admin/areas',
     icono: 'FolderKanban',
@@ -57,7 +61,7 @@ export const administrationNavItems: SidebarMenuItem[] = [
     orden: 3,
   },
   {
-    menu_id: 'menu_management', // <-- menu_id ahora es string
+    menu_id: 'menu_management',
     nombre: 'Gestión de Menús',
     ruta: '/admin/menus',
     icono: 'ListTree',
@@ -68,8 +72,8 @@ export const administrationNavItems: SidebarMenuItem[] = [
     area_nombre: null,
     orden: 4,
   },
-    {
-    menu_id: 'session_management', // <-- menu_id ahora es string
+  {
+    menu_id: 'session_management',
     nombre: 'Sesiones Activas',
     ruta: '/admin/sesiones',
     icono: 'LogOut',
@@ -78,6 +82,9 @@ export const administrationNavItems: SidebarMenuItem[] = [
     padre_menu_id: null,
     area_id: null,
     area_nombre: null,
-    orden: 4,
+    orden: 5,
   },
 ];
+
+// ✅ MANTENER compatibilidad hacia atrás (exportación alias)
+export const administrationNavItems = tenantAdminNavItems;
