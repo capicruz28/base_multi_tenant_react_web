@@ -1,6 +1,11 @@
 /**
  * Tipos para la gestión de módulos (Super Admin)
+ * Alineados 100% con los schemas del backend (app.schemas.modulo)
  */
+
+// ============================================
+// TIPOS BASE - CATÁLOGO DE MÓDULOS
+// ============================================
 
 export interface Modulo {
   modulo_id: number;
@@ -12,7 +17,7 @@ export interface Modulo {
   requiere_licencia: boolean;
   orden: number;
   es_activo: boolean;
-  fecha_creacion: string;
+  fecha_creacion: string | null;
 }
 
 export interface ModuloCreate {
@@ -20,9 +25,10 @@ export interface ModuloCreate {
   nombre: string;
   descripcion?: string | null;
   icono?: string | null;
-  es_modulo_core: boolean;
-  requiere_licencia: boolean;
+  es_modulo_core?: boolean;
+  requiere_licencia?: boolean;
   orden?: number;
+  es_activo?: boolean;
 }
 
 export interface ModuloUpdate {
@@ -36,7 +42,11 @@ export interface ModuloUpdate {
   es_activo?: boolean;
 }
 
-export interface ModuloAsignado {
+// ============================================
+// TIPOS PARA MÓDULOS ACTIVOS POR CLIENTE
+// ============================================
+
+export interface ModuloActivo {
   cliente_modulo_activo_id: number;
   cliente_id: number;
   modulo_id: number;
@@ -46,17 +56,166 @@ export interface ModuloAsignado {
   configuracion_json: Record<string, any> | null;
   limite_usuarios: number | null;
   limite_registros: number | null;
-  modulo: Modulo;
+  // Información del módulo (join)
+  modulo_nombre?: string | null;
+  codigo_modulo?: string | null;
+  modulo_descripcion?: string | null;
 }
 
-export interface ModuloConfig {
-  [key: string]: any;
+export interface ModuloActivoCreate {
+  cliente_id: number;
+  modulo_id: number;
+  configuracion_json?: Record<string, any> | null;
+  limite_usuarios?: number | null;
+  limite_registros?: number | null;
+}
+
+export interface ModuloActivoUpdate {
+  configuracion_json?: Record<string, any> | null;
+  limite_usuarios?: number | null;
+  limite_registros?: number | null;
+  fecha_vencimiento?: string | null;
+  esta_activo?: boolean;
+}
+
+// ============================================
+// TIPOS PARA MÓDULOS CON INFORMACIÓN DE ACTIVACIÓN
+// ============================================
+
+export interface ModuloConInfoActivacion extends Modulo {
+  activo_en_cliente: boolean;
+  cliente_modulo_activo_id: number | null;
+  fecha_activacion: string | null;
+  configuracion_json: Record<string, any> | null;
+  limite_usuarios: number | null;
+  limite_registros: number | null;
+}
+
+// ============================================
+// TIPOS PARA ESTADÍSTICAS DE MÓDULOS ACTIVOS
+// ============================================
+
+export interface ModuloActivoConEstadisticas extends ModuloActivo {
+  usuarios_activos: number;
+  registros_totales: number;
+  porcentaje_uso_usuarios: number | null;
+  porcentaje_uso_registros: number | null;
+  dias_restantes_licencia: number | null;
+  esta_proximo_vencimiento: boolean;
+  esta_sobre_limite: boolean;
+}
+
+// ============================================
+// TIPOS DE RESPUESTA DEL BACKEND
+// ============================================
+
+export interface PaginationMetadata {
+  total: number;
+  skip: number;
+  limit: number;
+  total_pages: number;
+  current_page: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
+
+export interface ModuloResponse {
+  success: boolean;
+  message: string;
+  data: Modulo | null;
 }
 
 export interface ModuloListResponse {
-  modulos: Modulo[];
-  pagina_actual: number;
-  total_paginas: number;
-  total_modulos: number;
-  limite: number;
+  success: boolean;
+  message: string;
+  data: Modulo[];
+}
+
+export interface PaginatedModuloResponse {
+  success: boolean;
+  message: string;
+  data: Modulo[];
+  pagination: PaginationMetadata;
+}
+
+export interface ModuloDeleteResponse {
+  success: boolean;
+  message: string;
+  modulo_id: number;
+}
+
+// ============================================
+// TIPOS PARA WORKFLOWS INTEGRADOS
+// ============================================
+
+export interface WorkflowActivacionCompletaRequest {
+  activacion: ModuloActivoCreate;
+  conexion?: {
+    servidor: string;
+    puerto: number;
+    nombre_bd: string;
+    usuario: string;
+    password: string;
+    tipo_bd: 'sqlserver' | 'postgresql' | 'mysql' | 'oracle';
+    usa_ssl?: boolean;
+    timeout_segundos?: number;
+    max_pool_size?: number;
+    es_solo_lectura?: boolean;
+    es_conexion_principal?: boolean;
+  };
+}
+
+export interface WorkflowActivacionCompletaResponse {
+  success: boolean;
+  message: string;
+  workflow: 'activar-completo';
+  data: {
+    modulo: Modulo;
+    activacion: ModuloActivo;
+    conexion: any | null;
+    test_conexion: {
+      success: boolean;
+      mensaje: string;
+      tiempo_respuesta_ms?: number;
+    } | null;
+  };
+}
+
+export interface WorkflowDesactivacionCompletaResponse {
+  success: boolean;
+  message: string;
+  workflow: 'desactivar-completo';
+  data: {
+    cliente_id: number;
+    modulo_id: number;
+    conexiones_desactivadas: number;
+    conexion_ids: number[];
+  };
+}
+
+export interface WorkflowEstadoCompletoResponse {
+  success: boolean;
+  message: string;
+  workflow: 'estado-completo';
+  data: {
+    modulo: Modulo;
+    activacion: ModuloActivo;
+    estadisticas: ModuloActivoConEstadisticas;
+    conexiones: {
+      total: number;
+      principal: any | null;
+      todas: any[];
+    };
+  };
+}
+
+// ============================================
+// TIPOS PARA FILTROS Y BÚSQUEDA
+// ============================================
+
+export interface ModuloFilters {
+  buscar?: string;
+  es_modulo_core?: boolean;
+  requiere_licencia?: boolean;
+  solo_activos?: boolean;
 }

@@ -24,6 +24,7 @@ const Login: React.FC = () => { // Añadir tipo explícito React.FC
   const from = location.state?.from?.pathname; // Página desde la que se llegó a /login (si aplica)
   const defaultHome = "/home"; // Página por defecto para usuarios normales
   const adminHome = "/admin/usuarios"; // Página por defecto para administradores
+  const superadminDashboard = "/super-admin/dashboard"; // Página por defecto para administradores
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,8 +54,8 @@ const Login: React.FC = () => { // Añadir tipo explícito React.FC
 
         if (userRoles.includes('Super Administrador')) {
           // Si es admin, redirigir a la página principal de admin
-          destination = adminHome;
-          console.log('Admin user detected, navigating to', destination);
+          destination = superadminDashboard;
+          console.log('Super Admin user detected, navigating to', destination);
         } else {
           // Si no es admin, redirigir a la página de origen ('from') si existe y no es /login o /unauthorized,
           // de lo contrario, redirigir a la página principal por defecto.

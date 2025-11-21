@@ -35,7 +35,7 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
     puerto: conexion.puerto,
     nombre_bd: conexion.nombre_bd,
     usuario: '',
-    contrasena: '',
+    password: '',
     tipo_bd: conexion.tipo_bd,
     usa_ssl: conexion.usa_ssl,
     timeout_segundos: conexion.timeout_segundos,
@@ -57,7 +57,7 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
         puerto: conexion.puerto,
         nombre_bd: conexion.nombre_bd,
         usuario: '', // No mostramos el usuario actual por seguridad
-        contrasena: '', // No mostramos la contraseña actual por seguridad
+        password: '', // No mostramos la contraseña actual por seguridad
         tipo_bd: conexion.tipo_bd,
         usa_ssl: conexion.usa_ssl,
         timeout_segundos: conexion.timeout_segundos,
@@ -98,15 +98,15 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.servidor?.trim()) {
+    if (formData.servidor !== undefined && !formData.servidor.trim()) {
       newErrors.servidor = 'El servidor es requerido';
     }
 
-    if (!formData.puerto || formData.puerto < 1 || formData.puerto > 65535) {
+    if (formData.puerto !== undefined && (formData.puerto < 1 || formData.puerto > 65535)) {
       newErrors.puerto = 'El puerto debe estar entre 1 y 65535';
     }
 
-    if (!formData.nombre_bd?.trim()) {
+    if (formData.nombre_bd !== undefined && !formData.nombre_bd.trim()) {
       newErrors.nombre_bd = 'El nombre de la base de datos es requerido';
     }
 
@@ -119,7 +119,7 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
    */
   const handleTestConnection = async () => {
     // Para probar, necesitamos usuario y contraseña
-    if (!formData.usuario || !formData.contrasena) {
+    if (!formData.usuario || !formData.password) {
       toast.error('Para probar la conexión, debe ingresar usuario y contraseña');
       return;
     }
@@ -131,20 +131,31 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
 
     setTesting(true);
     try {
-      console.log('🧪 Probando conexión existente:', conexion.conexion_id);
+      console.log('🧪 Probando conexión con datos actualizados');
       
-      // ✅ CORREGIDO: Usar servicio actualizado para probar conexión existente
-      const result = await conexionService.testConexionExistente(conexion.conexion_id);
+      // Preparar datos para test
+      const testData = {
+        servidor: formData.servidor || conexion.servidor,
+        puerto: formData.puerto || conexion.puerto,
+        nombre_bd: formData.nombre_bd || conexion.nombre_bd,
+        usuario: formData.usuario,
+        password: formData.password,
+        tipo_bd: formData.tipo_bd || conexion.tipo_bd,
+        usa_ssl: formData.usa_ssl !== undefined ? formData.usa_ssl : conexion.usa_ssl,
+        timeout_segundos: formData.timeout_segundos || conexion.timeout_segundos
+      };
       
-      if (result.exito) {
-        console.log('✅ Prueba de conexión existente exitosa');
+      const result = await conexionService.testConexion(testData);
+      
+      if (result.success) {
+        console.log('✅ Prueba de conexión exitosa');
         toast.success(`✅ Conexión exitosa: ${result.mensaje}`);
       } else {
-        console.warn('⚠️ Prueba de conexión existente fallida:', result.mensaje);
+        console.warn('⚠️ Prueba de conexión fallida:', result.mensaje);
         toast.error(`❌ Error de conexión: ${result.mensaje}`);
       }
     } catch (error) {
-      console.error('❌ Error probando conexión existente:', error);
+      console.error('❌ Error probando conexión:', error);
       const errorData = getErrorMessage(error);
       toast.error(`❌ Error al probar conexión: ${errorData.message}`);
     } finally {
@@ -185,8 +196,8 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
       if (formData.usuario) {
         updateData.usuario = formData.usuario;
       }
-      if (formData.contrasena) {
-        updateData.contrasena = formData.contrasena;
+      if (formData.password) {
+        updateData.password = formData.password;
       }
 
       // ✅ CORREGIDO: Servicio actualizado
@@ -219,7 +230,7 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                 Editar Conexión
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {conexion.modulo?.nombre} - {conexion.servidor}
+                {conexion.servidor}:{conexion.puerto} - {conexion.nombre_bd}
               </p>
             </div>
           </div>
@@ -338,14 +349,14 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
             </div>
 
             <div>
-              <label htmlFor="contrasena" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Contraseña
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Contraseña (dejar vacío para mantener la actual)
               </label>
               <input
                 type="password"
-                id="contrasena"
-                name="contrasena"
-                value={formData.contrasena || ''}
+                id="password"
+                name="password"
+                value={formData.password || ''}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
                 placeholder="••••••••"

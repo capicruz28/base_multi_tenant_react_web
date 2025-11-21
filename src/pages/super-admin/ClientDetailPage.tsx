@@ -19,11 +19,9 @@ import {
 } from 'lucide-react';
 
 import { clienteService } from '../../services/cliente.service';
-import { moduloService } from '../../services/modulo.service';
-import { conexionService } from '../../services/conexion.service';
 import { Cliente, ClienteStats } from '../../types/cliente.types';
-import { ModuloAsignado } from '../../types/modulo.types';
-import { Conexion } from '../../types/conexion.types';
+import ClientModulesTab from './ClientModulesTab';
+import ClientConnectionsTab from './ClientConnectionsTab';
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage } from '../../services/error.service';
 
@@ -34,8 +32,6 @@ const ClientDetailPage: React.FC = () => {
   
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [stats, setStats] = useState<ClienteStats | null>(null);
-  const [modulos, setModulos] = useState<ModuloAsignado[]>([]);
-  const [conexiones, setConexiones] = useState<Conexion[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'modulos' | 'conexiones' | 'usuarios' | 'auditoria'>('info');
@@ -51,17 +47,13 @@ const ClientDetailPage: React.FC = () => {
       const clienteId = parseInt(id);
       
       // Cargar datos en paralelo
-      const [clienteData, statsData, modulosData, conexionesData] = await Promise.all([
+      const [clienteData, statsData] = await Promise.all([
         clienteService.getClienteById(clienteId),
-        clienteService.getClienteStats(clienteId),
-        moduloService.getModulosByCliente(clienteId),
-        conexionService.getConexiones(clienteId)
+        clienteService.getClienteStats(clienteId)
       ]);
       
       setCliente(clienteData);
       setStats(statsData);
-      setModulos(modulosData);
-      setConexiones(conexionesData.conexiones);
     } catch (err) {
       console.error('Error fetching client details:', err);
       const errorData = getErrorMessage(err);
@@ -176,7 +168,7 @@ const ClientDetailPage: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Usuarios</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  {stats.usuarios_activos}/{stats.total_usuarios}
+                  {stats.total_usuarios - stats.total_usuarios_inactivos}/{stats.total_usuarios}
                 </p>
               </div>
             </div>
@@ -190,7 +182,7 @@ const ClientDetailPage: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Módulos</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  {stats.modulos_activos}/{stats.total_modulos}
+                  {stats.modulos_activos}/{stats.modulos_contratados}
                 </p>
               </div>
             </div>
@@ -204,7 +196,7 @@ const ClientDetailPage: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Conexiones</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  {stats.conexiones_activas}
+                  {stats.conexiones_bd}
                 </p>
               </div>
             </div>
@@ -443,148 +435,16 @@ const ClientDetailPage: React.FC = () => {
         )}
 
         {/* Módulos */}
-        {activeTab === 'modulos' && (
+        {activeTab === 'modulos' && cliente && (
           <div className="p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              Módulos Asignados ({modulos.length})
-            </h3>
-            
-            {modulos.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {modulos.map((moduloAsignado) => (
-                  <div
-                    key={moduloAsignado.cliente_modulo_activo_id}
-                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
-                          <Package className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-gray-900 dark:text-white">
-                            {moduloAsignado.modulo.nombre}
-                          </h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {moduloAsignado.modulo.codigo_modulo}
-                          </p>
-                        </div>
-                      </div>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        moduloAsignado.esta_activo
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {moduloAsignado.esta_activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </div>
-                    
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-                      {moduloAsignado.modulo.descripcion || 'Sin descripción'}
-                    </p>
-                    
-                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                      <span>
-                        Activado: {new Date(moduloAsignado.fecha_activacion).toLocaleDateString()}
-                      </span>
-                      {moduloAsignado.modulo.es_modulo_core && (
-                        <span className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-1 rounded">
-                          Core
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <p className="text-gray-500 dark:text-gray-400">No hay módulos asignados</p>
-              </div>
-            )}
+            <ClientModulesTab clienteId={cliente.cliente_id} />
           </div>
         )}
 
         {/* Conexiones */}
-        {activeTab === 'conexiones' && (
+        {activeTab === 'conexiones' && cliente && (
           <div className="p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              Conexiones de Base de Datos ({conexiones.length})
-            </h3>
-            
-            {conexiones.length > 0 ? (
-              <div className="space-y-4">
-                {conexiones.map((conexion) => (
-                  <div
-                    key={conexion.conexion_id}
-                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0 h-10 w-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                          <Database className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-gray-900 dark:text-white">
-                            {conexion.modulo?.nombre || 'Módulo no encontrado'}
-                          </h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {conexion.servidor}:{conexion.puerto} / {conexion.nombre_bd}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {conexion.es_conexion_principal && (
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            Principal
-                          </span>
-                        )}
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          conexion.es_activo
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        }`}>
-                          {conexion.es_activo ? 'Activa' : 'Inactiva'}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-gray-500 dark:text-gray-400">Tipo BD:</span>
-                        <span className="ml-2 text-gray-900 dark:text-white capitalize">{conexion.tipo_bd}</span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-500 dark:text-gray-400">SSL:</span>
-                        <span className="ml-2 text-gray-900 dark:text-white">
-                          {conexion.usa_ssl ? 'Sí' : 'No'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-500 dark:text-gray-400">Solo lectura:</span>
-                        <span className="ml-2 text-gray-900 dark:text-white">
-                          {conexion.es_solo_lectura ? 'Sí' : 'No'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-500 dark:text-gray-400">Última conexión:</span>
-                        <span className="ml-2 text-gray-900 dark:text-white">
-                          {conexion.ultima_conexion_exitosa
-                            ? new Date(conexion.ultima_conexion_exitosa).toLocaleDateString()
-                            : 'Nunca'
-                          }
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Database className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <p className="text-gray-500 dark:text-gray-400">No hay conexiones configuradas</p>
-              </div>
-            )}
+            <ClientConnectionsTab clienteId={cliente.cliente_id} />
           </div>
         )}
 

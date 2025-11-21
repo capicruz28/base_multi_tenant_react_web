@@ -1,182 +1,280 @@
-// src/services/modulo.service.ts - VERSIÓN CORREGIDA
+/**
+ * Servicio para gestión de módulos (Super Admin)
+ * Alineado 100% con los endpoints del backend (app.api.v1.endpoints.modulos)
+ */
 import api from './api';
 import {
   Modulo,
   ModuloCreate,
   ModuloUpdate,
+  ModuloConInfoActivacion,
+  ModuloActivo,
+  ModuloActivoCreate,
+  ModuloActivoUpdate,
+  PaginatedModuloResponse,
   ModuloListResponse,
-  ModuloAsignado
+  ModuloResponse,
+  ModuloDeleteResponse,
+  ModuloFilters,
+  WorkflowActivacionCompletaRequest,
+  WorkflowActivacionCompletaResponse,
+  WorkflowDesactivacionCompletaResponse,
+  WorkflowEstadoCompletoResponse
 } from '../types/modulo.types';
 import { getErrorMessage } from './error.service';
 
-// ✅ USAR MISMO PATRÓN QUE CLIENTES
 const BASE_URL = '/modulos';
 
-/**
- * Servicio para gestión de módulos (Super Admin)
- */
 export const moduloService = {
   /**
-   * Obtener lista de módulos del sistema
+   * Listar catálogo de módulos con paginación
+   * Endpoint: GET /modulos/?skip=0&limit=100&solo_activos=true
    */
   async getModulos(
     pagina: number = 1,
-    limite: number = 50
-  ): Promise<ModuloListResponse> {
+    limite: number = 100,
+    solo_activos: boolean = true
+  ): Promise<PaginatedModuloResponse> {
+    try {
+      const params = new URLSearchParams();
+      const skip = (pagina - 1) * limite;
+      params.append('skip', skip.toString());
+      params.append('limit', limite.toString());
+      params.append('solo_activos', solo_activos.toString());
+
+      const url = `${BASE_URL}/?${params.toString()}`;
+      const { data } = await api.get<PaginatedModuloResponse>(url);
+      return data;
+    } catch (error) {
+      console.error('Error fetching modules:', error);
+      throw new Error(getErrorMessage(error).message || 'Error al obtener la lista de módulos');
+    }
+  },
+
+  /**
+   * Buscar módulos con filtros
+   * Endpoint: GET /modulos/search/?buscar=...&es_modulo_core=...&requiere_licencia=...
+   */
+  async buscarModulos(
+    pagina: number = 1,
+    limite: number = 100,
+    filtros?: ModuloFilters
+  ): Promise<PaginatedModuloResponse> {
     try {
       const params = new URLSearchParams();
       const skip = (pagina - 1) * limite;
       params.append('skip', skip.toString());
       params.append('limit', limite.toString());
 
-      // ✅ CORREGIDO: Usar mismo patrón - BARRA AL FINAL
-      const url = `${BASE_URL}/?${params.toString()}`;
-      console.log('🔄 Llamando endpoint módulos:', url);
+      if (filtros) {
+        if (filtros.buscar) params.append('buscar', filtros.buscar);
+        if (filtros.es_modulo_core !== undefined) params.append('es_modulo_core', filtros.es_modulo_core.toString());
+        if (filtros.requiere_licencia !== undefined) params.append('requiere_licencia', filtros.requiere_licencia.toString());
+        if (filtros.solo_activos !== undefined) params.append('solo_activos', filtros.solo_activos.toString());
+      }
 
-      const { data: modulos } = await api.get<Modulo[]>(url);
-      console.log('✅ Respuesta módulos recibida:', modulos.length, 'módulos');
-      
-      return {
-        modulos: modulos,
-        pagina_actual: pagina,
-        total_paginas: Math.ceil(modulos.length / limite),
-        total_modulos: modulos.length,
-        limite: limite
-      };
+      const url = `${BASE_URL}/search/?${params.toString()}`;
+      const { data } = await api.get<PaginatedModuloResponse>(url);
+      return data;
     } catch (error) {
-      console.error('❌ Error fetching modules:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al obtener la lista de módulos');
+      console.error('Error searching modules:', error);
+      throw new Error(getErrorMessage(error).message || 'Error al buscar módulos');
     }
   },
 
   /**
-   * Obtener detalle de un módulo por ID
+   * Obtener detalle de un módulo
+   * Endpoint: GET /modulos/{modulo_id}/
    */
-  async getModuloById(id: number): Promise<Modulo> {
+  async getModuloById(modulo_id: number): Promise<Modulo> {
     try {
-      // ✅ CORREGIDO: Usar mismo patrón - BARRA AL FINAL
-      const { data } = await api.get<Modulo>(`${BASE_URL}/${id}/`);
-      console.log('✅ Módulo obtenido por ID:', id);
-      return data;
+      const { data } = await api.get<ModuloResponse>(`${BASE_URL}/${modulo_id}/`);
+      if (!data.data) {
+        throw new Error('Módulo no encontrado');
+      }
+      return data.data;
     } catch (error) {
-      console.error('❌ Error fetching module by ID:', error);
+      console.error('Error fetching module by ID:', error);
       throw new Error(getErrorMessage(error).message || 'Error al obtener el módulo');
     }
   },
 
   /**
    * Crear un nuevo módulo
+   * Endpoint: POST /modulos/
    */
   async createModulo(moduloData: ModuloCreate): Promise<Modulo> {
     try {
-      // ✅ CORREGIDO: Usar mismo patrón - BARRA AL FINAL
-      const { data } = await api.post<Modulo>(`${BASE_URL}/`, moduloData);
-      console.log('✅ Módulo creado exitosamente');
-      return data;
+      const { data } = await api.post<ModuloResponse>(`${BASE_URL}/`, moduloData);
+      if (!data.data) {
+        throw new Error('Error al crear el módulo');
+      }
+      return data.data;
     } catch (error) {
-      console.error('❌ Error creating module:', error);
+      console.error('Error creating module:', error);
       throw new Error(getErrorMessage(error).message || 'Error al crear el módulo');
     }
   },
 
   /**
    * Actualizar un módulo existente
+   * Endpoint: PUT /modulos/{modulo_id}/
    */
-  async updateModulo(id: number, moduloData: ModuloUpdate): Promise<Modulo> {
+  async updateModulo(modulo_id: number, moduloData: ModuloUpdate): Promise<Modulo> {
     try {
-      // ✅ CORREGIDO: Usar mismo patrón - BARRA AL FINAL
-      const { data } = await api.put<Modulo>(`${BASE_URL}/${id}/`, moduloData);
-      console.log('✅ Módulo actualizado:', id);
-      return data;
+      const { data } = await api.put<ModuloResponse>(`${BASE_URL}/${modulo_id}/`, moduloData);
+      if (!data.data) {
+        throw new Error('Error al actualizar el módulo');
+      }
+      return data.data;
     } catch (error) {
-      console.error('❌ Error updating module:', error);
+      console.error('Error updating module:', error);
       throw new Error(getErrorMessage(error).message || 'Error al actualizar el módulo');
     }
   },
 
   /**
-   * Obtener módulos asignados a un cliente
+   * Eliminar (desactivar) un módulo
+   * Endpoint: DELETE /modulos/{modulo_id}/
    */
-  async getModulosByCliente(clienteId: number): Promise<ModuloAsignado[]> {
+  async deleteModulo(modulo_id: number): Promise<void> {
     try {
-      // ✅ CORREGIDO: Usar mismo patrón - BARRA AL FINAL
-      const { data } = await api.get<ModuloAsignado[]>(`${BASE_URL}/clientes/${clienteId}/modulos/`);
-      console.log('✅ Módulos del cliente obtenidos:', clienteId);
-      return data;
+      await api.delete<ModuloDeleteResponse>(`${BASE_URL}/${modulo_id}/`);
     } catch (error) {
-      console.error('❌ Error fetching client modules:', error);
+      console.error('Error deleting module:', error);
+      throw new Error(getErrorMessage(error).message || 'Error al eliminar el módulo');
+    }
+  },
+
+  /**
+   * Listar módulos de un cliente con información de activación
+   * Endpoint: GET /modulos/clientes/{cliente_id}/modulos/
+   */
+  async getModulosByCliente(cliente_id: number): Promise<ModuloConInfoActivacion[]> {
+    try {
+      const { data } = await api.get<ModuloListResponse>(`${BASE_URL}/clientes/${cliente_id}/modulos/`);
+      return data.data as ModuloConInfoActivacion[];
+    } catch (error) {
+      console.error('Error fetching client modules:', error);
       throw new Error(getErrorMessage(error).message || 'Error al obtener módulos del cliente');
     }
   },
 
   /**
-   * Asignar módulo a cliente
+   * Activar módulo para un cliente
+   * Endpoint: POST /modulos/clientes/{cliente_id}/modulos/{modulo_id}/activar/
    */
-  async assignModulo(
-    clienteId: number, 
-    moduloId: number, 
-    config?: Record<string, any>,
-    limite_usuarios?: number,
-    limite_registros?: number
-  ): Promise<ModuloAsignado> {
+  async activarModuloCliente(
+    cliente_id: number,
+    modulo_id: number,
+    activacionData: ModuloActivoCreate
+  ): Promise<ModuloActivo> {
     try {
-      // ✅ CORREGIDO: Usar mismo patrón - BARRA AL FINAL
-      const { data } = await api.post<ModuloAsignado>(
-        `${BASE_URL}/clientes/${clienteId}/modulos/${moduloId}/`,
-        {
-          configuracion: config,
-          limite_usuarios,
-          limite_registros
-        }
+      activacionData.cliente_id = cliente_id;
+      activacionData.modulo_id = modulo_id;
+      const { data } = await api.post<{ success: boolean; message: string; data: ModuloActivo }>(
+        `${BASE_URL}/clientes/${cliente_id}/modulos/${modulo_id}/activar/`,
+        activacionData
       );
-      console.log('✅ Módulo asignado a cliente:', { clienteId, moduloId });
-      return data;
+      return data.data;
     } catch (error) {
-      console.error('❌ Error assigning module to client:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al asignar módulo al cliente');
-    }
-  },
-
-  /**
-   * Remover módulo de cliente
-   */
-  async removeModulo(clienteId: number, moduloId: number): Promise<{ message: string }> {
-    try {
-      // ✅ CORREGIDO: Usar mismo patrón - BARRA AL FINAL
-      await api.delete(`${BASE_URL}/clientes/${clienteId}/modulos/${moduloId}/`);
-      console.log('✅ Módulo removido del cliente:', { clienteId, moduloId });
-      return { message: 'Módulo removido exitosamente del cliente' };
-    } catch (error) {
-      console.error('❌ Error removing module from client:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al remover módulo del cliente');
+      console.error('Error activating module:', error);
+      throw new Error(getErrorMessage(error).message || 'Error al activar el módulo');
     }
   },
 
   /**
    * Actualizar configuración de módulo activo
+   * Endpoint: PUT /modulos/clientes/{cliente_id}/modulos/{modulo_id}/
    */
-  async updateModuloConfig(
-    clienteId: number,
-    moduloId: number,
-    config?: Record<string, any>,
-    limite_usuarios?: number,
-    limite_registros?: number
-  ): Promise<ModuloAsignado> {
+  async updateModuloActivo(
+    cliente_id: number,
+    modulo_id: number,
+    updateData: ModuloActivoUpdate
+  ): Promise<ModuloActivo> {
     try {
-      // ✅ CORREGIDO: Usar mismo patrón - BARRA AL FINAL
-      const { data } = await api.put<ModuloAsignado>(
-        `${BASE_URL}/clientes/${clienteId}/modulos/${moduloId}/`,
-        {
-          configuracion: config,
-          limite_usuarios,
-          limite_registros
-        }
+      const { data } = await api.put<{ success: boolean; message: string; data: ModuloActivo }>(
+        `${BASE_URL}/clientes/${cliente_id}/modulos/${modulo_id}/`,
+        updateData
       );
-      console.log('✅ Configuración de módulo actualizada:', { clienteId, moduloId });
+      return data.data;
+    } catch (error) {
+      console.error('Error updating active module:', error);
+      throw new Error(getErrorMessage(error).message || 'Error al actualizar el módulo activo');
+    }
+  },
+
+  /**
+   * Desactivar módulo para un cliente
+   * Endpoint: POST /modulos/clientes/{cliente_id}/modulos/{modulo_id}/desactivar/
+   */
+  async desactivarModuloCliente(cliente_id: number, modulo_id: number): Promise<void> {
+    try {
+      await api.post<{ success: boolean; message: string }>(
+        `${BASE_URL}/clientes/${cliente_id}/modulos/${modulo_id}/desactivar/`
+      );
+    } catch (error) {
+      console.error('Error deactivating module:', error);
+      throw new Error(getErrorMessage(error).message || 'Error al desactivar el módulo');
+    }
+  },
+
+  /**
+   * [WORKFLOW] Activar módulo completo con conexión opcional
+   * Endpoint: POST /modulos/clientes/{cliente_id}/modulos/{modulo_id}/activar-completo/
+   */
+  async activarModuloCompleto(
+    cliente_id: number,
+    modulo_id: number,
+    workflowData: WorkflowActivacionCompletaRequest
+  ): Promise<WorkflowActivacionCompletaResponse> {
+    try {
+      const { data } = await api.post<WorkflowActivacionCompletaResponse>(
+        `${BASE_URL}/clientes/${cliente_id}/modulos/${modulo_id}/activar-completo/`,
+        workflowData
+      );
       return data;
     } catch (error) {
-      console.error('❌ Error updating module configuration:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al actualizar configuración del módulo');
+      console.error('Error in workflow activar-completo:', error);
+      throw new Error(getErrorMessage(error).message || 'Error en el workflow de activación completa');
+    }
+  },
+
+  /**
+   * [WORKFLOW] Desactivar módulo completo con todas sus conexiones
+   * Endpoint: DELETE /modulos/clientes/{cliente_id}/modulos/{modulo_id}/desactivar-completo/
+   */
+  async desactivarModuloCompleto(
+    cliente_id: number,
+    modulo_id: number
+  ): Promise<WorkflowDesactivacionCompletaResponse> {
+    try {
+      const { data } = await api.delete<WorkflowDesactivacionCompletaResponse>(
+        `${BASE_URL}/clientes/${cliente_id}/modulos/${modulo_id}/desactivar-completo/`
+      );
+      return data;
+    } catch (error) {
+      console.error('Error in workflow desactivar-completo:', error);
+      throw new Error(getErrorMessage(error).message || 'Error en el workflow de desactivación completa');
+    }
+  },
+
+  /**
+   * [WORKFLOW] Obtener estado completo de un módulo para un cliente
+   * Endpoint: GET /modulos/clientes/{cliente_id}/modulos/{modulo_id}/estado-completo/
+   */
+  async obtenerEstadoCompleto(
+    cliente_id: number,
+    modulo_id: number
+  ): Promise<WorkflowEstadoCompletoResponse> {
+    try {
+      const { data } = await api.get<WorkflowEstadoCompletoResponse>(
+        `${BASE_URL}/clientes/${cliente_id}/modulos/${modulo_id}/estado-completo/`
+      );
+      return data;
+    } catch (error) {
+      console.error('Error in workflow estado-completo:', error);
+      throw new Error(getErrorMessage(error).message || 'Error al obtener el estado completo del módulo');
     }
   }
 };

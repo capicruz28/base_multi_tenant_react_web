@@ -33,7 +33,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
   const [testing, setTesting] = useState<boolean>(false);
   const [modulos, setModulos] = useState<Modulo[]>([]);
   const [loadingModulos, setLoadingModulos] = useState<boolean>(true);
-  
+
   const [formData, setFormData] = useState<ConexionCreate>({
     cliente_id: clienteId,
     modulo_id: 0,
@@ -41,7 +41,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
     puerto: 1433,
     nombre_bd: '',
     usuario: '',
-    contrasena: '',
+    password: '',
     tipo_bd: 'sqlserver',
     usa_ssl: false,
     timeout_segundos: 30,
@@ -58,12 +58,12 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
   useEffect(() => {
     const fetchModulos = async () => {
       if (!isOpen) return;
-      
+
       setLoadingModulos(true);
       try {
         console.log('🔄 Cargando módulos disponibles...');
-        const data = await moduloService.getModulos(1, 100);
-        const modulosActivos = data.modulos.filter(m => m.es_activo);
+        const data = await moduloService.getModulos(1, 100, true);
+        const modulosActivos = data.data.filter((m: Modulo) => m.es_activo);
         setModulos(modulosActivos);
         console.log(`✅ ${modulosActivos.length} módulos cargados`);
       } catch (error) {
@@ -89,7 +89,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
         puerto: 1433,
         nombre_bd: '',
         usuario: '',
-        contrasena: '',
+        password: '',
         tipo_bd: 'sqlserver',
         usa_ssl: false,
         timeout_segundos: 30,
@@ -108,11 +108,11 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
-    
+
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : 
-               type === 'number' ? parseInt(value) || 0 : value
+      [name]: type === 'checkbox' ? checked :
+        type === 'number' ? parseInt(value) || 0 : value
     }));
 
     // Limpiar error del campo cuando se modifique
@@ -149,8 +149,8 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
       newErrors.usuario = 'El usuario es requerido';
     }
 
-    if (!formData.contrasena.trim()) {
-      newErrors.contrasena = 'La contraseña es requerida';
+    if (!formData.password.trim()) {
+      newErrors.password = 'La contraseña es requerida';
     }
 
     setErrors(newErrors);
@@ -173,11 +173,22 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
         nombre_bd: formData.nombre_bd,
         modulo_id: formData.modulo_id
       });
-      
-      // ✅ CORREGIDO: Servicio actualizado
-      const result = await conexionService.testConexion(formData);
-      
-      if (result.exito) {
+
+      // Preparar datos para test
+      const testData = {
+        servidor: formData.servidor,
+        puerto: formData.puerto,
+        nombre_bd: formData.nombre_bd,
+        usuario: formData.usuario,
+        password: formData.password,
+        tipo_bd: formData.tipo_bd,
+        usa_ssl: formData.usa_ssl,
+        timeout_segundos: formData.timeout_segundos
+      };
+
+      const result = await conexionService.testConexion(testData);
+
+      if (result.success) {
         console.log('✅ Prueba de conexión exitosa');
         toast.success(`✅ Conexión exitosa: ${result.mensaje}`);
       } else {
@@ -198,7 +209,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       toast.error('Por favor, corrige los errores en el formulario');
       return;
@@ -212,10 +223,10 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
         servidor: formData.servidor,
         nombre_bd: formData.nombre_bd
       });
-      
+
       // ✅ CORREGIDO: Servicio actualizado
       await conexionService.createConexion(clienteId, formData);
-      
+
       console.log('✅ Conexión creada exitosamente');
       toast.success('Conexión creada exitosamente');
       onSuccess();
@@ -264,9 +275,8 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 name="modulo_id"
                 value={formData.modulo_id}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                  errors.modulo_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                }`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.modulo_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}
                 disabled={loading || testing || loadingModulos}
               >
                 <option value={0}>Seleccionar módulo...</option>
@@ -295,9 +305,8 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 name="servidor"
                 value={formData.servidor}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                  errors.servidor ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                }`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.servidor ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}
                 placeholder="localhost, 192.168.1.100, sql.server.com"
                 disabled={loading || testing}
               />
@@ -318,9 +327,8 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 onChange={handleInputChange}
                 min="1"
                 max="65535"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                  errors.puerto ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                }`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.puerto ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}
                 disabled={loading || testing}
               />
               {errors.puerto && (
@@ -338,9 +346,8 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 name="nombre_bd"
                 value={formData.nombre_bd}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                  errors.nombre_bd ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                }`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.nombre_bd ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}
                 placeholder="nombre_base_datos"
                 disabled={loading || testing}
               />
@@ -379,9 +386,8 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 name="usuario"
                 value={formData.usuario}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                  errors.usuario ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                }`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.usuario ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}
                 placeholder="usuario_bd"
                 disabled={loading || testing}
               />
@@ -391,23 +397,22 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
             </div>
 
             <div>
-              <label htmlFor="contrasena" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Contraseña *
               </label>
               <input
                 type="password"
-                id="contrasena"
-                name="contrasena"
-                value={formData.contrasena}
+                id="password"
+                name="password"
+                value={formData.password}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                  errors.contrasena ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                }`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}
                 placeholder="••••••••"
                 disabled={loading || testing}
               />
-              {errors.contrasena && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.contrasena}</p>
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password}</p>
               )}
             </div>
 

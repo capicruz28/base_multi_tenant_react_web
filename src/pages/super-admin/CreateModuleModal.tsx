@@ -17,7 +17,7 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
   onSuccess
 }) => {
   const [loading, setLoading] = useState<boolean>(false);
-  
+
   const [formData, setFormData] = useState<ModuloCreate>({
     codigo_modulo: '',
     nombre: '',
@@ -49,11 +49,11 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
-    
+
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : 
-               type === 'number' ? parseInt(value) || 0 : value
+      [name]: type === 'checkbox' ? checked :
+        type === 'number' ? parseInt(value) || 0 : value
     }));
 
     // Limpiar error del campo cuando se modifique
@@ -85,7 +85,7 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       toast.error('Por favor, corrige los errores en el formulario');
       return;
@@ -141,9 +141,8 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               name="codigo_modulo"
               value={formData.codigo_modulo}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                errors.codigo_modulo ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-              }`}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.codigo_modulo ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                }`}
               placeholder="Ej: PLANILLAS, CONTABILIDAD"
               disabled={loading}
             />
@@ -166,9 +165,8 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               name="nombre"
               value={formData.nombre}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                errors.nombre ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-              }`}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.nombre ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                }`}
               placeholder="Ej: Planillas y RRHH"
               disabled={loading}
             />
@@ -226,9 +224,8 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               value={formData.orden}
               onChange={handleInputChange}
               min="0"
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                errors.orden ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-              }`}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.orden ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                }`}
               disabled={loading}
             />
             {errors.orden && (

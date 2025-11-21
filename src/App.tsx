@@ -36,7 +36,7 @@ import ReporteAutorizacionPage from './pages/ReporteAutorizacionPage';
 import ClientManagementPage from './pages/super-admin/ClientManagementPage';
 import ClientDetailPage from './pages/super-admin/ClientDetailPage';
 import ModuleManagementPage from './pages/super-admin/ModuleManagementPage';
-import ConnectionManagementPage from './pages/super-admin/ConnectionManagementPage';
+// ✅ ELIMINADO: import ConnectionManagementPage (ahora integrado en módulos)
 import SuperAdminDashboard from './pages/super-admin/SuperAdminDashboard';
 
 const queryClient = new QueryClient();
@@ -59,7 +59,7 @@ function App() {
                   <Route index element={<SmartRedirect />} />
 
                   {/* Rutas accesibles para cualquier usuario autenticado */}
-                  <Route path="home" element={<Home />} />                  
+                  <Route path="home" element={<Home />} />
                   <Route path="finalizartareo" element={<FinalizarTareoPage />} />
                   <Route path="autorizacion" element={<AutorizacionPage />} />
                   <Route path="reportedestajo" element={<ReporteAutorizacionPage />} />
@@ -83,7 +83,7 @@ function App() {
                 <Route index element={<Navigate to="usuarios" replace />} />
                 <Route path="usuarios" element={<UserManagementPage />} />
                 <Route path="roles" element={<RoleManagementPage />} />
-                <Route path="areas" element={<AreaManagementPage />} />                
+                <Route path="areas" element={<AreaManagementPage />} />
                 <Route path="menus" element={<MenuManagementPage />} />
                 <Route path="sesiones" element={<ActiveSessionsPage />} />
                 <Route path="*" element={<Navigate to="/admin/usuarios" replace />} />
@@ -105,7 +105,7 @@ function App() {
                 <Route path="clientes" element={<ClientManagementPage />} />
                 <Route path="clientes/:id" element={<ClientDetailPage />} />
                 <Route path="modulos" element={<ModuleManagementPage />} />
-                <Route path="conexiones" element={<ConnectionManagementPage />} />
+                {/* ✅ ELIMINADO: Ruta /conexiones (ahora integrado en módulos por cliente) */}
                 <Route path="*" element={<Navigate to="/super-admin/dashboard" replace />} />
               </Route>
             </Routes>

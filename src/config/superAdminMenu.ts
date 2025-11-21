@@ -7,10 +7,10 @@ import { SidebarMenuItem } from '../types/menu.types';
 
 export const superAdminNavItems: SidebarMenuItem[] = [
   // Título/Separador para Administración Global
-  { 
-    menu_id: 'super_admin_header', 
-    nombre: 'Administración Global', 
-    ruta: null, 
+  {
+    menu_id: 'super_admin_header',
+    nombre: 'Administración Global',
+    ruta: null,
     icono: null,
     isSeparator: true,
     children: [],
@@ -58,19 +58,6 @@ export const superAdminNavItems: SidebarMenuItem[] = [
     area_id: null,
     area_nombre: null,
     orden: 3,
-  },
-  // Gestión de Conexiones de Base de Datos
-  {
-    menu_id: 'connection_management',
-    nombre: 'Conexiones BD',
-    ruta: '/super-admin/conexiones',
-    icono: 'Database',
-    children: [],
-    es_activo: true,
-    padre_menu_id: null,
-    area_id: null,
-    area_nombre: null,
-    orden: 4,
   },
   // Auditoría Global del Sistema
   {

@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { useDebounce } from '../../hooks/useDebounce';
 import { 
   Search, 
   Plus, 
@@ -24,6 +26,7 @@ import EditClientModal from './EditClientModal';
 
 const ClientManagementPage: React.FC = () => {
   const { isSuperAdmin } = useAuth();
+  const navigate = useNavigate();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +39,7 @@ const ClientManagementPage: React.FC = () => {
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [filters, setFilters] = useState<ClienteFilters>({});
   
   // Modales
@@ -54,7 +58,7 @@ const ClientManagementPage: React.FC = () => {
       const data: ClienteListResponse = await clienteService.getClientes(
         currentPage, 
         limitPerPage, 
-        { ...filters, search: searchTerm || undefined }
+        { ...filters, buscar: debouncedSearchTerm || undefined }
       );
       
       setClientes(data.clientes);
@@ -68,7 +72,7 @@ const ClientManagementPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, filters, searchTerm, isSuperAdmin]);
+  }, [currentPage, filters, debouncedSearchTerm, isSuperAdmin]);
 
   // Efecto para cargar clientes
   useEffect(() => {
@@ -80,6 +84,7 @@ const ClientManagementPage: React.FC = () => {
     setSearchTerm(event.target.value);
     setCurrentPage(1); // Resetear a primera página al buscar
   };
+
 
   const handleFilterChange = (key: keyof ClienteFilters, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -360,6 +365,7 @@ const ClientManagementPage: React.FC = () => {
                             </button>
                             
                             <button
+                              onClick={() => navigate(`/super-admin/clientes/${cliente.cliente_id}`)}
                               className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                               title="Ver detalle"
                             >

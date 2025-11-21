@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
-import { 
-  Search, 
-  Plus, 
-  Edit3, 
-  Trash2, 
+import {
+  Search,
+  Plus,
+  Edit3,
+  Trash2,
   RefreshCw,
   Package,
   Shield,
@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 import { moduloService } from '../../services/modulo.service';
-import { Modulo, ModuloListResponse } from '../../types/modulo.types';
+import { Modulo } from '../../types/modulo.types';
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage } from '../../services/error.service';
 import CreateModuleModal from './CreateModuleModal';
@@ -25,7 +25,7 @@ const ModuleManagementPage: React.FC = () => {
   const [modulos, setModulos] = useState<Modulo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Paginación
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
@@ -34,46 +34,51 @@ const ModuleManagementPage: React.FC = () => {
 
   // Búsqueda
   const [searchTerm, setSearchTerm] = useState<string>('');
-  
-  // Modales (se implementarán después)
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
+
+  // Modales y Selección
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedModulo, setSelectedModulo] = useState<Modulo | null>(null);
 
-  // Cargar módulos
+  // Debounce para búsqueda
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const fetchModulos = useCallback(async () => {
-    if (!isSuperAdmin) return;
-    
     setLoading(true);
-    setError(null);
-    
     try {
-      const data: ModuloListResponse = await moduloService.getModulos(currentPage, limitPerPage);
-      
-      // Filtrar localmente por búsqueda
-      let filteredModulos = data.modulos;
-      if (searchTerm) {
-        filteredModulos = data.modulos.filter(modulo =>
-          modulo.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          modulo.codigo_modulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          modulo.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+      let data;
+      if (debouncedSearchTerm) {
+        // Usar búsqueda del backend
+        data = await moduloService.buscarModulos(currentPage, limitPerPage, {
+          buscar: debouncedSearchTerm,
+          solo_activos: true
+        });
+      } else {
+        // Usar listado normal con paginación
+        data = await moduloService.getModulos(currentPage, limitPerPage, true);
       }
-      
-      setModulos(filteredModulos);
-      setTotalPages(data.total_paginas);
-      setTotalModulos(filteredModulos.length); // Usar count filtrado
+
+      setModulos(data.data);
+      setTotalModulos(data.pagination.total);
+      setTotalPages(data.pagination.total_pages);
+      setError(null);
     } catch (err) {
-      console.error('Error fetching modules:', err);
+      console.error('❌ Error cargando módulos:', err);
       const errorData = getErrorMessage(err);
       setError(errorData.message || 'Error al cargar los módulos');
       toast.error(errorData.message || 'Error al cargar los módulos');
     } finally {
       setLoading(false);
     }
-  }, [currentPage, searchTerm, isSuperAdmin]);
+  }, [debouncedSearchTerm, currentPage]);
 
-  // Efecto para cargar módulos
   useEffect(() => {
     fetchModulos();
   }, [fetchModulos]);
@@ -110,7 +115,7 @@ const ModuleManagementPage: React.FC = () => {
       await moduloService.updateModulo(modulo.modulo_id, {
         es_activo: !modulo.es_activo
       });
-      
+
       toast.success(`Módulo ${!modulo.es_activo ? 'activado' : 'desactivado'} exitosamente`);
       fetchModulos();
     } catch (err) {
@@ -343,11 +348,10 @@ const ModuleManagementPage: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            modulo.es_activo
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                          }`}>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${modulo.es_activo
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                            }`}>
                             {modulo.es_activo ? (
                               <>
                                 <CheckCircle className="h-3 w-3 mr-1" />
@@ -373,11 +377,10 @@ const ModuleManagementPage: React.FC = () => {
 
                             <button
                               onClick={() => handleToggleActivation(modulo)}
-                              className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                                modulo.es_activo
-                                  ? 'text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300'
-                                  : 'text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300'
-                              }`}
+                              className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${modulo.es_activo
+                                ? 'text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300'
+                                : 'text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300'
+                                }`}
                               title={modulo.es_activo ? 'Desactivar' : 'Activar'}
                             >
                               {modulo.es_activo ? <Trash2 className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
@@ -443,8 +446,7 @@ const ModuleManagementPage: React.FC = () => {
         )}
       </div>
 
-      {/* Modales (se implementarán después) */}
-      
+      {/* Modales */}
       {isCreateModalOpen && (
         <CreateModuleModal
           isOpen={isCreateModalOpen}
@@ -464,7 +466,6 @@ const ModuleManagementPage: React.FC = () => {
           modulo={selectedModulo}
         />
       )}
-
     </div>
   );
 };

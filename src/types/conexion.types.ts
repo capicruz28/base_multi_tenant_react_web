@@ -1,6 +1,13 @@
 /**
- * Tipos para la gestión de conexiones (Super Admin)
+ * Tipos para la gestión de conexiones de base de datos (Super Admin)
+ * Alineados 100% con los schemas del backend (app.schemas.conexion)
  */
+
+export type TipoBD = 'sqlserver' | 'postgresql' | 'mysql' | 'oracle';
+
+// ============================================
+// TIPOS BASE - CONEXIONES
+// ============================================
 
 export interface Conexion {
   conexion_id: number;
@@ -10,7 +17,9 @@ export interface Conexion {
   puerto: number;
   nombre_bd: string;
   usuario_encriptado: string;
-  tipo_bd: 'sqlserver' | 'postgresql' | 'mysql' | 'oracle';
+  password_encriptado: string;
+  connection_string_encriptado: string | null;
+  tipo_bd: TipoBD;
   usa_ssl: boolean;
   timeout_segundos: number;
   max_pool_size: number;
@@ -22,11 +31,7 @@ export interface Conexion {
   fecha_ultimo_error: string | null;
   fecha_creacion: string;
   fecha_actualizacion: string | null;
-  modulo?: {
-    modulo_id: number;
-    nombre: string;
-    codigo_modulo: string;
-  };
+  creado_por_usuario_id: number | null;
 }
 
 export interface ConexionCreate {
@@ -36,8 +41,8 @@ export interface ConexionCreate {
   puerto: number;
   nombre_bd: string;
   usuario: string;
-  contrasena: string;
-  tipo_bd: 'sqlserver' | 'postgresql' | 'mysql' | 'oracle';
+  password: string;
+  tipo_bd: TipoBD;
   usa_ssl?: boolean;
   timeout_segundos?: number;
   max_pool_size?: number;
@@ -50,8 +55,8 @@ export interface ConexionUpdate {
   puerto?: number;
   nombre_bd?: string;
   usuario?: string;
-  contrasena?: string;
-  tipo_bd?: 'sqlserver' | 'postgresql' | 'mysql' | 'oracle';
+  password?: string;
+  tipo_bd?: TipoBD;
   usa_ssl?: boolean;
   timeout_segundos?: number;
   max_pool_size?: number;
@@ -60,11 +65,35 @@ export interface ConexionUpdate {
   es_activo?: boolean;
 }
 
-export interface ConexionTestResult {
-  exito: boolean;
-  mensaje: string;
-  tiempo_respuesta?: number;
-  error?: string;
+// ============================================
+// TIPOS PARA TEST DE CONEXIÓN
+// ============================================
+
+export interface ConexionTest {
+  servidor: string;
+  puerto: number;
+  nombre_bd: string;
+  usuario: string;
+  password: string;
+  tipo_bd: TipoBD;
+  usa_ssl?: boolean;
+  timeout_segundos?: number;
 }
 
-// ✅ ELIMINAR ConexionListResponse - Backend retorna array directo
+export interface ConexionTestResult {
+  success: boolean;
+  mensaje: string;
+  tiempo_respuesta_ms?: number;
+  detalles_error?: string;
+}
+
+// ============================================
+// TIPOS PARA ESTADÍSTICAS DE CONEXIONES
+// ============================================
+
+export interface ConexionConEstadisticas extends Conexion {
+  total_conexiones: number;
+  conexiones_activas: number;
+  tiempo_promedio_respuesta: number | null;
+  tasa_errores: number | null;
+}
