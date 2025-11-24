@@ -28,6 +28,9 @@ export interface Cliente {
   es_activo: boolean;
   es_demo: boolean;
   metadata_json: string | null;
+  api_key_sincronizacion: string | null;
+  sincronizacion_habilitada: boolean;
+  ultima_sincronizacion: string | null;
   fecha_creacion: string;
   fecha_actualizacion: string | null;
   fecha_ultimo_acceso: string | null;
@@ -56,6 +59,8 @@ export interface ClienteCreate {
   contacto_telefono?: string | null;
   es_demo?: boolean;
   metadata_json?: string | null;
+  api_key_sincronizacion?: string | null;
+  sincronizacion_habilitada?: boolean;
 }
 
 export interface ClienteUpdate {
@@ -82,6 +87,8 @@ export interface ClienteUpdate {
   es_activo?: boolean;
   es_demo?: boolean;
   metadata_json?: string | null;
+  api_key_sincronizacion?: string | null;
+  sincronizacion_habilitada?: boolean;
 }
 
 export interface ClienteStats {

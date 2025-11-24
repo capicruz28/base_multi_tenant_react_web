@@ -30,7 +30,8 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
     modulo_id: modulo.modulo_id,
     configuracion_json: null,
     limite_usuarios: null,
-    limite_registros: null
+    limite_registros: null,
+    fecha_vencimiento: null
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [configJson, setConfigJson] = useState<string>('');
@@ -42,7 +43,8 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
         modulo_id: modulo.modulo_id,
         configuracion_json: null,
         limite_usuarios: null,
-        limite_registros: null
+        limite_registros: null,
+        fecha_vencimiento: null
       });
       setConfigJson('');
       setErrors({});
@@ -56,6 +58,11 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
       setFormData(prev => ({
         ...prev,
         [name]: value === '' ? null : parseInt(value, 10)
+      }));
+    } else if (name === 'fecha_vencimiento') {
+      setFormData(prev => ({
+        ...prev,
+        fecha_vencimiento: value === '' ? null : value
       }));
     } else if (name === 'configuracion_json') {
       setConfigJson(value);
@@ -83,6 +90,15 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
 
     if (formData.limite_registros !== null && formData.limite_registros !== undefined && formData.limite_registros < 0) {
       newErrors.limite_registros = 'El límite de registros debe ser al menos 0';
+    }
+
+    if (formData.fecha_vencimiento && formData.fecha_vencimiento.trim()) {
+      const fechaVencimiento = new Date(formData.fecha_vencimiento);
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      if (fechaVencimiento <= hoy) {
+        newErrors.fecha_vencimiento = 'La fecha de vencimiento debe ser futura';
+      }
     }
 
     if (configJson.trim() !== '') {
@@ -218,6 +234,30 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
                 )}
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Dejar vacío para ilimitado
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="fecha_vencimiento" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Fecha de Vencimiento
+                </label>
+                <input
+                  type="date"
+                  id="fecha_vencimiento"
+                  name="fecha_vencimiento"
+                  value={formData.fecha_vencimiento || ''}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
+                    errors.fecha_vencimiento ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}
+                  min={new Date().toISOString().split('T')[0]}
+                  disabled={loading}
+                />
+                {errors.fecha_vencimiento && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.fecha_vencimiento}</p>
+                )}
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Dejar vacío para licencia ilimitada
                 </p>
               </div>
             </div>

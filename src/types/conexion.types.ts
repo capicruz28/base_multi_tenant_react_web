@@ -82,9 +82,8 @@ export interface ConexionTest {
 
 export interface ConexionTestResult {
   success: boolean;
-  mensaje: string;
-  tiempo_respuesta_ms?: number;
-  detalles_error?: string;
+  message: string;
+  response_time_ms?: number;
 }
 
 // ============================================

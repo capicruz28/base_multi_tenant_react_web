@@ -190,10 +190,10 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
 
       if (result.success) {
         console.log('✅ Prueba de conexión exitosa');
-        toast.success(`✅ Conexión exitosa: ${result.mensaje}`);
+        toast.success(`✅ Conexión exitosa: ${result.message}`);
       } else {
-        console.warn('⚠️ Prueba de conexión fallida:', result.mensaje);
-        toast.error(`❌ Error de conexión: ${result.mensaje}`);
+        console.warn('⚠️ Prueba de conexión fallida:', result.message);
+        toast.error(`❌ Error de conexión: ${result.message}`);
       }
     } catch (error) {
       console.error('❌ Error probando conexión:', error);

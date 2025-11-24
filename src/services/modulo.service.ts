@@ -11,8 +11,8 @@ import {
   ModuloActivo,
   ModuloActivoCreate,
   ModuloActivoUpdate,
-  PaginatedModuloResponse,
-  ModuloListResponse,
+  PaginatedModuloResponse,  
+  ModuloConInfoActivacionListResponse,
   ModuloResponse,
   ModuloDeleteResponse,
   ModuloFilters,
@@ -152,8 +152,8 @@ export const moduloService = {
    */
   async getModulosByCliente(cliente_id: number): Promise<ModuloConInfoActivacion[]> {
     try {
-      const { data } = await api.get<ModuloListResponse>(`${BASE_URL}/clientes/${cliente_id}/modulos/`);
-      return data.data as ModuloConInfoActivacion[];
+      const { data } = await api.get<ModuloConInfoActivacionListResponse>(`${BASE_URL}/clientes/${cliente_id}/modulos/`);
+      return data.data;
     } catch (error) {
       console.error('Error fetching client modules:', error);
       throw new Error(getErrorMessage(error).message || 'Error al obtener módulos del cliente');

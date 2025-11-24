@@ -43,7 +43,9 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
     contacto_nombre: '',
     contacto_email: '',
     contacto_telefono: '',
-    es_demo: false
+    es_demo: false,
+    api_key_sincronizacion: '',
+    sincronizacion_habilitada: false
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -99,7 +101,9 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
         contacto_nombre: '',
         contacto_email: '',
         contacto_telefono: '',
-        es_demo: false
+        es_demo: false,
+        api_key_sincronizacion: '',
+        sincronizacion_habilitada: false
       });
       setErrors({});
       setSubdomainAvailable(null);
@@ -222,6 +226,8 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
         fecha_fin_trial: formData.fecha_fin_trial || null,
         contacto_nombre: formData.contacto_nombre?.trim() || null,
         contacto_telefono: formData.contacto_telefono?.trim() || null,
+        api_key_sincronizacion: formData.api_key_sincronizacion?.trim() || null,
+        sincronizacion_habilitada: formData.sincronizacion_habilitada || false,
       };
 
       await clienteService.createCliente(dataToSend);
@@ -580,6 +586,56 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         )}
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                           URL del API si el cliente tiene instalación local (debe comenzar con http:// o https://)
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Configuración de Sincronización */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                    Sincronización Multi-Instalación
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="sincronizacion_habilitada"
+                          name="sincronizacion_habilitada"
+                          checked={formData.sincronizacion_habilitada || false}
+                          onChange={handleInputChange}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          disabled={loading}
+                        />
+                        <label htmlFor="sincronizacion_habilitada" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                          Habilitar sincronización bidireccional con servidor central
+                        </label>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 ml-6">
+                        Permite sincronización automática de datos con servidor central (multi-instalación)
+                      </p>
+                    </div>
+
+                    {formData.sincronizacion_habilitada && (
+                      <div className="md:col-span-2">
+                        <label htmlFor="api_key_sincronizacion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          API Key de Sincronización
+                        </label>
+                        <input
+                          type="text"
+                          id="api_key_sincronizacion"
+                          name="api_key_sincronizacion"
+                          value={formData.api_key_sincronizacion || ''}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+                          placeholder="Ingrese la API key para sincronización"
+                          disabled={loading}
+                          maxLength={255}
+                        />
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          API Key para autenticación con el servidor central (opcional)
                         </p>
                       </div>
                     )}

@@ -68,6 +68,7 @@ export interface ModuloActivoCreate {
   configuracion_json?: Record<string, any> | null;
   limite_usuarios?: number | null;
   limite_registros?: number | null;
+  fecha_vencimiento?: string | null;
 }
 
 export interface ModuloActivoUpdate {
@@ -86,6 +87,7 @@ export interface ModuloConInfoActivacion extends Modulo {
   activo_en_cliente: boolean;
   cliente_modulo_activo_id: number | null;
   fecha_activacion: string | null;
+  fecha_vencimiento: string | null;
   configuracion_json: Record<string, any> | null;
   limite_usuarios: number | null;
   limite_registros: number | null;
@@ -129,6 +131,12 @@ export interface ModuloListResponse {
   success: boolean;
   message: string;
   data: Modulo[];
+}
+
+export interface ModuloConInfoActivacionListResponse {
+  success: boolean;
+  message: string;
+  data: ModuloConInfoActivacion[];
 }
 
 export interface PaginatedModuloResponse {
