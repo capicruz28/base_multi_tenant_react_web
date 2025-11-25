@@ -167,7 +167,7 @@ const ModuleManagementPage: React.FC = () => {
               placeholder="Buscar módulos..."
               value={searchTerm}
               onChange={handleSearchChange}
-              className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+              className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
             />
           </div>
 
@@ -184,7 +184,7 @@ const ModuleManagementPage: React.FC = () => {
 
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-colors"
             >
               <Plus className="h-4 w-4" />
               Nuevo Módulo
@@ -198,7 +198,7 @@ const ModuleManagementPage: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Package className="h-8 w-8 text-indigo-600" />
+              <Package className="h-8 w-8 text-brand-primary" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Módulos</p>
@@ -255,7 +255,7 @@ const ModuleManagementPage: React.FC = () => {
         {/* Loading */}
         {loading && (
           <div className="flex items-center justify-center py-8">
-            <RefreshCw className="animate-spin h-6 w-6 text-indigo-600" />
+            <RefreshCw className="animate-spin h-6 w-6 text-brand-primary" />
             <span className="ml-2 text-gray-600 dark:text-gray-400">Cargando módulos...</span>
           </div>
         )}
@@ -268,7 +268,7 @@ const ModuleManagementPage: React.FC = () => {
             </div>
             <button
               onClick={fetchModulos}
-              className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors"
             >
               Reintentar
             </button>
@@ -308,8 +308,8 @@ const ModuleManagementPage: React.FC = () => {
                       <tr key={modulo.modulo_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
-                              <Package className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                            <div className="flex-shrink-0 h-10 w-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+                              <Package className="h-6 w-6 text-brand-primary dark:text-brand-primary" />
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -369,7 +369,7 @@ const ModuleManagementPage: React.FC = () => {
                           <div className="flex justify-end items-center gap-2">
                             <button
                               onClick={() => openEditModal(modulo)}
-                              className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                              className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                               title="Editar"
                             >
                               <Edit3 className="h-4 w-4" />
@@ -399,7 +399,7 @@ const ModuleManagementPage: React.FC = () => {
                         ) : (
                           <button
                             onClick={() => setIsCreateModalOpen(true)}
-                            className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                            className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors"
                           >
                             Crear primer módulo
                           </button>

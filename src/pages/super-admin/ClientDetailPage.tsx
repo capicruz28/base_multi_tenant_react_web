@@ -97,7 +97,7 @@ const ClientDetailPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <RefreshCw className="animate-spin h-8 w-8 text-indigo-600" />
+        <RefreshCw className="animate-spin h-8 w-8 text-brand-primary" />
         <span className="ml-2 text-gray-600">Cargando información del cliente...</span>
       </div>
     );
@@ -112,7 +112,7 @@ const ClientDetailPage: React.FC = () => {
         </div>
         <button
           onClick={handleBack}
-          className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors"
         >
           Volver a la lista
         </button>
@@ -149,7 +149,7 @@ const ClientDetailPage: React.FC = () => {
             >
               <RefreshCw className="h-5 w-5" />
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+            <button className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors">
               <Edit3 className="h-4 w-4" />
               Editar
             </button>
@@ -163,7 +163,7 @@ const ClientDetailPage: React.FC = () => {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Users className="h-8 w-8 text-blue-600" />
+                <Users className="h-8 w-8 text-brand-primary" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Usuarios</p>
@@ -191,7 +191,7 @@ const ClientDetailPage: React.FC = () => {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Database className="h-8 w-8 text-purple-600" />
+                <Database className="h-8 w-8 text-brand-secondary" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Conexiones</p>
@@ -238,7 +238,7 @@ const ClientDetailPage: React.FC = () => {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`${
                   activeTab === tab.id
-                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                    ? 'border-brand-primary text-brand-primary dark:text-brand-primary'
                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
               >

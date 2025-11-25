@@ -8,13 +8,13 @@ const ThemeSwitch: React.FC = () => {
   return (
     <button
       onClick={toggleDarkMode}
-      className="p-2 rounded-full hover:bg-gray-700 transition-colors"
+      className="p-2 rounded-full hover:bg-brand-surface-alt dark:hover:bg-brand-surface-alt transition-colors"
       aria-label="Toggle theme"
     >
       {isDarkMode ? (
-        <Sun className="w-5 h-5 text-yellow-400" />
+        <Sun className="w-5 h-5 text-brand-primary" />
       ) : (
-        <Moon className="w-5 h-5 text-gray-400" />
+        <Moon className="w-5 h-5 text-brand-text-secondary" />
       )}
     </button>
   );

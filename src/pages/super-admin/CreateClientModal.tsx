@@ -258,7 +258,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <Building className="h-6 w-6 text-indigo-600" />
+            <Building className="h-6 w-6 text-brand-primary" />
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               Crear Nuevo Cliente
             </h2>
@@ -283,7 +283,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                   onClick={() => setActiveSection(section.id as any)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                     activeSection === section.id
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-brand-primary text-white'
                       : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
@@ -316,8 +316,8 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="codigo_cliente"
                         value={formData.codigo_cliente}
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                          errors.codigo_cliente ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
+                          errors.codigo_cliente ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                         }`}
                         placeholder="Ej: CLI001"
                         disabled={loading}
@@ -339,10 +339,10 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           name="subdominio"
                           value={formData.subdominio}
                           onChange={handleInputChange}
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white pr-10 ${
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground pr-10 ${
                             errors.subdominio ? 'border-red-500' : 
                             subdomainAvailable === true ? 'border-green-500' : 
-                            'border-gray-300 dark:border-gray-600'
+                            'border-brand-input-border dark:border-brand-input-border'
                           }`}
                           placeholder="Ej: acme"
                           disabled={loading}
@@ -381,8 +381,8 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="razon_social"
                         value={formData.razon_social}
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                          errors.razon_social ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
+                          errors.razon_social ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                         }`}
                         placeholder="Nombre legal completo de la empresa"
                         disabled={loading}
@@ -403,7 +403,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="nombre_comercial"
                         value={formData.nombre_comercial || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                         placeholder="Nombre corto para mostrar"
                         disabled={loading}
                         maxLength={150}
@@ -420,8 +420,8 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="ruc"
                         value={formData.ruc || ''}
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                          errors.ruc ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
+                          errors.ruc ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                         }`}
                         placeholder="8-15 dígitos"
                         maxLength={15}
@@ -450,7 +450,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="contacto_nombre"
                         value={formData.contacto_nombre || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                         placeholder="Nombre del contacto principal"
                         disabled={loading}
                         maxLength={100}
@@ -467,8 +467,8 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="contacto_email"
                         value={formData.contacto_email}
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                          errors.contacto_email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
+                          errors.contacto_email ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                         }`}
                         placeholder="email@empresa.com"
                         disabled={loading}
@@ -488,7 +488,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="contacto_telefono"
                         value={formData.contacto_telefono || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                         placeholder="+51 999 999 999"
                         disabled={loading}
                         maxLength={20}
@@ -506,7 +506,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                       name="es_demo"
                       checked={formData.es_demo}
                       onChange={handleInputChange}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
                       disabled={loading}
                     />
                     <label htmlFor="es_demo" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
@@ -537,7 +537,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="tipo_instalacion"
                         value={formData.tipo_instalacion}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                         disabled={loading}
                       >
                         <option value="cloud">Cloud</option>
@@ -555,7 +555,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="modo_autenticacion"
                         value={formData.modo_autenticacion}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                         disabled={loading}
                       >
                         <option value="local">Local</option>
@@ -575,8 +575,8 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           name="servidor_api_local"
                           value={formData.servidor_api_local || ''}
                           onChange={handleInputChange}
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                            errors.servidor_api_local ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
+                            errors.servidor_api_local ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                           }`}
                           placeholder="https://api.cliente.local"
                           disabled={loading}
@@ -606,7 +606,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           name="sincronizacion_habilitada"
                           checked={formData.sincronizacion_habilitada || false}
                           onChange={handleInputChange}
-                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
                           disabled={loading}
                         />
                         <label htmlFor="sincronizacion_habilitada" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
@@ -629,7 +629,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           name="api_key_sincronizacion"
                           value={formData.api_key_sincronizacion || ''}
                           onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
+                          className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground font-mono text-sm"
                           placeholder="Ingrese la API key para sincronización"
                           disabled={loading}
                           maxLength={255}
@@ -662,7 +662,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="logo_url"
                         value={formData.logo_url || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                         placeholder="https://cdn.tuapp.com/logos/acme.png"
                         disabled={loading}
                         maxLength={500}
@@ -679,7 +679,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="favicon_url"
                         value={formData.favicon_url || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                         placeholder="https://cdn.tuapp.com/favicons/acme.ico"
                         disabled={loading}
                         maxLength={500}
@@ -697,7 +697,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           name="color_primario"
                           value={formData.color_primario}
                           onChange={handleInputChange}
-                          className="h-10 w-20 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer"
+                          className="h-10 w-20 border border-brand-input-border dark:border-brand-input-border rounded-lg cursor-pointer"
                           disabled={loading}
                         />
                         <input
@@ -708,8 +708,8 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                               handleInputChange(e);
                             }
                           }}
-                          className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                            errors.color_primario ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                          className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
+                            errors.color_primario ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                           }`}
                           placeholder="#1976D2"
                           disabled={loading}
@@ -732,7 +732,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           name="color_secundario"
                           value={formData.color_secundario}
                           onChange={handleInputChange}
-                          className="h-10 w-20 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer"
+                          className="h-10 w-20 border border-brand-input-border dark:border-brand-input-border rounded-lg cursor-pointer"
                           disabled={loading}
                         />
                         <input
@@ -743,8 +743,8 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                               handleInputChange(e);
                             }
                           }}
-                          className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                            errors.color_secundario ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                          className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
+                            errors.color_secundario ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                           }`}
                           placeholder="#424242"
                           disabled={loading}
@@ -765,8 +765,8 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="tema_personalizado"
                         value={formData.tema_personalizado || ''}
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white font-mono text-sm ${
-                          errors.tema_personalizado ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground font-mono text-sm ${
+                          errors.tema_personalizado ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                         }`}
                         placeholder='{"font": "Roboto", "borderRadius": "8px"}'
                         disabled={loading}
@@ -801,7 +801,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="plan_suscripcion"
                         value={formData.plan_suscripcion}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                         disabled={loading}
                       >
                         <option value="trial">Trial</option>
@@ -820,7 +820,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="estado_suscripcion"
                         value={formData.estado_suscripcion}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                         disabled={loading}
                       >
                         <option value="trial">Trial</option>
@@ -841,7 +841,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="fecha_inicio_suscripcion"
                         value={formData.fecha_inicio_suscripcion || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                         disabled={loading}
                       />
                     </div>
@@ -856,7 +856,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         name="fecha_fin_trial"
                         value={formData.fecha_fin_trial || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                         disabled={loading}
                       />
                     </div>
@@ -891,7 +891,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -904,7 +904,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                       setActiveSection(sections[currentIndex + 1].id as any);
                     }
                   }}
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
                 >
                   Siguiente →
                 </button>
@@ -913,7 +913,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                 <button
                   type="submit"
                   disabled={loading || validatingSubdomain || subdomainAvailable === false}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
                 >
                   {loading && <Loader className="h-4 w-4 animate-spin" />}
                   {loading ? 'Creando...' : 'Crear Cliente'}

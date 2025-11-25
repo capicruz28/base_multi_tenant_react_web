@@ -277,13 +277,13 @@ const RoleManagementPage: React.FC = () => {
             placeholder="Buscar por nombre o descripción..."
             value={searchTerm}
             onChange={handleSearchChange}
-            className="pl-10 pr-3 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+            className="pl-10 pr-3 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
         </div>
         <button
             onClick={handleOpenCreateModal}
-            className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary flex items-center justify-center gap-2"
         >
             <Plus className="h-5 w-5" />
             Crear Rol
@@ -293,7 +293,7 @@ const RoleManagementPage: React.FC = () => {
       {/* Indicador de Carga */}
       {isLoading && (
         <div className="flex justify-center items-center py-10">
-            <Loader className="animate-spin h-8 w-8 text-indigo-600" />
+            <Loader className="animate-spin h-8 w-8 text-brand-primary" />
             <p className="ml-3 text-gray-500 dark:text-gray-400">Cargando roles...</p>
         </div>
       )}
@@ -334,7 +334,7 @@ const RoleManagementPage: React.FC = () => {
                       {/* Botón Editar */}
                       <button
                         onClick={() => handleOpenEditModal(rol)}
-                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                         title="Editar Rol"
                       >
                         <Edit3 className="h-4 w-4" />
@@ -428,7 +428,7 @@ const RoleManagementPage: React.FC = () => {
                 <div>
                     <label htmlFor="create_nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre <span className="text-red-500">*</span></label>
                     <input type="text" id="create_nombre" name="nombre" value={newRolFormData.nombre} onChange={handleNewRolChange}
-                    className={`mt-1 block w-full px-3 py-2 border ${createFormErrors.nombre ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-indigo-500 focus:ring-indigo-500'} rounded-md shadow-sm focus:outline-none sm:text-sm dark:bg-gray-700 dark:text-white`}
+                    className={`mt-1 block w-full px-3 py-2 border ${createFormErrors.nombre ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-brand-primary focus:ring-brand-primary'} rounded-md shadow-sm focus:outline-none sm:text-sm dark:bg-gray-700 dark:text-white`}
                     disabled={isSubmittingCreate} required />
                     {createFormErrors.nombre && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{createFormErrors.nombre}</p>}
                 </div>
@@ -436,13 +436,13 @@ const RoleManagementPage: React.FC = () => {
                 <div>
                     <label htmlFor="create_descripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Descripción</label>
                     <textarea id="create_descripcion" name="descripcion" value={newRolFormData.descripcion || ''} onChange={handleNewRolChange} rows={3}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm dark:bg-gray-700 dark:text-white"
                     disabled={isSubmittingCreate} />
                 </div>
                 {/* Es Activo */}
                 <div className="flex items-center">
                     <input id="create_es_activo" name="es_activo" type="checkbox" checked={newRolFormData.es_activo} onChange={handleNewRolChange}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-indigo-600 dark:ring-offset-gray-800"
+                    className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-brand-primary dark:ring-offset-gray-800"
                     disabled={isSubmittingCreate} />
                     <label htmlFor="create_es_activo" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
                         Rol Activo
@@ -452,11 +452,11 @@ const RoleManagementPage: React.FC = () => {
               {/* Botones */}
               <div className="mt-6 flex justify-end space-x-3">
                 <button type="button" onClick={handleCloseCreateModal} disabled={isSubmittingCreate}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50" >
+                  className="px-4 py-2 text-white bg-brand-secondary rounded-md hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50" >
                   Cancelar
                 </button>
                 <button type="submit" disabled={isSubmittingCreate}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 flex items-center justify-center" >
+                  className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50 flex items-center justify-center" >
                   {isSubmittingCreate && <Loader className="animate-spin h-4 w-4 mr-2" />}
                   {isSubmittingCreate ? 'Creando...' : 'Crear Rol'}
                 </button>
@@ -477,7 +477,7 @@ const RoleManagementPage: React.FC = () => {
                 <div>
                     <label htmlFor="edit_nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre <span className="text-red-500">*</span></label>
                     <input type="text" id="edit_nombre" name="nombre" value={editFormData.nombre || ''} onChange={handleEditRolChange}
-                    className={`mt-1 block w-full px-3 py-2 border ${editFormErrors.nombre ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-indigo-500 focus:ring-indigo-500'} rounded-md shadow-sm focus:outline-none sm:text-sm dark:bg-gray-700 dark:text-white`}
+                    className={`mt-1 block w-full px-3 py-2 border ${editFormErrors.nombre ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-brand-primary focus:ring-brand-primary'} rounded-md shadow-sm focus:outline-none sm:text-sm dark:bg-gray-700 dark:text-white`}
                     disabled={isSubmittingEdit} required />
                     {editFormErrors.nombre && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{editFormErrors.nombre}</p>}
                 </div>
@@ -485,13 +485,13 @@ const RoleManagementPage: React.FC = () => {
                 <div>
                     <label htmlFor="edit_descripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Descripción</label>
                     <textarea id="edit_descripcion" name="descripcion" value={editFormData.descripcion || ''} onChange={handleEditRolChange} rows={3}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm dark:bg-gray-700 dark:text-white"
                     disabled={isSubmittingEdit} />
                 </div>
                 {/* Es Activo */}
                 <div className="flex items-center">
                     <input id="edit_es_activo" name="es_activo" type="checkbox" checked={editFormData.es_activo} onChange={handleEditRolChange}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-indigo-600 dark:ring-offset-gray-800"
+                    className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-brand-primary dark:ring-offset-gray-800"
                     disabled={isSubmittingEdit} />
                     <label htmlFor="edit_es_activo" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
                         Rol Activo
@@ -501,11 +501,11 @@ const RoleManagementPage: React.FC = () => {
               {/* Botones */}
               <div className="mt-6 flex justify-end space-x-3">
                 <button type="button" onClick={handleCloseEditModal} disabled={isSubmittingEdit}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50" >
+                  className="px-4 py-2 text-white bg-brand-secondary rounded-md hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50" >
                   Cancelar
                 </button>
                 <button type="submit" disabled={isSubmittingEdit}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 flex items-center justify-center" >
+                  className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50 flex items-center justify-center" >
                   {isSubmittingEdit && <Loader className="animate-spin h-4 w-4 mr-2" />}
                   {isSubmittingEdit ? 'Guardando...' : 'Guardar Cambios'}
                 </button>

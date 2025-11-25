@@ -70,7 +70,7 @@ const SuperAdminDashboard: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Building className="h-8 w-8 text-indigo-600" />
+              <Building className="h-8 w-8 text-brand-primary" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Clientes</p>
@@ -235,7 +235,7 @@ const SuperAdminDashboard: React.FC = () => {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button className="flex items-center justify-center p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-            <Building className="h-6 w-6 text-indigo-600 mr-3" />
+            <Building className="h-6 w-6 text-brand-primary mr-3" />
             <span className="text-sm font-medium text-gray-900 dark:text-white">
               Gestionar Clientes
             </span>

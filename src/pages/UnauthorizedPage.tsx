@@ -31,7 +31,7 @@ const UnauthorizedPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary"></div>
       </div>
     );
   }
@@ -53,7 +53,7 @@ const UnauthorizedPage: React.FC = () => {
         
         <Link
           to={getReturnPath()}
-          className="inline-block w-full px-6 py-3 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition-colors duration-200 text-lg font-medium"
+          className="inline-block w-full px-6 py-3 bg-brand-primary text-white rounded-lg shadow hover:bg-brand-primary-hover transition-colors duration-200 text-lg font-medium"
         >
           {getReturnLabel()}
         </Link>

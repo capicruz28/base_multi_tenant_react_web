@@ -141,7 +141,7 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               name="codigo_modulo"
               value={formData.codigo_modulo}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.codigo_modulo ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.codigo_modulo ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                 }`}
               placeholder="Ej: PLANILLAS, CONTABILIDAD"
               disabled={loading}
@@ -165,7 +165,7 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               name="nombre"
               value={formData.nombre}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.nombre ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.nombre ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                 }`}
               placeholder="Ej: Planillas y RRHH"
               disabled={loading}
@@ -186,7 +186,7 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               value={formData.descripcion || ''}
               onChange={handleInputChange}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
               placeholder="Descripción detallada del módulo..."
               disabled={loading}
             />
@@ -203,7 +203,7 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               name="icono"
               value={formData.icono || ''}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
               placeholder="Ej: receipt_long, people, inventory_2"
               disabled={loading}
             />
@@ -224,7 +224,7 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               value={formData.orden}
               onChange={handleInputChange}
               min="0"
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.orden ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.orden ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                 }`}
               disabled={loading}
             />
@@ -245,7 +245,7 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
                 name="es_modulo_core"
                 checked={formData.es_modulo_core}
                 onChange={handleInputChange}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
                 disabled={loading}
               />
               <label htmlFor="es_modulo_core" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
@@ -263,7 +263,7 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
                 name="requiere_licencia"
                 checked={formData.requiere_licencia}
                 onChange={handleInputChange}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
                 disabled={loading}
               />
               <label htmlFor="requiere_licencia" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
@@ -281,14 +281,14 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
             >
               {loading && <Loader className="h-4 w-4 animate-spin" />}
               {loading ? 'Creando...' : 'Crear Módulo'}

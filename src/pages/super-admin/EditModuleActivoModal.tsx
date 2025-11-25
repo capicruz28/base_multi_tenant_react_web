@@ -142,7 +142,7 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <Package className="h-6 w-6 text-indigo-600" />
+            <Package className="h-6 w-6 text-brand-primary" />
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                 Editar Configuración
@@ -176,8 +176,8 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
                   name="limite_usuarios"
                   value={formData.limite_usuarios || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                    errors.limite_usuarios ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
+                    errors.limite_usuarios ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                   }`}
                   placeholder="Ilimitado (dejar vacío)"
                   min="1"
@@ -198,8 +198,8 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
                   name="limite_registros"
                   value={formData.limite_registros || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                    errors.limite_registros ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
+                    errors.limite_registros ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                   }`}
                   placeholder="Ilimitado (dejar vacío)"
                   min="0"
@@ -220,8 +220,8 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
                   name="fecha_vencimiento"
                   value={formData.fecha_vencimiento ? formData.fecha_vencimiento.split('T')[0] : ''}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                    errors.fecha_vencimiento ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
+                    errors.fecha_vencimiento ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                   }`}
                   min={new Date().toISOString().split('T')[0]}
                   disabled={loading}
@@ -245,8 +245,8 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
                 name="configuracion_json"
                 value={configJson}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white font-mono text-sm ${
-                  errors.configuracion_json ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground font-mono text-sm ${
+                  errors.configuracion_json ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                 }`}
                 placeholder='{"clave": "valor"}'
                 rows={6}
@@ -264,14 +264,14 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
             >
               {loading && <Loader className="h-4 w-4 animate-spin" />}
               {loading ? 'Guardando...' : 'Guardar Cambios'}

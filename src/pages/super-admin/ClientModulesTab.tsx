@@ -113,7 +113,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader className="animate-spin h-8 w-8 text-indigo-600" />
+        <Loader className="animate-spin h-8 w-8 text-brand-primary" />
         <span className="ml-3 text-gray-600 dark:text-gray-400">Cargando módulos...</span>
       </div>
     );
@@ -127,7 +127,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
         </div>
         <button
           onClick={fetchModulos}
-          className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors"
         >
           Reintentar
         </button>
@@ -141,7 +141,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center">
-            <Package className="h-8 w-8 text-indigo-600" />
+            <Package className="h-8 w-8 text-brand-primary" />
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Módulos</p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-white">{modulos.length}</p>
@@ -180,7 +180,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
                 placeholder="Buscar módulos..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
               />
             </div>
             <div className="relative">
@@ -191,7 +191,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
                   const value = e.target.value;
                   setFilterActivos(value === 'all' ? null : value === 'active');
                 }}
-                className="pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                className="pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
               >
                 <option value="all">Todos</option>
                 <option value="active">Solo activos</option>
@@ -240,8 +240,8 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
                   <tr key={modulo.modulo_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
-                          <Package className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                        <div className="flex-shrink-0 h-10 w-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+                          <Package className="h-6 w-6 text-brand-primary dark:text-brand-primary" />
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -294,7 +294,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
                           <>
                             <button
                               onClick={() => handleEdit(modulo)}
-                              className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                              className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                               title="Editar configuración"
                             >
                               <Settings className="h-4 w-4" />
@@ -310,7 +310,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
                         ) : (
                           <button
                             onClick={() => handleActivate(modulo)}
-                            className="flex items-center gap-1 px-3 py-1 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                            className="flex items-center gap-1 px-3 py-1 text-sm bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors"
                             title="Activar módulo"
                           >
                             <Plus className="h-4 w-4" />

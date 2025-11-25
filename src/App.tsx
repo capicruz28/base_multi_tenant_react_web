@@ -6,6 +6,8 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
+//import { BrandingInitializer } from './components/BrandingInitializer';
+//import { BrandingDebug } from './components/BrandingDebug';
 
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -46,6 +48,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
+          {/*}
+          <BrandingInitializer />
+          <BrandingDebug />*/}
           <BrowserRouter>
             <Routes>
               {/* --- Rutas Públicas --- */}

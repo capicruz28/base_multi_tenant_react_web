@@ -303,14 +303,14 @@ const FinalizarTareoPage: React.FC = () => {
               placeholder="Buscar en cualquier columna..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary text-sm"
             />
           </div>
         </div>
         <button
           onClick={handleGuardar}
           disabled={isSaving}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-50 text-sm"
+          className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover flex items-center gap-2 disabled:opacity-50 text-sm"
         >
           {isSaving && <Loader className="animate-spin h-4 w-4" />}
           <Save className="h-4 w-4" /> {isSaving ? "Guardando..." : "Registrar Destajo"}
@@ -320,7 +320,7 @@ const FinalizarTareoPage: React.FC = () => {
       {/* Loader */}
       {loading && (
         <div className="flex justify-center items-center py-6">
-          <Loader className="animate-spin h-8 w-8 text-indigo-600" />
+          <Loader className="animate-spin h-8 w-8 text-brand-primary" />
           <p className="ml-3 text-gray-500 dark:text-gray-400 text-sm">Cargando pendientes...</p>
         </div>
       )}
@@ -350,7 +350,7 @@ const FinalizarTareoPage: React.FC = () => {
                       selectedRow?.fecha_destajo === item.fecha_destajo &&
                       selectedRow?.cod_proceso === item.cod_proceso &&
                       (selectedRow?.cod_subproceso || "") === (item.cod_subproceso || "")
-                        ? "bg-indigo-100 dark:bg-indigo-900/50 border-l-4 border-indigo-500"
+                        ? "bg-brand-primary/10 dark:bg-brand-primary/20 border-l-4 border-brand-primary"
                         : ""
                     }`}
                   >
@@ -359,7 +359,7 @@ const FinalizarTareoPage: React.FC = () => {
                       selectedRow?.fecha_destajo === item.fecha_destajo &&
                       selectedRow?.cod_proceso === item.cod_proceso &&
                       (selectedRow?.cod_subproceso || "") === (item.cod_subproceso || "")
-                        ? "bg-indigo-100 dark:bg-indigo-900/50 border-l-4 border-indigo-500"
+                        ? "bg-brand-primary/10 dark:bg-brand-primary/20 border-l-4 border-brand-primary"
                         : ""
                     }`}>
                       {formatDateYYYYMMDD(item.fecha_destajo)}
@@ -456,7 +456,7 @@ const FinalizarTareoPage: React.FC = () => {
                     }}
                     placeholder="HH:mm"
                     maxLength={5}
-                    className="border rounded w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-300 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="border rounded w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-300 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary"
                   />
                 </div>
                 <div>
@@ -480,7 +480,7 @@ const FinalizarTareoPage: React.FC = () => {
                     }}
                     placeholder="HH:mm"
                     maxLength={5}
-                    className="border rounded w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-300 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="border rounded w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-300 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary"
                   />
                 </div>
               </div>
@@ -490,7 +490,7 @@ const FinalizarTareoPage: React.FC = () => {
                   <select
                     value={tipoValor}
                     onChange={(e) => setTipoValor(e.target.value as any)}
-                    className="border rounded w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="border rounded w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary"
                   >
                     <option value="horas">Horas</option>
                     <option value="kilos">Kilos</option>
@@ -508,7 +508,7 @@ const FinalizarTareoPage: React.FC = () => {
                       const target = e.currentTarget;
                       setTimeout(() => target.select(), 0);
                     }}
-                    className="border rounded w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="border rounded w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary"
                   />
                 </div>
                 <div className="pt-6">
@@ -517,7 +517,7 @@ const FinalizarTareoPage: React.FC = () => {
                       type="checkbox"
                       checked={prorratear}
                       onChange={(e) => setProrratear(e.target.checked)}
-                      className="form-checkbox h-4 w-4 text-indigo-600 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-indigo-500"
+                      className="form-checkbox h-4 w-4 text-brand-primary bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-brand-primary"
                     />
                     <label className="text-sm text-gray-700 dark:text-gray-300 font-semibold">Prorratear</label>
                   </label>
@@ -533,7 +533,7 @@ const FinalizarTareoPage: React.FC = () => {
                     const target = e.currentTarget;
                     setTimeout(() => target.select(), 0);
                   }}
-                  className="border rounded w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-300 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="border rounded w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-300 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary"
                   placeholder="Ingrese observación..."
                   style={{ textTransform: 'uppercase' }}
                 />
@@ -550,7 +550,7 @@ const FinalizarTareoPage: React.FC = () => {
           </div>
 
           <div className="col-span-7">
-            <div className="bg-indigo-600 text-white px-4 py-2 rounded-t-lg">
+            <div className="bg-brand-primary text-white px-4 py-2 rounded-t-lg">
               <h3 className="font-semibold text-sm">
                 Detalle seleccionado → Fecha Destajo: {formatDateYYYYMMDD(selectedRow.fecha_destajo)} | 
                 Lote: {selectedRow.lote} | 
@@ -608,7 +608,7 @@ const FinalizarTareoPage: React.FC = () => {
                             const target = e.currentTarget;
                             setTimeout(() => target.select(), 0);
                           }}
-                          className="border rounded px-2 py-1 w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          className="border rounded px-2 py-1 w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary"
                         />
                       </td>
                       <td className="px-2 py-1">
@@ -643,7 +643,7 @@ const FinalizarTareoPage: React.FC = () => {
                             const target = e.currentTarget;
                             setTimeout(() => target.select(), 0);
                           }}
-                          className="border rounded px-2 py-1 w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          className="border rounded px-2 py-1 w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary"
                         />
                       </td>
                       <td className="px-2 py-1">
@@ -661,7 +661,7 @@ const FinalizarTareoPage: React.FC = () => {
                             const target = e.currentTarget;
                             setTimeout(() => target.select(), 0);
                           }}
-                          className="border rounded px-2 py-1 w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-300 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          className="border rounded px-2 py-1 w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-300 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-brand-primary focus:border-brand-primary"
                           placeholder="Observación..."
                           style={{ textTransform: 'uppercase' }}
                         />

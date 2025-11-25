@@ -3,6 +3,7 @@
 /* 1. Definir variables CSS PRIMERO */
 @layer base {
   :root {
+    /* Variables de shadcn/ui (mantener compatibilidad) */
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
@@ -27,9 +28,46 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem /* Ajusta según tu preferencia */
+    --radius: 0.5rem; /* Ajusta según tu preferencia */
+    
+    /* ========================================
+       TOKENS DE BRANDING DINÁMICO
+       (Actualizados por JavaScript desde backend)
+       ======================================== */
+    
+    /* Tokens Primarios */
+    --color-primary: #1976D2; /* Valor por defecto */
+    --color-primary-hsl: 210 79% 46%;
+    --color-primary-rgb: 25, 118, 210;
+    --color-primary-hover-hsl: 210 79% 41%; /* Generado automáticamente */
+    --color-primary-active-hsl: 210 79% 36%;
+    --color-primary-light-hsl: 210 79% 86%; /* Para backgrounds suaves */
+    --color-primary-dark-hsl: 210 79% 26%; /* Para textos sobre fondos claros */
+    
+    /* Tokens Secundarios */
+    --color-secondary: #424242;
+    --color-secondary-hsl: 0 0% 26%;
+    --color-secondary-rgb: 66, 66, 66;
+    --color-secondary-hover-hsl: 0 0% 23%;
+    --color-secondary-active-hsl: 0 0% 21%;
+    --color-secondary-light-hsl: 0 0% 56%;
+    --color-secondary-dark-hsl: 0 0% 11%;
+    
+    /* Tokens de Superficie y Texto */
+    --color-surface: 0 0% 100%;
+    --color-surface-alt: 0 0% 98%;
+    --color-text-primary: 0 0% 3.9%;
+    --color-text-secondary: 0 0% 45.1%;
+    --color-border: 0 0% 89.8%;
+    --color-input-bg: 0 0% 100%;
+    --color-input-border: 0 0% 89.8%;
+    
+    /* Variables de tema personalizado (actualizadas por JavaScript) */
+    --font-family: system-ui, -apple-system, sans-serif;
+    --border-radius: 0.5rem;
   }
   .dark {
+    /* Variables de shadcn/ui para dark mode */
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
     --card: 0 0% 3.9%;
@@ -53,7 +91,37 @@
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%
+    --chart-5: 340 75% 55%;
+    
+    /* ========================================
+       TOKENS DE BRANDING PARA DARK MODE
+       (Optimizados para mejor contraste)
+       ======================================== */
+    
+    /* Tokens Primarios (aclarados para dark mode) */
+    --color-primary: hsl(var(--color-primary-dark-mode-hsl, 210 79% 76%));
+    --color-primary-hsl: var(--color-primary-dark-mode-hsl, 210 79% 76%);
+    --color-primary-hover-hsl: 210 79% 81%; /* Más claro en hover */
+    --color-primary-active-hsl: 210 79% 71%; /* Ligeramente más oscuro en active */
+    --color-primary-light-hsl: 210 79% 90%; /* Muy claro para backgrounds */
+    --color-primary-dark-hsl: 210 79% 66%; /* Para textos sobre fondos oscuros */
+    
+    /* Tokens Secundarios (aclarados para dark mode) */
+    --color-secondary: hsl(var(--color-secondary-dark-mode-hsl, 0 0% 56%));
+    --color-secondary-hsl: var(--color-secondary-dark-mode-hsl, 0 0% 56%);
+    --color-secondary-hover-hsl: 0 0% 61%;
+    --color-secondary-active-hsl: 0 0% 51%;
+    --color-secondary-light-hsl: 0 0% 70%;
+    --color-secondary-dark-hsl: 0 0% 46%;
+    
+    /* Tokens de Superficie y Texto (optimizados para dark mode) */
+    --color-surface: 0 0% 12%;
+    --color-surface-alt: 0 0% 18%;
+    --color-text-primary: 0 0% 98%;
+    --color-text-secondary: 0 0% 70%;
+    --color-border: 0 0% 25%;
+    --color-input-bg: 0 0% 15%;
+    --color-input-border: 0 0% 25%;
   }
 }
 
@@ -71,6 +139,8 @@
     @apply bg-background text-foreground;
     /* Añade aquí mejoras de fuente si lo deseas, ejemplo: */
     font-feature-settings: "rlig" 1, "calt" 1;
+    /* Aplicar fuente personalizada si está definida */
+    font-family: var(--font-family);
   }
 }
 

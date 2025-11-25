@@ -8,9 +8,11 @@ import { useAuth } from '../../context/AuthContext'; // Ajusta la ruta
 import { authService } from '../../services/auth.service'; // Ajusta la ruta
 import { getErrorMessage } from '../../services/error.service'; // Ajusta la ruta
 import { LoginCredentials, UserData } from '../../types/auth.types'; // Ajusta la ruta
+import { useBranding } from '../../hooks/useBranding'; // ✅ NUEVO: Hook de branding
 
 const Login: React.FC = () => { // Añadir tipo explícito React.FC
   const navigate = useNavigate();
+  const { branding } = useBranding(false); // Obtener branding sin auto-load (no hay usuario autenticado aún)
   const location = useLocation();
   const { setAuthFromLogin } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
@@ -23,8 +25,7 @@ const Login: React.FC = () => { // Añadir tipo explícito React.FC
   // Determinar la ruta de destino después del login
   const from = location.state?.from?.pathname; // Página desde la que se llegó a /login (si aplica)
   const defaultHome = "/home"; // Página por defecto para usuarios normales
-  const adminHome = "/admin/usuarios"; // Página por defecto para administradores
-  const superadminDashboard = "/super-admin/dashboard"; // Página por defecto para administradores
+  const superadminDashboard = "/super-admin/dashboard"; // Página por defecto para super administradores
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,11 +91,23 @@ const Login: React.FC = () => { // Añadir tipo explícito React.FC
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
       <div className="max-w-md w-full space-y-8 p-8 bg-white dark:bg-gray-800 shadow-lg rounded-lg"> {/* Añadido padding y fondo */}
         <div className="text-center">
-          <img
-            src="/fidesof.png" // Asegúrate que esta imagen exista en public/
-            alt="Ilustración de Login"
-            className="h-15 w-auto mx-auto mb-6" // Ajustado tamaño y margen
-          />
+          {branding?.logo_url ? (
+            <img
+              src={branding.logo_url}
+              alt="Logo"
+              className="h-15 w-auto mx-auto mb-6 max-h-16 object-contain"
+              onError={(e) => {
+                // Fallback a logo por defecto si falla
+                e.currentTarget.src = '/fidesof.png';
+              }}
+            />
+          ) : (
+            <img
+              src="/fidesof.png"
+              alt="Logo"
+              className="h-15 w-auto mx-auto mb-6"
+            />
+          )}
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
             Iniciar Sesión
           </h2>
@@ -115,7 +128,7 @@ const Login: React.FC = () => { // Añadir tipo explícito React.FC
                 type="text"
                 autoComplete="username"
                 required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" // Redondeado completo
+                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-brand-primary focus:border-brand-primary focus:z-10 sm:text-sm" // Redondeado completo
                 placeholder="Nombre de usuario"
                 value={formData.username}
                 onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
@@ -132,7 +145,7 @@ const Login: React.FC = () => { // Añadir tipo explícito React.FC
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm pr-10" // Redondeado completo y padding
+                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-brand-primary focus:border-brand-primary focus:z-10 sm:text-sm pr-10" // Redondeado completo y padding
                 placeholder="Contraseña"
                 value={formData.password}
                 onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
@@ -152,7 +165,7 @@ const Login: React.FC = () => { // Añadir tipo explícito React.FC
           <button
             type="submit"
             disabled={loading}
-            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out" // Añadida transición
+            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out" // Añadida transición
           >
             {loading ? (
               <>

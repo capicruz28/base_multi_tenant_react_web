@@ -438,14 +438,14 @@ const ReporteAutorizacionPage: React.FC = () => {
               placeholder="Buscar en cualquier columna..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary text-sm"
             />
           </div>
         </div>
         
         <button
           onClick={generarPDF}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-2 text-sm"
+          className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover flex items-center gap-2 text-sm"
         >
           <FileText className="h-4 w-4" />
           Generar PDF
@@ -475,7 +475,7 @@ const ReporteAutorizacionPage: React.FC = () => {
         <button
           onClick={fetchData}
           disabled={loading || processing}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+          className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover disabled:opacity-50"
         >
           {loading ? "Consultando..." : "Consultar"}
         </button>
@@ -498,7 +498,7 @@ const ReporteAutorizacionPage: React.FC = () => {
         <div
           onClick={() => handleEstadoFilter(null)}
           className={`cursor-pointer p-4 rounded-lg shadow hover:opacity-80 ${
-            estadoFiltro === null ? 'bg-indigo-100 dark:bg-indigo-900/50 border-l-4 border-indigo-500' : 'bg-white dark:bg-gray-800'
+            estadoFiltro === null ? 'bg-brand-primary/10 dark:bg-brand-primary/20 border-l-4 border-brand-primary' : 'bg-white dark:bg-gray-800'
           }`}
         >
           <p className="text-sm text-gray-600 dark:text-gray-300">Total Destajos</p>
@@ -536,7 +536,7 @@ const ReporteAutorizacionPage: React.FC = () => {
       {/* Tabla */}
       {loading ? (
         <div className="flex justify-center items-center py-8">
-          <Loader className="animate-spin h-8 w-8 text-indigo-600" />
+          <Loader className="animate-spin h-8 w-8 text-brand-primary" />
           <span className="ml-2">Cargando datos desde el servidor...</span>
         </div>
       ) : (
@@ -568,14 +568,14 @@ const ReporteAutorizacionPage: React.FC = () => {
                       onClick={() => handleRowClick(item)}
                       className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
                         isSelected
-                          ? "bg-indigo-100 dark:bg-indigo-900/50"
+                          ? "bg-brand-primary/10 dark:bg-brand-primary/20"
                           : ""
                       }`}
                     >
                       <td
                         className={`px-2 py-1 text-table-cell ${
                           isSelected
-                            ? "border-l-4 border-indigo-500"
+                            ? "border-l-4 border-brand-primary"
                             : ""
                         }`}
                       >
@@ -662,7 +662,7 @@ const ReporteAutorizacionPage: React.FC = () => {
       {/* Tabla Detalle */}
       {selectedRow && (
         <div className="mb-4">
-          <div className="bg-indigo-600 text-white px-4 py-2 rounded-t-lg">
+          <div className="bg-brand-primary text-white px-4 py-2 rounded-t-lg">
             <h3 className="font-semibold text-sm">
               Detalle seleccionado → Fecha Destajo: {formatDateYYYYMMDD(selectedRow.fecha_destajo)} | Lote:{" "}
               {selectedRow.lote} | Proceso: {selectedRow.proceso}

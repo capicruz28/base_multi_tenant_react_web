@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useBreadcrumb } from '../../context/BreadcrumbContext';
 import { Popover } from 'react-tiny-popover';
 import * as LucideIcons from 'lucide-react';
+import { useBranding } from '../../hooks/useBranding';
 
 import { menuService } from '../../services/menu.service'; 
 import type { SidebarMenuItem, SidebarProps, PopoverContentProps } from '../../types/menu.types'; 
@@ -93,7 +94,7 @@ const PopoverContent: React.FC<PopoverContentProps> = React.memo(({
                                 flex items-center p-2 rounded-md transition-colors duration-150
                                 ${hasValidRoute ? 'cursor-pointer' : 'cursor-default'}
                                 ${isChildActive 
-                                    ? 'bg-indigo-50 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 font-medium' 
+                                    ? 'bg-brand-primary/10 dark:bg-gray-700 text-brand-primary dark:text-brand-primary font-medium' 
                                     : hasValidRoute 
                                     ? 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                     : 'text-gray-500 dark:text-gray-400'
@@ -102,7 +103,7 @@ const PopoverContent: React.FC<PopoverContentProps> = React.memo(({
                         >
                             <span className={`
                                 w-1.5 h-1.5 rounded-full mr-3 flex-shrink-0
-                                ${isChildActive ? 'bg-indigo-500' : 'bg-gray-400 dark:bg-gray-500'}
+                                ${isChildActive ? 'bg-brand-primary' : 'bg-gray-400 dark:bg-gray-500'}
                             `}></span>
                             <span className="text-sm truncate">
                                 {child.nombre}
@@ -138,6 +139,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const currentPath = location.pathname;
+    const { branding } = useBranding(); // ✅ NUEVO: Obtener branding
 
     const isAdmin = useMemo(() => hasRole('admin'), [hasRole]);
     
@@ -314,7 +316,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
             ${isCollapsed ? 'justify-center' : 'w-full'}
             ${transitionClass}
             ${isActive
-                ? 'bg-indigo-50 dark:bg-gray-700 text-indigo-700 dark:text-indigo-400 font-medium before:content-[""] before:absolute before:left-0 before:top-0 before:h-full before:w-1 before:bg-indigo-600 before:rounded-lg'
+                ? 'bg-brand-primary/10 dark:bg-gray-700 text-brand-primary font-medium before:content-[""] before:absolute before:left-0 before:top-0 before:h-full before:w-1 before:bg-brand-primary before:rounded-lg'
                 : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
             }
         `;
@@ -376,7 +378,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                                 flex items-center justify-center p-2 rounded-lg flex-shrink-0 w-8
                                 ${transitionClass}
                                 ${isExpanded || isChildActive
-                                    ? 'bg-gray-100 dark:bg-gray-700 text-indigo-700 dark:text-indigo-400'
+                                    ? 'bg-gray-100 dark:bg-gray-700 text-brand-primary dark:text-brand-primary'
                                     : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                                 }
                             `}
@@ -400,7 +402,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                         flex items-center p-2 rounded-lg w-full text-left
                         ${transitionClass} ${indentClass}
                         ${isExpanded || isChildActive
-                            ? 'bg-gray-100 dark:bg-gray-700 font-semibold text-indigo-700 dark:text-indigo-400' 
+                            ? 'bg-gray-100 dark:bg-gray-700 font-semibold text-brand-primary dark:text-brand-primary' 
                             : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                         }
                     `}
@@ -456,7 +458,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                     <button
                       className={`
                         ${getLinkClasses(itemPath)}
-                        ${isActive ? 'bg-indigo-50 dark:bg-gray-700 text-indigo-700 dark:text-indigo-400' : ''}
+                        ${isActive ? 'bg-brand-primary/10 dark:bg-gray-700 text-brand-primary dark:text-brand-primary' : ''}
                       `}
                       title={item.nombre}
                       onMouseEnter={() => handleMouseEnter(item)}
@@ -584,7 +586,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         <div className="mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
             {!isCollapsed && (
                 <div className="mb-2 pl-2">
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-brand-primary dark:text-brand-primary flex items-center gap-2">
                         <LucideIcons.Shield className="w-4 h-4" />
                         {isSuperAdmin ? 'Administración Global' : 'Administración'}
                     </h2>
@@ -593,7 +595,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
             
             {isCollapsed && (
                 <div className="mb-3 px-1">
-                    <div className="p-2 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                    <div className="p-2 flex items-center justify-center text-brand-primary dark:text-brand-primary">
                         <LucideIcons.Shield className="w-5 h-5" />
                     </div>
                 </div>
@@ -651,7 +653,30 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                 ${isCollapsed ? 'justify-center' : 'justify-between px-4'}
             `}>
                 {!isCollapsed && (
-                    <div className="font-bold text-lg text-gray-900 dark:text-white truncate">
+                    branding?.logo_url ? (
+                        <img 
+                            src={branding.logo_url} 
+                            alt="Logo"
+                            className="h-8 w-auto max-w-[180px] object-contain"
+                            onError={(e) => {
+                                // Fallback a texto si la imagen falla
+                                e.currentTarget.style.display = 'none';
+                                const parent = e.currentTarget.parentElement;
+                                if (parent && !parent.querySelector('.logo-fallback')) {
+                                    const fallback = document.createElement('div');
+                                    fallback.className = 'logo-fallback font-bold text-lg text-brand-primary truncate';
+                                    fallback.textContent = branding?.tema_personalizado?.appName || 'Fidesoft';
+                                    parent.appendChild(fallback);
+                                }
+                            }}
+                        />
+                    ) : null
+                )}
+                {!isCollapsed && (
+                    <div 
+                        className="font-bold text-lg text-gray-900 dark:text-white truncate"
+                        style={{ display: branding?.logo_url ? 'none' : 'block' }}
+                    >
                         Fidesoft
                     </div>
                 )}
@@ -677,7 +702,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
             <div className="flex-1 overflow-y-auto p-2 scrollbar-thumb-rounded scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600">
                 {loading && (
                     <div className={`p-4 flex flex-col items-center justify-center text-center ${widthClass}`}>
-                        <LucideIcons.Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                        <LucideIcons.Loader2 className="w-6 h-6 animate-spin text-brand-primary" />
                         <span className="mt-2 text-sm text-gray-500 dark:text-gray-400">Cargando...</span>
                     </div>
                 )}

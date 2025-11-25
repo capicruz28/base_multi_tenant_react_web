@@ -218,7 +218,7 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
               onCheckedChange={(checked) => handleViewPermissionChange(node.menu_id, !!checked)}
               disabled={isLoading || isSaving}
               aria-label={`Permiso de Ver para ${node.nombre}`}
-              className="dark:border-gray-500 dark:data-[state=checked]:bg-indigo-500 dark:data-[state=checked]:border-indigo-500"
+              className="dark:border-gray-500 dark:data-[state=checked]:bg-brand-primary dark:data-[state=checked]:border-brand-primary"
             />
           </div>
         </div>
@@ -274,7 +274,7 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
           {/* Indicadores de carga y error */}
           {isLoading && (
             <div className="flex justify-center items-center h-40">
-              <Loader className="animate-spin h-8 w-8 text-indigo-600" />
+              <Loader className="animate-spin h-8 w-8 text-brand-primary" />
               <p className="ml-3 text-gray-500 dark:text-gray-400">Cargando estructura y permisos...</p>
             </div>
           )}
@@ -299,7 +299,7 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
             <div>
               {Object.entries(groupedMenuItems).map(([areaName, itemsInArea]) => (
                 <div key={areaName} className="mb-4 pb-2 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
-                  <h3 className="text-md font-semibold text-indigo-700 dark:text-indigo-300 mb-2 sticky top-0 bg-white dark:bg-gray-800 py-1 z-10">
+                  <h3 className="text-md font-semibold text-brand-primary dark:text-brand-primary/80 mb-2 sticky top-0 bg-white dark:bg-gray-800 py-1 z-10">
                     Área: {areaName}
                   </h3>
                   <div className="pl-2">
@@ -323,7 +323,7 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
             type="button"
             onClick={handleSaveChanges}
             disabled={isLoading || isSaving || menuTree.length === 0}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50"
+            className="bg-brand-primary hover:bg-brand-primary-hover text-white disabled:opacity-50"
           >
             {isSaving && <Loader className="animate-spin h-4 w-4 mr-2" />}
             {isSaving ? 'Guardando...' : 'Guardar Visibilidad'} {/* Texto del botón actualizado */}

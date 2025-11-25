@@ -228,7 +228,7 @@ const ActiveSessionsPage: React.FC = () => {
             placeholder="Buscar por usuario, nombre o IP..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-3 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+            className="pl-10 pr-3 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
           />
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
         </div>
@@ -240,7 +240,7 @@ const ActiveSessionsPage: React.FC = () => {
             onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
             className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors ${
               autoRefreshEnabled
-                ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                ? 'bg-brand-primary text-white hover:bg-brand-primary-hover'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
             }`}
             title={autoRefreshEnabled ? 'Desactivar auto-actualización' : 'Activar auto-actualización'}
@@ -255,7 +255,7 @@ const ActiveSessionsPage: React.FC = () => {
           <button
             onClick={fetchActiveSessions}
             disabled={isLoading}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50 flex items-center gap-2"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Actualizar</span>
@@ -272,7 +272,7 @@ const ActiveSessionsPage: React.FC = () => {
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Sesiones</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{sessions.length}</p>
               </div>
-              <Shield className="h-8 w-8 text-indigo-500" />
+              <Shield className="h-8 w-8 text-brand-primary" />
             </div>
           </div>
 
@@ -305,7 +305,7 @@ const ActiveSessionsPage: React.FC = () => {
       {/* Indicador de Carga */}
       {isLoading && (
         <div className="flex justify-center items-center py-10">
-          <Loader className="animate-spin h-8 w-8 text-indigo-600" />
+          <Loader className="animate-spin h-8 w-8 text-brand-primary" />
           <p className="ml-3 text-gray-500 dark:text-gray-400">
             Cargando sesiones activas...
           </p>
@@ -333,7 +333,7 @@ const ActiveSessionsPage: React.FC = () => {
                     key={session.token_id}
                     className={`bg-white dark:bg-gray-800 rounded-lg shadow border p-5 transition-all hover:shadow-lg ${
                       isOwnSession
-                        ? 'border-indigo-500 dark:border-indigo-400 ring-2 ring-indigo-200 dark:ring-indigo-800'
+                        ? 'border-brand-primary dark:border-brand-primary ring-2 ring-brand-primary/20 dark:ring-brand-primary/30'
                         : 'border-gray-200 dark:border-gray-700'
                     }`}
                   >
@@ -343,7 +343,7 @@ const ActiveSessionsPage: React.FC = () => {
                         <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate flex items-center gap-2">
                           {session.nombre_usuario}
                           {isOwnSession && (
-                            <span className="text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 px-2 py-0.5 rounded-full">
+                            <span className="text-xs bg-brand-primary/10 text-brand-primary dark:bg-brand-primary/20 dark:text-brand-primary/80 px-2 py-0.5 rounded-full">
                               Tu sesión
                             </span>
                           )}
@@ -449,7 +449,7 @@ const ActiveSessionsPage: React.FC = () => {
                 type="button"
                 onClick={handleCloseRevokeConfirm}
                 disabled={isRevoking}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+                className="px-4 py-2 text-white bg-brand-secondary rounded-md hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50"
               >
                 Cancelar
               </button>

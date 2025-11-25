@@ -59,14 +59,53 @@ module.exports = {
           '3': 'hsl(var(--chart-3))',
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))'
+        },
+        // ========================================
+        // TOKENS DE BRANDING DINÁMICO
+        // (Actualizados por JavaScript desde backend)
+        // ========================================
+        
+        'brand-primary': {
+          DEFAULT: 'rgb(var(--color-primary-rgb, 25, 118, 210))',
+          hex: 'var(--color-primary)',
+          hover: 'hsl(var(--color-primary-hover-hsl, 210 79% 41%))',
+          active: 'hsl(var(--color-primary-active-hsl, 210 79% 36%))',
+          light: 'hsl(var(--color-primary-light-hsl, 210 79% 86%))',
+          dark: 'hsl(var(--color-primary-dark-hsl, 210 79% 26%))',
+        },
+        // Alias para compatibilidad (bg-brand-primary-hover funciona)
+        'brand-primary-hover': 'hsl(var(--color-primary-hover-hsl, 210 79% 41%))',
+        'brand-secondary': {
+          DEFAULT: 'rgb(var(--color-secondary-rgb, 66, 66, 66))',
+          hex: 'var(--color-secondary)',
+          hover: 'hsl(var(--color-secondary-hover-hsl, 0 0% 23%))',
+          active: 'hsl(var(--color-secondary-active-hsl, 0 0% 21%))',
+          light: 'hsl(var(--color-secondary-light-hsl, 0 0% 56%))',
+          dark: 'hsl(var(--color-secondary-dark-hsl, 0 0% 11%))',
+        },
+        'brand-surface': {
+          DEFAULT: 'hsl(var(--color-surface, 0 0% 100%))',
+          alt: 'hsl(var(--color-surface-alt, 0 0% 98%))',
+        },
+        'brand-text': {
+          DEFAULT: 'hsl(var(--color-text-primary, 0 0% 3.9%))',
+          secondary: 'hsl(var(--color-text-secondary, 0 0% 45.1%))',
+        },
+        'brand-border': 'hsl(var(--color-border, 0 0% 89.8%))',
+        'brand-input': {
+          bg: 'hsl(var(--color-input-bg, 0 0% 100%))',
+          border: 'hsl(var(--color-input-border, 0 0% 89.8%))',
         }
         // --- NO AÑADIR aquí referencias como 'colors.text.light' ---
         // --- NO AÑADIR aquí backgroundColor o textColor, usar clases directas ---
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        lg: "var(--border-radius, var(--radius))",
+        md: "calc(var(--border-radius, var(--radius)) - 2px)",
+        sm: "calc(var(--border-radius, var(--radius)) - 4px)",
+      },
+      fontFamily: {
+        sans: ['var(--font-family)', 'system-ui', '-apple-system', 'sans-serif'],
       },
       keyframes: { // Necesario para tailwindcss-animate
         "accordion-down": {

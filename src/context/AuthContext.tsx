@@ -18,6 +18,7 @@ import type {
 	AxiosRequestHeaders,
 } from 'axios';
 import type { AuthResponse, UserData } from '../types/auth.types';
+import { useBrandingStore } from '../stores/branding.store';
 
 // ============================================================================
 // BLOQUEO DE CONCURRENCIA GLOBAL (CRÍTICO)
@@ -127,6 +128,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			setIsSuperAdmin(false);
 			setUserType('user');
 			setClienteInfo(null);
+			// Resetear branding cuando no hay usuario
+			useBrandingStore.getState().resetBranding();
 			return;
 		}
 
@@ -155,6 +158,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			});
 		} else {
 			setClienteInfo(null);
+		}
+		
+		// ✅ IMPORTANTE: Cargar branding siempre que el usuario esté autenticado
+		// El endpoint /tenant/branding usa el contexto del tenant (subdominio) del request,
+		// no necesita cliente_id explícito. Funciona para tenant_admin y super_admin.
+		if (userData) {
+			console.log('🎨 [AuthContext] Cargando branding (endpoint usa contexto de tenant)...');
+			useBrandingStore.getState().loadBranding();
+		} else {
+			// Solo resetear cuando no hay usuario
+			useBrandingStore.getState().resetBranding();
 		}
 	}, [determineUserType]);
 
@@ -207,6 +221,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			setClienteInfo(null);
 			isRefreshingPromise = null;
 			processQueue(new Error('Session expired'), null);
+			// Resetear branding al hacer logout
+			useBrandingStore.getState().resetBranding();
 		}
 	}, [processQueue]);
 

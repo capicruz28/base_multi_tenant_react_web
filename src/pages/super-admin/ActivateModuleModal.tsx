@@ -143,7 +143,7 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <Package className="h-6 w-6 text-indigo-600" />
+            <Package className="h-6 w-6 text-brand-primary" />
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                 Activar Módulo
@@ -166,18 +166,18 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-6">
             {/* Información del módulo */}
-            <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg">
+            <div className="bg-brand-primary-light dark:bg-brand-primary/20 p-4 rounded-lg">
               <div className="flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mt-0.5" />
+                <AlertCircle className="h-5 w-5 text-brand-primary dark:text-brand-primary mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-indigo-900 dark:text-indigo-200">
+                  <p className="text-sm font-medium text-brand-primary dark:text-brand-primary/80">
                     Información del Módulo
                   </p>
-                  <p className="text-sm text-indigo-700 dark:text-indigo-300 mt-1">
+                  <p className="text-sm text-brand-primary/70 dark:text-brand-primary/60 mt-1">
                     {modulo.descripcion || 'Sin descripción'}
                   </p>
                   {modulo.es_modulo_core && (
-                    <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-2">
+                    <p className="text-xs text-brand-primary dark:text-brand-primary/80 mt-2">
                       ⚠️ Este es un módulo core del sistema
                     </p>
                   )}
@@ -197,8 +197,8 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
                   name="limite_usuarios"
                   value={formData.limite_usuarios || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                    errors.limite_usuarios ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
+                    errors.limite_usuarios ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                   }`}
                   placeholder="Ilimitado (dejar vacío)"
                   min="1"
@@ -222,8 +222,8 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
                   name="limite_registros"
                   value={formData.limite_registros || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                    errors.limite_registros ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
+                    errors.limite_registros ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                   }`}
                   placeholder="Ilimitado (dejar vacío)"
                   min="0"
@@ -247,8 +247,8 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
                   name="fecha_vencimiento"
                   value={formData.fecha_vencimiento || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${
-                    errors.fecha_vencimiento ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
+                    errors.fecha_vencimiento ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                   }`}
                   min={new Date().toISOString().split('T')[0]}
                   disabled={loading}
@@ -272,8 +272,8 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
                 name="configuracion_json"
                 value={configJson}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white font-mono text-sm ${
-                  errors.configuracion_json ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground font-mono text-sm ${
+                  errors.configuracion_json ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                 }`}
                 placeholder='{"clave": "valor"}'
                 rows={6}
@@ -294,14 +294,14 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
             >
               {loading && <Loader className="h-4 w-4 animate-spin" />}
               {loading ? 'Activando...' : 'Activar Módulo'}

@@ -46,29 +46,29 @@ const Header = () => {
     }
   };
 
-  // ✅ NUEVO: Obtener badge de tipo de usuario
+  // ✅ NUEVO: Obtener badge de tipo de usuario (usando tokens de branding)
   const getUserTypeBadge = () => {
     if (isSuperAdminUser) {
       return {
         text: 'ADMINISTRADOR GLOBAL',
         icon: Crown,
-        color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
-        iconColor: 'text-purple-600 dark:text-purple-400'
+        color: 'bg-brand-primary/10 text-brand-primary dark:bg-brand-primary/20 dark:text-brand-primary',
+        iconColor: 'text-brand-primary dark:text-brand-primary'
       };
     }
     if (isTenantAdminUser) {
       return {
         text: clienteInfo?.nombre || 'ADMINISTRADOR',
         icon: Building2,
-        color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-        iconColor: 'text-blue-600 dark:text-blue-400'
+        color: 'bg-brand-primary/10 text-brand-primary dark:bg-brand-primary/20 dark:text-brand-primary',
+        iconColor: 'text-brand-primary dark:text-brand-primary'
       };
     }
     return {
       text: 'USUARIO',
       icon: User,
-      color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-      iconColor: 'text-gray-600 dark:text-gray-400'
+      color: 'bg-brand-secondary/10 text-brand-secondary dark:bg-brand-secondary/20 dark:text-brand-secondary',
+      iconColor: 'text-brand-secondary dark:text-brand-secondary'
     };
   };
 
@@ -86,7 +86,7 @@ const Header = () => {
               {/* Home Icon */}
               <button
                 onClick={() => navigate('/')}
-                className="flex items-center text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors flex-shrink-0"
+                className="flex items-center text-gray-500 hover:text-brand-primary dark:text-gray-400 dark:hover:text-brand-primary transition-colors flex-shrink-0"
                 title="Inicio"
               >
                 <Home className="w-4 h-4" />
@@ -103,7 +103,7 @@ const Header = () => {
                     {hasRoute && !isLast ? (
                       <button
                         onClick={() => handleBreadcrumbClick(crumb.ruta)}
-                        className="text-gray-600 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors font-medium truncate max-w-xs"
+                        className="text-gray-600 hover:text-brand-primary dark:text-gray-300 dark:hover:text-brand-primary transition-colors font-medium truncate max-w-xs"
                         title={crumb.nombre}
                       >
                         {crumb.nombre}
@@ -112,7 +112,7 @@ const Header = () => {
                       <span 
                         className={`truncate max-w-xs ${
                           isLast 
-                            ? 'text-indigo-600 dark:text-indigo-400 font-semibold' 
+                            ? 'text-brand-primary dark:text-brand-primary font-semibold' 
                             : 'text-gray-500 dark:text-gray-400'
                         }`}
                         title={crumb.nombre}
@@ -126,7 +126,7 @@ const Header = () => {
             </nav>
           ) : (
             <div className="flex items-center space-x-2">
-              <Home className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <Home className="w-5 h-5 text-brand-primary dark:text-brand-primary" />
               <span className="text-lg font-semibold text-gray-800 dark:text-white">
                 Dashboard
               </span>
@@ -150,7 +150,7 @@ const Header = () => {
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-600 text-white font-semibold text-sm">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-brand-primary text-white font-semibold text-sm">
               {getInitials()}
             </div>
             <span className="text-sm font-medium text-gray-800 dark:text-white hidden sm:inline">
@@ -165,7 +165,7 @@ const Header = () => {
               {/* ✅ NUEVO: Información de usuario y tipo */}
               <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600 text-white font-semibold text-sm">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-brand-primary text-white font-semibold text-sm">
                     {getInitials()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -240,7 +240,7 @@ const Header = () => {
                       }
                       setIsMenuOpen(false);
                     }}
-                    className="w-full px-4 py-2 text-sm text-left text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 flex items-center"
+                    className="w-full px-4 py-2 text-sm text-left text-brand-primary dark:text-brand-primary hover:bg-brand-primary/10 dark:hover:bg-brand-primary/20 flex items-center"
                   >
                     <Shield className="w-4 h-4 mr-3" />
                     {isSuperAdminUser ? 'Administración Global' : 'Administración del Tenant'}

@@ -275,7 +275,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 name="modulo_id"
                 value={formData.modulo_id}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.modulo_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.modulo_id ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                   }`}
                 disabled={loading || testing || loadingModulos}
               >
@@ -305,7 +305,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 name="servidor"
                 value={formData.servidor}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.servidor ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.servidor ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                   }`}
                 placeholder="localhost, 192.168.1.100, sql.server.com"
                 disabled={loading || testing}
@@ -327,7 +327,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 onChange={handleInputChange}
                 min="1"
                 max="65535"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.puerto ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.puerto ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                   }`}
                 disabled={loading || testing}
               />
@@ -346,7 +346,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 name="nombre_bd"
                 value={formData.nombre_bd}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.nombre_bd ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.nombre_bd ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                   }`}
                 placeholder="nombre_base_datos"
                 disabled={loading || testing}
@@ -365,7 +365,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 name="tipo_bd"
                 value={formData.tipo_bd}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                 disabled={loading || testing}
               >
                 <option value="sqlserver">SQL Server</option>
@@ -386,7 +386,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 name="usuario"
                 value={formData.usuario}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.usuario ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.usuario ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                   }`}
                 placeholder="usuario_bd"
                 disabled={loading || testing}
@@ -406,7 +406,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white ${errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.password ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                   }`}
                 placeholder="••••••••"
                 disabled={loading || testing}
@@ -434,7 +434,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                     onChange={handleInputChange}
                     min="1"
                     max="300"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                    className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                     disabled={loading || testing}
                   />
                 </div>
@@ -451,7 +451,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                     onChange={handleInputChange}
                     min="1"
                     max="1000"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                    className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
                     disabled={loading || testing}
                   />
                 </div>
@@ -467,7 +467,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                   name="usa_ssl"
                   checked={formData.usa_ssl}
                   onChange={handleInputChange}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
                   disabled={loading || testing}
                 />
                 <label htmlFor="usa_ssl" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
@@ -482,7 +482,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                   name="es_solo_lectura"
                   checked={formData.es_solo_lectura}
                   onChange={handleInputChange}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
                   disabled={loading || testing}
                 />
                 <label htmlFor="es_solo_lectura" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
@@ -497,7 +497,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                   name="es_conexion_principal"
                   checked={formData.es_conexion_principal}
                   onChange={handleInputChange}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
                   disabled={loading || testing}
                 />
                 <label htmlFor="es_conexion_principal" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
@@ -528,14 +528,14 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 type="button"
                 onClick={onClose}
                 disabled={loading || testing}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={loading || testing}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
               >
                 {loading && <Loader className="h-4 w-4 animate-spin" />}
                 {loading ? 'Creando...' : 'Crear Conexión'}

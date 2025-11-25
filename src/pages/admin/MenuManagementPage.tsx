@@ -368,7 +368,7 @@ const MenuManagementPage: React.FC = () => {
         <div className="mb-6 max-w-xs">
           <label htmlFor="area-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Seleccionar Área</label>
           {isLoadingAreas ? ( <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div> ) : areas.length > 0 ? (
-            <select id="area-select" value={selectedAreaId ?? ''} onChange={handleAreaChange} className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+            <select id="area-select" value={selectedAreaId ?? ''} onChange={handleAreaChange} className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
               <option value="" disabled>-- Seleccione un área --</option>
               {areas.map((area) => (<option key={area.area_id} value={area.area_id}>{area.nombre}</option>))}
             </select>
@@ -380,7 +380,7 @@ const MenuManagementPage: React.FC = () => {
         {selectedAreaId !== null && (
           <>
             <div className="mb-4">
-              <button onClick={() => handleOpenCreateModal(null)} className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50" disabled={isLoadingTree}>Añadir Menú Principal al Área</button>
+              <button onClick={() => handleOpenCreateModal(null)} className="px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-md shadow-sm hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50" disabled={isLoadingTree}>Añadir Menú Principal al Área</button>
             </div>
 
             {isLoadingTree ? ( <div className="flex items-center justify-center h-60 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800"><p className="text-gray-500 dark:text-gray-400">Cargando estructura...</p></div>
@@ -413,7 +413,7 @@ const MenuManagementPage: React.FC = () => {
                                   onClick={hasChildren ? onToggle : undefined}>
                               {hasChildren ? (isOpen ? '▼' : '▶') : <span className="inline-block w-[1em]"></span>}
                             </span>
-                            <span className="mr-2 flex-shrink-0 inline-flex items-center justify-center w-5 h-5 text-indigo-500">
+                            <span className="mr-2 flex-shrink-0 inline-flex items-center justify-center w-5 h-5 text-brand-primary">
                                {getIcon(node.data?.icono, {size: 18})}
                             </span>
                             <span className="text-sm text-gray-800 dark:text-gray-200 truncate" title={node.text}>{node.text}</span>
@@ -435,7 +435,7 @@ const MenuManagementPage: React.FC = () => {
 
         {/* --- Modal de Creación --- */}
         {isCreateModalOpen && ( <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"> <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md"> <h2 className="text-xl mb-4 font-semibold text-gray-800 dark:text-gray-200">Crear Nuevo Menú</h2> <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">{parentNodeForCreate ? `Como submenú de: "${parentNodeForCreate.text}"` : 'Como menú principal.'}</p> <form onSubmit={handleCreateSubmit} id="create-menu-form">
-            <div className="mb-4"><label htmlFor="create-nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre *</label><input type="text" id="create-nombre" name="nombre" value={newMenuData.nombre} onChange={handleNewMenuInputChange} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" /></div>
+            <div className="mb-4"><label htmlFor="create-nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre *</label><input type="text" id="create-nombre" name="nombre" value={newMenuData.nombre} onChange={handleNewMenuInputChange} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" /></div>
             <div className="mb-4">
               <label htmlFor="create-icono" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Icono</label>
               <IconSelector
@@ -446,9 +446,9 @@ const MenuManagementPage: React.FC = () => {
                 menuPlacement="auto"
               />
             </div>
-            <div className="mb-4"><label htmlFor="create-ruta" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruta (URL)</label><input type="text" id="create-ruta" name="ruta" value={newMenuData.ruta || ''} onChange={handleNewMenuInputChange} placeholder="Ej: /admin/usuarios" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" /></div>
-            <div className="mb-4"><label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300"><input type="checkbox" id="create-es_activo" name="es_activo" checked={newMenuData.es_activo} onChange={handleNewMenuInputChange} className="h-4 w-4 text-indigo-600 border-gray-300 dark:border-gray-600 rounded focus:ring-indigo-500 bg-white dark:bg-gray-700" /><span className="ml-2">Activo</span></label></div>
-            <div className="mt-6 flex justify-end space-x-3"><button type="button" onClick={() => setIsCreateModalOpen(false)} disabled={isSubmitting} className="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-md hover:bg-gray-300 disabled:opacity-50 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Cancelar</button><button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Guardando...' : 'Guardar Menú'}</button></div>
+            <div className="mb-4"><label htmlFor="create-ruta" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruta (URL)</label><input type="text" id="create-ruta" name="ruta" value={newMenuData.ruta || ''} onChange={handleNewMenuInputChange} placeholder="Ej: /admin/usuarios" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" /></div>
+            <div className="mb-4"><label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300"><input type="checkbox" id="create-es_activo" name="es_activo" checked={newMenuData.es_activo} onChange={handleNewMenuInputChange} className="h-4 w-4 text-brand-primary border-gray-300 dark:border-gray-600 rounded focus:ring-brand-primary bg-white dark:bg-gray-700" /><span className="ml-2">Activo</span></label></div>
+            <div className="mt-6 flex justify-end space-x-3"><button type="button" onClick={() => setIsCreateModalOpen(false)} disabled={isSubmitting} className="px-4 py-2 text-white bg-brand-secondary text-sm font-medium rounded-md hover:bg-brand-secondary-hover disabled:opacity-50">Cancelar</button><button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-md shadow-sm hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Guardando...' : 'Guardar Menú'}</button></div>
         </form> </div> </div> )}
 
         {/* --- Modal de Edición --- */}
@@ -457,7 +457,7 @@ const MenuManagementPage: React.FC = () => {
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
               <h2 className="text-xl mb-4 font-semibold text-gray-800 dark:text-gray-200">Editar Menú: {editingNodeData.text}</h2>
               <form onSubmit={handleEditSubmit} id="edit-menu-form">
-                <div className="mb-4"><label htmlFor="edit-nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre *</label><input type="text" id="edit-nombre" name="nombre" value={editFormData.nombre ?? ''} onChange={handleEditFormInputChange} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" /></div>
+                <div className="mb-4"><label htmlFor="edit-nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre *</label><input type="text" id="edit-nombre" name="nombre" value={editFormData.nombre ?? ''} onChange={handleEditFormInputChange} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" /></div>
                 <div className="mb-4">
                   <label htmlFor="edit-icono" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Icono</label>
                   <IconSelector
@@ -468,9 +468,9 @@ const MenuManagementPage: React.FC = () => {
                     menuPlacement="auto"
                   />
                 </div>
-                <div className="mb-4"><label htmlFor="edit-ruta" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruta (URL)</label><input type="text" id="edit-ruta" name="ruta" value={editFormData.ruta ?? ''} onChange={handleEditFormInputChange} placeholder="Ej: /configuracion" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" /></div>
-                <div className="mb-4"><label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300"><input type="checkbox" id="edit-es_activo" name="es_activo" checked={editFormData.es_activo} onChange={handleEditFormInputChange} className="h-4 w-4 text-indigo-600 border-gray-300 dark:border-gray-600 rounded focus:ring-indigo-500 bg-white dark:bg-gray-700" /><span className="ml-2">Activo</span></label></div>
-                <div className="mt-6 flex justify-end space-x-3"><button type="button" onClick={() => { setIsEditModalOpen(false); setEditingNodeData(null); }} disabled={isSubmitting} className="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-md hover:bg-gray-300 disabled:opacity-50 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Cancelar</button><button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}</button></div>
+                <div className="mb-4"><label htmlFor="edit-ruta" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruta (URL)</label><input type="text" id="edit-ruta" name="ruta" value={editFormData.ruta ?? ''} onChange={handleEditFormInputChange} placeholder="Ej: /configuracion" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" /></div>
+                <div className="mb-4"><label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300"><input type="checkbox" id="edit-es_activo" name="es_activo" checked={editFormData.es_activo} onChange={handleEditFormInputChange} className="h-4 w-4 text-brand-primary border-gray-300 dark:border-gray-600 rounded focus:ring-brand-primary bg-white dark:bg-gray-700" /><span className="ml-2">Activo</span></label></div>
+                <div className="mt-6 flex justify-end space-x-3"><button type="button" onClick={() => { setIsEditModalOpen(false); setEditingNodeData(null); }} disabled={isSubmitting} className="px-4 py-2 text-white bg-brand-secondary text-sm font-medium rounded-md hover:bg-brand-secondary-hover disabled:opacity-50">Cancelar</button><button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-md shadow-sm hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}</button></div>
               </form>
             </div>
           </div>
