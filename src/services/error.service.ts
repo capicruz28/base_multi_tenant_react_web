@@ -28,27 +28,34 @@ export const getErrorMessage = (error: unknown): SimplifiedApiError => {
         }
         // Podrías añadir lógica para manejar múltiples errores de validación si quisieras
       } else {
-        // --- PRIORIDAD 2: Mensajes genéricos por status si no hay 'detail' ---
+        // --- PRIORIDAD 2: Mensajes específicos y accionables por status si no hay 'detail' ---
         switch (status) {
           case 400:
-            message = 'Solicitud incorrecta. Verifica los datos enviados.';
+            message = 'Los datos enviados son incorrectos. Revisa los campos marcados en rojo y corrige los errores.';
             break;
           case 401:
-            message = 'No autorizado. Credenciales inválidas o sesión expirada.';
+            message = 'Tu sesión ha expirado o las credenciales son inválidas. Por favor, inicia sesión nuevamente.';
             break;
           case 403:
-            message = 'Acceso prohibido. No tienes permiso para realizar esta acción.';
+            message = 'No tienes permiso para realizar esta acción. Contacta al administrador si necesitas acceso.';
             break;
           case 404:
-            message = 'El recurso solicitado no fue encontrado.';
+            message = 'El recurso solicitado no existe o fue eliminado. Verifica que la información sea correcta.';
             break;
-          case 409: // <-- Añadir caso específico para Conflict
-            message = 'Conflicto. El recurso ya existe o hay un problema de duplicidad.'; // Mensaje genérico si detail falló
+          case 409:
+            message = 'El recurso ya existe o hay un conflicto de duplicidad. Verifica que no esté duplicado (ej: subdominio, código).';
+            break;
+          case 422:
+            message = 'Los datos enviados no son válidos. Revisa el formato de los campos y vuelve a intentar.';
             break;
           case 500:
-            message = 'Error interno del servidor. Inténtalo de nuevo más tarde.';
+            message = 'Error interno del servidor. Si el problema persiste, contacta al soporte técnico.';
             break;
-          // Puedes añadir más casos si es necesario
+          case 503:
+            message = 'El servicio no está disponible temporalmente. Intenta nuevamente en unos momentos.';
+            break;
+          default:
+            message = `Error del servidor (${status}). Intenta nuevamente o contacta al soporte si persiste.`;
         }
       }
 

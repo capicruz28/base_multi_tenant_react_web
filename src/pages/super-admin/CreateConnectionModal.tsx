@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { X, Database, Loader, TestTube } from 'lucide-react';
+import { X, Database, Loader, TestTube, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { conexionService } from '../../services/conexion.service';
 import { moduloService } from '../../services/modulo.service';
 import { ConexionCreate } from '../../types/conexion.types';
 import { Modulo } from '../../types/modulo.types';
 import { getErrorMessage } from '../../services/error.service';
+import { TooltipLabel, Tooltip } from '../../components/ui/Tooltip';
 
 interface CreateConnectionModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
   const [testing, setTesting] = useState<boolean>(false);
   const [modulos, setModulos] = useState<Modulo[]>([]);
   const [loadingModulos, setLoadingModulos] = useState<boolean>(true);
+  const [isAdvancedMode, setIsAdvancedMode] = useState<boolean>(false);
 
   const [formData, setFormData] = useState<ConexionCreate>({
     cliente_id: clienteId,
@@ -190,15 +192,40 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
 
       if (result.success) {
         console.log('✅ Prueba de conexión exitosa');
-        toast.success(`✅ Conexión exitosa: ${result.message}`);
+        toast.success(`✅ Conexión exitosa: ${result.message || 'La conexión se estableció correctamente'}`);
       } else {
         console.warn('⚠️ Prueba de conexión fallida:', result.message);
-        toast.error(`❌ Error de conexión: ${result.message}`);
+        // Mensajes específicos según el tipo de error
+        let errorMessage = result.message || 'Error desconocido al probar la conexión';
+        
+        // Mejorar mensajes comunes de error de conexión
+        if (errorMessage.toLowerCase().includes('timeout') || errorMessage.toLowerCase().includes('timed out')) {
+          errorMessage = `⏱️ Timeout de conexión: El servidor no respondió en ${formData.timeout_segundos} segundos. Verifica que el servidor esté accesible y el firewall permita conexiones en el puerto ${formData.puerto}.`;
+        } else if (errorMessage.toLowerCase().includes('login failed') || errorMessage.toLowerCase().includes('authentication')) {
+          errorMessage = `🔐 Error de autenticación: Usuario o contraseña incorrectos. Verifica las credenciales y que el usuario tenga permisos en la base de datos "${formData.nombre_bd}".`;
+        } else if (errorMessage.toLowerCase().includes('cannot open database') || errorMessage.toLowerCase().includes('database') && errorMessage.toLowerCase().includes('not found')) {
+          errorMessage = `📊 Base de datos no encontrada: La base de datos "${formData.nombre_bd}" no existe en el servidor. Verifica el nombre o créala primero.`;
+        } else if (errorMessage.toLowerCase().includes('network') || errorMessage.toLowerCase().includes('connection refused')) {
+          errorMessage = `🌐 Error de red: No se pudo conectar al servidor "${formData.servidor}:${formData.puerto}". Verifica que el servidor esté en ejecución y accesible desde esta red.`;
+        } else if (errorMessage.toLowerCase().includes('ssl') || errorMessage.toLowerCase().includes('certificate')) {
+          errorMessage = `🔒 Error SSL/TLS: Problema con el certificado SSL. Si no usas SSL, desactiva la opción "Usar SSL/TLS". Si lo usas, verifica que el certificado sea válido.`;
+        }
+        
+        toast.error(`❌ ${errorMessage}`, { duration: 6000 });
       }
     } catch (error) {
       console.error('❌ Error probando conexión:', error);
       const errorData = getErrorMessage(error);
-      toast.error(`❌ Error al probar conexión: ${errorData.message}`);
+      
+      // Mensajes específicos según el código de error HTTP
+      let errorMessage = errorData.message;
+      if (errorData.status === 0) {
+        errorMessage = 'No se pudo conectar con el servidor. Verifica tu conexión a internet y que el backend esté disponible.';
+      } else if (errorData.status === 500) {
+        errorMessage = 'Error interno del servidor al probar la conexión. Verifica los logs del servidor o contacta al soporte técnico.';
+      }
+      
+      toast.error(`❌ ${errorMessage}`, { duration: 5000 });
     } finally {
       setTesting(false);
     }
@@ -316,9 +343,12 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
             </div>
 
             <div>
-              <label htmlFor="puerto" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Puerto *
-              </label>
+              <TooltipLabel
+                htmlFor="puerto"
+                label="Puerto"
+                tooltip="Puerto de conexión de la base de datos. Valores comunes: SQL Server (1433), PostgreSQL (5432), MySQL (3306), Oracle (1521)"
+                required
+              />
               <input
                 type="number"
                 id="puerto"
@@ -416,16 +446,45 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
               )}
             </div>
 
-            {/* Configuración Avanzada */}
+            {/* Toggle Modo Simple/Avanzado */}
             <div className="md:col-span-2">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                Configuración Avanzada
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button
+                type="button"
+                onClick={() => setIsAdvancedMode(!isAdvancedMode)}
+                className="flex items-center justify-between w-full p-3 text-left bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {isAdvancedMode ? 'Modo Avanzado' : 'Modo Simple'}
+                  </span>
+                </div>
+                {isAdvancedMode ? (
+                  <ChevronUp className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                )}
+              </button>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                {isAdvancedMode 
+                  ? 'Mostrando todas las opciones de configuración avanzada'
+                  : 'Mostrando solo campos esenciales. Activa el modo avanzado para más opciones.'}
+              </p>
+            </div>
+
+            {/* Configuración Avanzada */}
+            {isAdvancedMode && (
+              <div className="md:col-span-2">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  Configuración Avanzada
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="timeout_segundos" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Timeout (segundos)
-                  </label>
+                  <TooltipLabel
+                    htmlFor="timeout_segundos"
+                    label="Timeout (segundos)"
+                    tooltip="Tiempo máximo de espera para establecer la conexión. Recomendado: 30-60 segundos para conexiones locales, 60-120 para remotas."
+                  />
                   <input
                     type="number"
                     id="timeout_segundos"
@@ -440,9 +499,11 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 </div>
 
                 <div>
-                  <label htmlFor="max_pool_size" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Max Pool Size
-                  </label>
+                  <TooltipLabel
+                    htmlFor="max_pool_size"
+                    label="Max Pool Size"
+                    tooltip="Número máximo de conexiones simultáneas en el pool. Valores comunes: 10-50 para aplicaciones pequeñas, 50-100 para medianas, 100+ para grandes. Mayor valor = más recursos consumidos."
+                  />
                   <input
                     type="number"
                     id="max_pool_size"
@@ -457,9 +518,11 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 </div>
               </div>
             </div>
+            )}
 
             {/* Opciones de Configuración */}
-            <div className="md:col-span-2 space-y-3">
+            {isAdvancedMode && (
+              <div className="md:col-span-2 space-y-3">
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -470,8 +533,9 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                   className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
                   disabled={loading || testing}
                 />
-                <label htmlFor="usa_ssl" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-                  Usar SSL/TLS
+                <label htmlFor="usa_ssl" className="ml-2 block text-sm text-gray-900 dark:text-gray-300 flex items-center gap-2">
+                  <span>Usar SSL/TLS</span>
+                  <Tooltip content="Habilita conexión cifrada SSL/TLS. Obligatorio para conexiones remotas o en la nube. Requiere certificado válido en el servidor." />
                 </label>
               </div>
 
@@ -485,8 +549,9 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                   className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
                   disabled={loading || testing}
                 />
-                <label htmlFor="es_solo_lectura" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-                  Conexión solo lectura
+                <label htmlFor="es_solo_lectura" className="ml-2 block text-sm text-gray-900 dark:text-gray-300 flex items-center gap-2">
+                  <span>Conexión solo lectura</span>
+                  <Tooltip content="Restringe la conexión a operaciones de solo lectura (SELECT). Útil para réplicas de lectura o reportes. Previene modificaciones accidentales." />
                 </label>
               </div>
 
@@ -508,6 +573,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 Solo puede haber una conexión principal por módulo.
               </p>
             </div>
+            )}
           </div>
 
           {/* Footer del Modal */}

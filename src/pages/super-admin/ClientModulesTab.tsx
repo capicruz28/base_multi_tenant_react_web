@@ -1,6 +1,7 @@
 /**
  * Componente para gestionar módulos activos de un cliente
- * Muestra todos los módulos disponibles y permite activar/desactivar con configuración
+ * Rediseñado con separación visual clara entre módulos activos y disponibles
+ * Mejora UX según informe profesional de arquitectura
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
@@ -14,13 +15,18 @@ import {
   Settings,
   Loader,
   Search,
-  Filter
+  Filter,
+  Calendar,
+  Users,
+  Database,
+  AlertCircle
 } from 'lucide-react';
 import { moduloService } from '../../services/modulo.service';
 import { ModuloConInfoActivacion } from '../../types/modulo.types';
 import { getErrorMessage } from '../../services/error.service';
 import ActivateModuleModal from './ActivateModuleModal';
 import EditModuleActivoModal from './EditModuleActivoModal';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 interface ClientModulesTabProps {
   clienteId: number;
@@ -37,6 +43,8 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
   const [isActivateModalOpen, setIsActivateModalOpen] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedModulo, setSelectedModulo] = useState<ModuloConInfoActivacion | null>(null);
+  const [isDeactivateConfirmOpen, setIsDeactivateConfirmOpen] = useState<boolean>(false);
+  const [moduloToDeactivate, setModuloToDeactivate] = useState<ModuloConInfoActivacion | null>(null);
 
   const fetchModulos = useCallback(async () => {
     setLoading(true);
@@ -68,14 +76,19 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
     setIsEditModalOpen(true);
   };
 
-  const handleDeactivate = async (modulo: ModuloConInfoActivacion) => {
-    if (!window.confirm(`¿Estás seguro de desactivar el módulo "${modulo.nombre}"?`)) {
-      return;
-    }
+  const handleDeactivateClick = (modulo: ModuloConInfoActivacion) => {
+    setModuloToDeactivate(modulo);
+    setIsDeactivateConfirmOpen(true);
+  };
+
+  const handleDeactivateConfirm = async () => {
+    if (!moduloToDeactivate) return;
 
     try {
-      await moduloService.desactivarModuloCliente(clienteId, modulo.modulo_id);
-      toast.success('Módulo desactivado exitosamente');
+      await moduloService.desactivarModuloCliente(clienteId, moduloToDeactivate.modulo_id);
+      toast.success(`Módulo "${moduloToDeactivate.nombre}" desactivado exitosamente`);
+      setIsDeactivateConfirmOpen(false);
+      setModuloToDeactivate(null);
       fetchModulos();
     } catch (err) {
       const errorData = getErrorMessage(err);
@@ -95,20 +108,28 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
     fetchModulos();
   };
 
-  // Filtrar módulos
-  const filteredModulos = modulos.filter(modulo => {
+  // Separar módulos activos y disponibles
+  const modulosActivos = modulos.filter(m => m.activo_en_cliente);
+  const modulosDisponibles = modulos.filter(m => !m.activo_en_cliente);
+
+  // Filtrar según búsqueda
+  const filteredModulosActivos = modulosActivos.filter(modulo => {
     const matchesSearch = !searchTerm || 
       modulo.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       modulo.codigo_modulo.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter = filterActivos === null || 
-      (filterActivos ? modulo.activo_en_cliente : !modulo.activo_en_cliente);
-    
-    return matchesSearch && matchesFilter;
+    return matchesSearch;
   });
 
-  const modulosActivos = modulos.filter(m => m.activo_en_cliente).length;
-  const modulosInactivos = modulos.filter(m => !m.activo_en_cliente).length;
+  const filteredModulosDisponibles = modulosDisponibles.filter(modulo => {
+    const matchesSearch = !searchTerm || 
+      modulo.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      modulo.codigo_modulo.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
+
+  // Aplicar filtro adicional si está activo
+  const showActivos = filterActivos === null || filterActivos === true;
+  const showDisponibles = filterActivos === null || filterActivos === false;
 
   if (loading) {
     return (
@@ -153,7 +174,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
             <CheckCircle className="h-8 w-8 text-green-600" />
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Activos</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{modulosActivos}</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{modulosActivos.length}</p>
             </div>
           </div>
         </div>
@@ -162,7 +183,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
             <XCircle className="h-8 w-8 text-gray-400" />
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Disponibles</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{modulosInactivos}</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{modulosDisponibles.length}</p>
             </div>
           </div>
         </div>
@@ -214,128 +235,162 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
         </div>
       </div>
 
-      {/* Lista de módulos */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Módulo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Estado
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Configuración
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredModulos.length > 0 ? (
-                filteredModulos.map((modulo) => (
-                  <tr key={modulo.modulo_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
-                          <Package className="h-6 w-6 text-brand-primary dark:text-brand-primary" />
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {modulo.nombre}
-                          </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            <code className="text-xs">{modulo.codigo_modulo}</code>
-                            {modulo.es_modulo_core && (
-                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                Core
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {modulo.activo_en_cliente ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Activo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Disponible
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {modulo.activo_en_cliente ? (
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {modulo.limite_usuarios && (
-                            <div>Límite usuarios: {modulo.limite_usuarios}</div>
-                          )}
-                          {modulo.limite_registros && (
-                            <div>Límite registros: {modulo.limite_registros}</div>
-                          )}
-                          {!modulo.limite_usuarios && !modulo.limite_registros && (
-                            <div className="text-gray-400">Sin límites configurados</div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-sm text-gray-400">No activado</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end items-center gap-2">
-                        {modulo.activo_en_cliente ? (
-                          <>
-                            <button
-                              onClick={() => handleEdit(modulo)}
-                              className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
-                              title="Editar configuración"
-                            >
-                              <Settings className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeactivate(modulo)}
-                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
-                              title="Desactivar"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => handleActivate(modulo)}
-                            className="flex items-center gap-1 px-3 py-1 text-sm bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors"
-                            title="Activar módulo"
-                          >
-                            <Plus className="h-4 w-4" />
-                            Activar
-                          </button>
+      {/* MÓDULOS ACTIVOS - Vista de Cards */}
+      {showActivos && filteredModulosActivos.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Módulos Activos ({filteredModulosActivos.length})
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredModulosActivos.map((modulo) => (
+              <div
+                key={modulo.modulo_id}
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border-2 border-green-200 dark:border-green-800 p-5 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="flex-shrink-0 h-12 w-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                      <Package className="h-6 w-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                        {modulo.nombre}
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        <code>{modulo.codigo_modulo}</code>
+                        {modulo.es_modulo_core && (
+                          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                            Core
+                          </span>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                    <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p>No se encontraron módulos</p>
-                    {searchTerm && (
-                      <p className="mt-1">Intenta ajustar los términos de búsqueda</p>
-                    )}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Información de configuración */}
+                <div className="space-y-2 mb-4">
+                  {modulo.fecha_vencimiento && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <Calendar className="h-4 w-4" />
+                      <span>Vence: {new Date(modulo.fecha_vencimiento).toLocaleDateString('es-ES')}</span>
+                    </div>
+                  )}
+                  {modulo.limite_usuarios && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <Users className="h-4 w-4" />
+                      <span>Límite usuarios: {modulo.limite_usuarios}</span>
+                    </div>
+                  )}
+                  {modulo.limite_registros && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <Database className="h-4 w-4" />
+                      <span>Límite registros: {modulo.limite_registros}</span>
+                    </div>
+                  )}
+                  {!modulo.fecha_vencimiento && !modulo.limite_usuarios && !modulo.limite_registros && (
+                    <div className="text-sm text-gray-400 italic">Sin límites configurados</div>
+                  )}
+                </div>
+
+                {/* Acciones */}
+                <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => handleEdit(modulo)}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-brand-primary bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg hover:bg-brand-primary/20 dark:hover:bg-brand-primary/30 transition-colors"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Configurar
+                  </button>
+                  <button
+                    onClick={() => handleDeactivateClick(modulo)}
+                    className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Desactivar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ACTIVAR NUEVO MÓDULO - Vista de Grid */}
+      {showDisponibles && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Plus className="h-5 w-5 text-brand-primary" />
+              Activar Nuevo Módulo ({filteredModulosDisponibles.length} disponibles)
+            </h3>
+          </div>
+
+          {filteredModulosDisponibles.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredModulosDisponibles.map((modulo) => (
+                <div
+                  key={modulo.modulo_id}
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-5 hover:shadow-md hover:border-brand-primary dark:hover:border-brand-primary transition-all"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="flex-shrink-0 h-12 w-12 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
+                        <Package className="h-6 w-6 text-brand-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                          {modulo.nombre}
+                        </h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          <code>{modulo.codigo_modulo}</code>
+                          {modulo.es_modulo_core && (
+                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                              Core
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {modulo.descripcion && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+                      {modulo.descripcion}
+                    </p>
+                  )}
+
+                  <button
+                    onClick={() => handleActivate(modulo)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary rounded-lg hover:bg-brand-primary-hover transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Activar Módulo
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+              <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">
+                {searchTerm ? 'No se encontraron módulos disponibles con ese criterio' : 'No hay módulos disponibles para activar'}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Estado vacío cuando no hay módulos activos ni disponibles */}
+      {!showActivos && !showDisponibles && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+          <AlertCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">No hay módulos para mostrar con los filtros seleccionados</p>
+        </div>
+      )}
 
       {/* Modales */}
       {isActivateModalOpen && selectedModulo && (
@@ -363,6 +418,22 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
           modulo={selectedModulo}
         />
       )}
+
+      {/* Modal de confirmación de desactivación */}
+      <ConfirmDialog
+        isOpen={isDeactivateConfirmOpen}
+        onClose={() => {
+          setIsDeactivateConfirmOpen(false);
+          setModuloToDeactivate(null);
+        }}
+        onConfirm={handleDeactivateConfirm}
+        title="Desactivar Módulo"
+        message={moduloToDeactivate ? `¿Estás seguro de desactivar el módulo "${moduloToDeactivate.nombre}"?\n\nEsto desactivará todas las conexiones asociadas y el módulo dejará de estar disponible para este cliente.` : ''}
+        confirmText="Sí, Desactivar"
+        cancelText="Cancelar"
+        variant="danger"
+        confirmButtonClassName="bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white"
+      />
     </div>
   );
 };

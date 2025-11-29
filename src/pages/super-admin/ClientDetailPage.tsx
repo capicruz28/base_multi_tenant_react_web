@@ -22,6 +22,8 @@ import { clienteService } from '../../services/cliente.service';
 import { Cliente, ClienteStats } from '../../types/cliente.types';
 import ClientModulesTab from './ClientModulesTab';
 import ClientConnectionsTab from './ClientConnectionsTab';
+import ClientUsersTab from './ClientUsersTab';
+import ClientAuditTab from './ClientAuditTab';
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage } from '../../services/error.service';
 
@@ -448,33 +450,17 @@ const ClientDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Usuarios (placeholder) */}
-        {activeTab === 'usuarios' && (
+        {/* Usuarios */}
+        {activeTab === 'usuarios' && cliente && (
           <div className="p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              Gestión de Usuarios
-            </h3>
-            <div className="text-center py-8">
-              <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-gray-500 dark:text-gray-400">
-                La gestión de usuarios se realizará desde la sección de administración del tenant.
-              </p>
-            </div>
+            <ClientUsersTab clienteId={cliente.cliente_id} />
           </div>
         )}
 
-        {/* Auditoría (placeholder) */}
-        {activeTab === 'auditoria' && (
+        {/* Auditoría */}
+        {activeTab === 'auditoria' && cliente && (
           <div className="p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              Auditoría del Cliente
-            </h3>
-            <div className="text-center py-8">
-              <Activity className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-gray-500 dark:text-gray-400">
-                Los logs de auditoría estarán disponibles próximamente.
-              </p>
-            </div>
+            <ClientAuditTab clienteId={cliente.cliente_id} />
           </div>
         )}
       </div>

@@ -161,14 +161,14 @@ const ClientManagementPage: React.FC = () => {
   return (
     <div className="w-full">
       {/* Header */}
-      <div className="mb-6">
+      {/*<div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           Gestión de Clientes
         </h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Administra todos los clientes del sistema multi-tenant
         </p>
-      </div>
+      </div>*/}
 
       {/* Barra de herramientas */}
       <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">

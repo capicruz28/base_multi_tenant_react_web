@@ -50,6 +50,45 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Función para verificar si una sección está completa
+  const getSectionCompletion = (sectionId: string): boolean => {
+    switch (sectionId) {
+      case 'basic':
+        return !!(
+          formData.codigo_cliente.trim() &&
+          formData.subdominio.trim() &&
+          subdomainAvailable === true &&
+          formData.razon_social.trim() &&
+          formData.contacto_email.trim() &&
+          !errors.codigo_cliente &&
+          !errors.subdominio &&
+          !errors.razon_social &&
+          !errors.contacto_email &&
+          !errors.ruc
+        );
+      case 'config':
+        return !!(
+          formData.tipo_instalacion &&
+          formData.modo_autenticacion &&
+          (!(formData.tipo_instalacion === 'onpremise' || formData.tipo_instalacion === 'hybrid') || 
+           (formData.servidor_api_local?.trim() && !errors.servidor_api_local))
+        );
+      case 'branding':
+        return !!(
+          (!formData.color_primario || !errors.color_primario) &&
+          (!formData.color_secundario || !errors.color_secundario) &&
+          (!formData.tema_personalizado || !errors.tema_personalizado)
+        );
+      case 'subscription':
+        return !!(
+          formData.plan_suscripcion &&
+          formData.estado_suscripcion
+        );
+      default:
+        return false;
+    }
+  };
+
   // Validar subdominio cuando cambie (con debounce)
   useEffect(() => {
     const validateSubdomain = async () => {
@@ -272,26 +311,50 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
           </button>
         </div>
 
-        {/* Navegación de secciones */}
+        {/* Navegación de secciones con indicador de progreso */}
         <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
           <div className="flex gap-2 overflow-x-auto">
-            {sections.map((section) => {
+            {sections.map((section, index) => {
               const Icon = section.icon;
+              const isActive = activeSection === section.id;
+              const isCompleted = getSectionCompletion(section.id);
+              const sectionIndex = sections.findIndex(s => s.id === section.id);
+              const activeIndex = sections.findIndex(s => s.id === activeSection);
+              const isPast = sectionIndex < activeIndex;
+              
               return (
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id as any)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                    activeSection === section.id
+                  className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                    isActive
                       ? 'bg-brand-primary text-white'
+                      : isPast || isCompleted
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/40'
                       : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
+                  {isCompleted && !isActive && (
+                    <CheckCircle className="h-4 w-4" />
+                  )}
+                  {!isCompleted && <Icon className="h-4 w-4" />}
+                  {isCompleted && isActive && <Icon className="h-4 w-4" />}
                   {section.name}
+                  {index < sections.length - 1 && (
+                    <div className={`absolute -right-1 top-1/2 transform -translate-y-1/2 w-2 h-2 rounded-full ${
+                      isPast || isCompleted ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                    }`} />
+                  )}
                 </button>
               );
             })}
+          </div>
+          {/* Barra de progreso */}
+          <div className="mt-3 h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-brand-primary transition-all duration-300"
+              style={{ width: `${((sections.findIndex(s => s.id === activeSection) + 1) / sections.length) * 100}%` }}
+            />
           </div>
         </div>
 
