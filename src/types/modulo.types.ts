@@ -8,7 +8,7 @@
 // ============================================
 
 export interface Modulo {
-  modulo_id: number;
+  modulo_id: string; // UUID format
   codigo_modulo: string;
   nombre: string;
   descripcion: string | null;
@@ -47,9 +47,9 @@ export interface ModuloUpdate {
 // ============================================
 
 export interface ModuloActivo {
-  cliente_modulo_activo_id: number;
-  cliente_id: number;
-  modulo_id: number;
+  cliente_modulo_activo_id: string; // UUID format
+  cliente_id: string; // UUID format
+  modulo_id: string; // UUID format
   esta_activo: boolean;
   fecha_activacion: string;
   fecha_vencimiento: string | null;
@@ -63,8 +63,8 @@ export interface ModuloActivo {
 }
 
 export interface ModuloActivoCreate {
-  cliente_id: number;
-  modulo_id: number;
+  cliente_id: string; // UUID format
+  modulo_id: string; // UUID format
   configuracion_json?: Record<string, any> | null;
   limite_usuarios?: number | null;
   limite_registros?: number | null;
@@ -85,7 +85,7 @@ export interface ModuloActivoUpdate {
 
 export interface ModuloConInfoActivacion extends Modulo {
   activo_en_cliente: boolean;
-  cliente_modulo_activo_id: number | null;
+  cliente_modulo_activo_id: string | null; // UUID format
   fecha_activacion: string | null;
   fecha_vencimiento: string | null;
   configuracion_json: Record<string, any> | null;
@@ -149,7 +149,7 @@ export interface PaginatedModuloResponse {
 export interface ModuloDeleteResponse {
   success: boolean;
   message: string;
-  modulo_id: number;
+  modulo_id: string; // UUID format
 }
 
 // ============================================
@@ -194,10 +194,10 @@ export interface WorkflowDesactivacionCompletaResponse {
   message: string;
   workflow: 'desactivar-completo';
   data: {
-    cliente_id: number;
-    modulo_id: number;
+    cliente_id: string; // UUID format
+    modulo_id: string; // UUID format
     conexiones_desactivadas: number;
-    conexion_ids: number[];
+    conexion_ids: string[]; // UUID format
   };
 }
 

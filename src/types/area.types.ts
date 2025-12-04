@@ -2,7 +2,8 @@
 
 // Corresponde a AreaRead en el backend
 export interface Area {
-    area_id: number;
+    area_id: string; // UUID format
+    cliente_id: string; // UUID format - REQUERIDO
     nombre: string;
     descripcion: string | null;
     icono: string | null;
@@ -12,6 +13,7 @@ export interface Area {
   
   // Corresponde a AreaCreate en el backend
   export interface AreaCreateData {
+    cliente_id: string; // UUID format - REQUERIDO
     nombre: string;
     descripcion?: string | null;
     icono?: string | null;

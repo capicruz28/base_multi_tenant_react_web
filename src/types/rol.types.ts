@@ -5,7 +5,9 @@
  * Corresponde a RolRead en FastAPI.
  */
 export interface Rol {
-    rol_id: number;
+    rol_id: string; // UUID format
+    cliente_id: string | null; // UUID format - NULL para roles de sistema globales
+    codigo_rol: string | null; // Código único en MAYÚSCULAS para roles predefinidos (ej: 'SUPER_ADMIN', 'ADMIN')
     nombre: string;
     descripcion?: string | null; // Puede ser null o undefined si no se proporciona
     es_activo: boolean;
@@ -18,6 +20,8 @@ export interface Rol {
    * Corresponde a RolCreate en FastAPI.
    */
   export interface RolCreateData {
+    cliente_id?: string | null; // UUID format - NULL para roles de sistema globales
+    codigo_rol?: string | null; // Código único en MAYÚSCULAS para roles predefinidos
     nombre: string;
     descripcion?: string | null;
     es_activo?: boolean; // Opcional, el backend puede tener un default
@@ -32,6 +36,7 @@ export interface Rol {
     nombre?: string;
     descripcion?: string | null;
     es_activo?: boolean;
+    codigo_rol?: string | null; // Solo actualizable por SUPER_ADMIN en roles de sistema
   }
   
   /**

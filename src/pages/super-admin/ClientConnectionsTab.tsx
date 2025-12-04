@@ -27,7 +27,7 @@ import CreateConnectionModal from './CreateConnectionModal';
 import EditConnectionModal from './EditConnectionModal';
 
 interface ClientConnectionsTabProps {
-  clienteId: number;
+  clienteId: string;
 }
 
 const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }) => {

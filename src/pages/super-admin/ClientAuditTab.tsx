@@ -28,7 +28,7 @@ import {
 } from '../../components/ui/dialog';
 
 interface ClientAuditTabProps {
-  clienteId: number;
+  clienteId: string;
 }
 
 const PAGE_SIZE = 20;
@@ -93,7 +93,7 @@ const ClientAuditTab: React.FC<ClientAuditTabProps> = ({ clienteId }) => {
     setSelectedLog(log);
     setDetalleLoading(true);
     try {
-      const fullLog = await superadminAuditoriaService.getAuthLogDetalle(log.log_id);
+      const fullLog = await superadminAuditoriaService.getAuthLogDetalle(log.log_id, clienteId);
       setSelectedLog(fullLog);
     } catch (err) {
       const errorData = getErrorMessage(err);
@@ -535,6 +535,15 @@ const ClientAuditTab: React.FC<ClientAuditTabProps> = ({ clienteId }) => {
 };
 
 export default ClientAuditTab;
+
+
+
+
+
+
+
+
+
 
 
 

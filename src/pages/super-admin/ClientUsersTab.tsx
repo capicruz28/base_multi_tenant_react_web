@@ -30,7 +30,7 @@ import {
 } from '../../components/ui/dialog';
 
 interface ClientUsersTabProps {
-  clienteId: number;
+  clienteId: string;
 }
 
 const PAGE_SIZE = 10;
@@ -92,8 +92,8 @@ const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ clienteId }) => {
 
     try {
       const [actividadResp, sesionesResp] = await Promise.all([
-        superadminUsuarioService.getUsuarioActividad(usuario.usuario_id, { limite: 20 }),
-        superadminUsuarioService.getUsuarioSesiones(usuario.usuario_id, { solo_activas: true }),
+        superadminUsuarioService.getUsuarioActividad(usuario.usuario_id, { limite: 20 }, clienteId),
+        superadminUsuarioService.getUsuarioSesiones(usuario.usuario_id, { solo_activas: true }, clienteId),
       ]);
 
       setActividad(actividadResp);
@@ -561,6 +561,15 @@ const ClientUsersTab: React.FC<ClientUsersTabProps> = ({ clienteId }) => {
 };
 
 export default ClientUsersTab;
+
+
+
+
+
+
+
+
+
 
 
 

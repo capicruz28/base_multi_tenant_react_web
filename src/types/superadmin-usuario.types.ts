@@ -2,7 +2,7 @@
 // Basados en app/schemas/superadmin_usuario.py del backend
 
 export interface SuperadminClienteInfo {
-  cliente_id: number;
+  cliente_id: string;
   razon_social: string;
   subdominio: string;
   codigo_cliente?: string | null;
@@ -12,7 +12,7 @@ export interface SuperadminClienteInfo {
 }
 
 export interface SuperadminRolInfo {
-  rol_id: number;
+  rol_id: string; // UUID format
   nombre: string;
   codigo_rol?: string | null;
   nivel_acceso: number;
@@ -22,8 +22,8 @@ export interface SuperadminRolInfo {
 }
 
 export interface SuperadminUsuario {
-  usuario_id: number;
-  cliente_id: number;
+  usuario_id: string; // UUID format
+  cliente_id: string; // UUID format
   cliente: SuperadminClienteInfo;
   nombre_usuario: string;
   correo?: string | null;
@@ -59,7 +59,7 @@ export interface PaginatedSuperadminUsuariosResponse {
 }
 
 export interface UsuarioActividadEvento {
-  log_id: number;
+  log_id: string; // UUID format
   fecha_evento: string | null;
   evento: string;
   exito: boolean;
@@ -72,7 +72,7 @@ export interface UsuarioActividadEvento {
 }
 
 export interface UsuarioActividadResponse {
-  usuario_id: number;
+  usuario_id: string; // UUID format
   ultimo_acceso?: string | null;
   ultimo_ip?: string | null;
   total_eventos: number;
@@ -80,7 +80,7 @@ export interface UsuarioActividadResponse {
 }
 
 export interface RefreshTokenInfo {
-  token_id: number;
+  token_id: string; // UUID format
   client_type: string;
   device_name?: string | null;
   device_id?: string | null;
@@ -96,11 +96,22 @@ export interface RefreshTokenInfo {
 }
 
 export interface UsuarioSesionesResponse {
-  usuario_id: number;
+  usuario_id: string; // UUID format
   total_sesiones: number;
   sesiones_activas: number;
   sesiones: RefreshTokenInfo[];
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 

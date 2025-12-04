@@ -60,7 +60,7 @@ export const clienteService = {
    * Obtener un cliente por ID
    * Endpoint: GET /clientes/{cliente_id}/
    */
-  async getClienteById(id: number): Promise<Cliente> {
+  async getClienteById(id: string): Promise<Cliente> {
     try {
       const { data } = await api.get<Cliente>(`${BASE_URL}/${id}/`);
       return data;
@@ -91,7 +91,7 @@ export const clienteService = {
    * Actualizar un cliente existente
    * Endpoint: PUT /clientes/{cliente_id}/
    */
-  async updateCliente(id: number, clienteData: ClienteUpdate): Promise<Cliente> {
+  async updateCliente(id: string, clienteData: ClienteUpdate): Promise<Cliente> {
     try {
       const { data } = await api.put<ClienteResponse>(`${BASE_URL}/${id}/`, clienteData);
       if (data.data) {
@@ -108,7 +108,7 @@ export const clienteService = {
    * Activar un cliente
    * Endpoint: PUT /clientes/{cliente_id}/activar/
    */
-  async activateCliente(id: number): Promise<Cliente> {
+  async activateCliente(id: string): Promise<Cliente> {
     try {
       const { data } = await api.put<ClienteResponse>(`${BASE_URL}/${id}/activar/`);
       if (data.data) {
@@ -125,9 +125,9 @@ export const clienteService = {
    * Desactivar un cliente (eliminación lógica)
    * Endpoint: DELETE /clientes/{cliente_id}/
    */
-  async deactivateCliente(id: number): Promise<{ message: string }> {
+  async deactivateCliente(id: string): Promise<{ message: string }> {
     try {
-      const { data } = await api.delete<{ success: boolean; message: string; cliente_id: number }>(`${BASE_URL}/${id}/`);
+      const { data } = await api.delete<{ success: boolean; message: string; cliente_id: string }>(`${BASE_URL}/${id}/`);
       return { message: data.message || 'Cliente desactivado exitosamente' };
     } catch (error) {
       console.error('❌ Error deactivating client:', error);
@@ -139,7 +139,7 @@ export const clienteService = {
    * Suspender un cliente
    * Endpoint: PUT /clientes/{cliente_id}/suspender/
    */
-  async suspendCliente(id: number): Promise<Cliente> {
+  async suspendCliente(id: string): Promise<Cliente> {
     try {
       const { data } = await api.put<ClienteResponse>(`${BASE_URL}/${id}/suspender/`);
       if (data.data) {
@@ -156,7 +156,7 @@ export const clienteService = {
    * Obtener estadísticas de un cliente
    * Endpoint: GET /clientes/{cliente_id}/estadisticas/
    */
-  async getClienteStats(id: number): Promise<ClienteStats> {
+  async getClienteStats(id: string): Promise<ClienteStats> {
     try {
       const { data } = await api.get<ClienteStats>(`${BASE_URL}/${id}/estadisticas/`);
       return data;

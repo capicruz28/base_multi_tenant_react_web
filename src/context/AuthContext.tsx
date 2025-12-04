@@ -17,7 +17,7 @@ import type {
 	InternalAxiosRequestConfig,
 	AxiosRequestHeaders,
 } from 'axios';
-import type { AuthResponse, UserData } from '../types/auth.types';
+import type { AuthResponse, UserData, ClienteInfo } from '../types/auth.types';
 import { useBrandingStore } from '../stores/branding.store';
 
 // ============================================================================
@@ -45,11 +45,7 @@ interface AuthContextType {
 	accessLevel: number;
 	isSuperAdmin: boolean;
 	userType: string;
-	clienteInfo: {
-		id: number;
-		nombre: string;
-		subdominio: string;
-	} | null;
+	clienteInfo: ClienteInfo | null;
 }
 
 // ============================================================================
@@ -81,11 +77,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 	const [accessLevel, setAccessLevel] = useState<number>(0);
 	const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false);
 	const [userType, setUserType] = useState<string>('user');
-	const [clienteInfo, setClienteInfo] = useState<{
-		id: number;
-		nombre: string;
-		subdominio: string;
-	} | null>(null);
+	const [clienteInfo, setClienteInfo] = useState<ClienteInfo | null>(null);
 	
 	// Refs para acceder al estado más reciente sin re-renders
 	const authRef = useRef(auth);
@@ -152,9 +144,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		// Actualizar información del cliente si está disponible
 		if (userData.cliente) {
 			setClienteInfo({
-				id: userData.cliente.id,
-				nombre: userData.cliente.nombre,
+				cliente_id: userData.cliente.cliente_id,
+				razon_social: userData.cliente.razon_social,
 				subdominio: userData.cliente.subdominio,
+				codigo_cliente: userData.cliente.codigo_cliente,
+				nombre_comercial: userData.cliente.nombre_comercial,
+				tipo_instalacion: userData.cliente.tipo_instalacion,
+				estado_suscripcion: userData.cliente.estado_suscripcion,
 			});
 		} else {
 			setClienteInfo(null);

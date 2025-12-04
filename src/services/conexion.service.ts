@@ -19,7 +19,7 @@ export const conexionService = {
    * Listar conexiones de un cliente
    * Endpoint: GET /conexiones/clientes/{cliente_id}/
    */
-  async getConexiones(cliente_id: number): Promise<Conexion[]> {
+  async getConexiones(cliente_id: string): Promise<Conexion[]> {
     try {
       const { data } = await api.get<Conexion[]>(`${BASE_URL}/clientes/${cliente_id}/`);
       return data;
@@ -33,7 +33,7 @@ export const conexionService = {
    * Obtener conexión principal de un módulo
    * Endpoint: GET /conexiones/clientes/{cliente_id}/modulos/{modulo_id}/principal/
    */
-  async getConexionPrincipal(cliente_id: number, modulo_id: number): Promise<Conexion | null> {
+  async getConexionPrincipal(cliente_id: string, modulo_id: number): Promise<Conexion | null> {
     try {
       const { data } = await api.get<Conexion>(
         `${BASE_URL}/clientes/${cliente_id}/modulos/${modulo_id}/principal/`
@@ -52,7 +52,7 @@ export const conexionService = {
    * Crear nueva conexión
    * Endpoint: POST /conexiones/clientes/{cliente_id}/
    */
-  async createConexion(cliente_id: number, conexionData: ConexionCreate): Promise<Conexion> {
+  async createConexion(cliente_id: string, conexionData: ConexionCreate): Promise<Conexion> {
     try {
       conexionData.cliente_id = cliente_id;
       const { data } = await api.post<Conexion>(`${BASE_URL}/clientes/${cliente_id}/`, conexionData);

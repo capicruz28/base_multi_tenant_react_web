@@ -2,7 +2,7 @@
 
 // Corresponde a schemas.rol.RolRead en el backend
 export interface Role {
-    rol_id: number;
+    rol_id: string; // UUID format
     nombre: string;
     descripcion?: string | null; // Asegúrate que coincida con Pydantic (Optional[str])
     es_activo: boolean;
@@ -11,7 +11,8 @@ export interface Role {
   
   // Corresponde a schemas.usuario.UsuarioReadWithRoles en el backend
   export interface UserWithRoles {
-    usuario_id: number;
+    usuario_id: string; // UUID format
+    cliente_id: string; // UUID format - REQUERIDO
     nombre_usuario: string;
     correo: string;
     nombre?: string | null;

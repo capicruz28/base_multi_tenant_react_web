@@ -26,7 +26,7 @@ export interface UsuarioSesionesParams {
 
 export const superadminUsuarioService = {
   async getUsuariosByCliente(
-    clienteId: number,
+    clienteId: string,
     { page = 1, limit = 20, search, es_activo }: SuperadminUsuarioListParams = {},
   ): Promise<PaginatedSuperadminUsuariosResponse> {
     const params: Record<string, any> = {
@@ -48,19 +48,26 @@ export const superadminUsuarioService = {
     return response.data;
   },
 
-  async getUsuarioDetalle(usuarioId: number): Promise<SuperadminUsuario> {
-    const response = await api.get<SuperadminUsuario>(`${BASE_URL}/${usuarioId}/`);
+  async getUsuarioDetalle(usuarioId: number, cliente_id?: string): Promise<SuperadminUsuario> {
+    const params: Record<string, any> = {};
+    if (cliente_id !== undefined) params.cliente_id = cliente_id;
+    
+    const response = await api.get<SuperadminUsuario>(`${BASE_URL}/${usuarioId}/`, {
+      params,
+    });
     return response.data;
   },
 
   async getUsuarioActividad(
     usuarioId: number,
     { limite = 50, tipo_evento }: UsuarioActividadParams = {},
+    cliente_id?: string,
   ): Promise<UsuarioActividadResponse> {
     const params: Record<string, any> = { limite };
     if (tipo_evento) {
       params.tipo_evento = tipo_evento;
     }
+    if (cliente_id !== undefined) params.cliente_id = cliente_id;
 
     const response = await api.get<UsuarioActividadResponse>(
       `${BASE_URL}/${usuarioId}/actividad/`,
@@ -72,8 +79,10 @@ export const superadminUsuarioService = {
   async getUsuarioSesiones(
     usuarioId: number,
     { solo_activas = true }: UsuarioSesionesParams = {},
+    cliente_id?: string,
   ): Promise<UsuarioSesionesResponse> {
     const params: Record<string, any> = { solo_activas };
+    if (cliente_id !== undefined) params.cliente_id = cliente_id;
 
     const response = await api.get<UsuarioSesionesResponse>(
       `${BASE_URL}/${usuarioId}/sesiones/`,
@@ -82,6 +91,15 @@ export const superadminUsuarioService = {
     return response.data;
   },
 };
+
+
+
+
+
+
+
+
+
 
 
 

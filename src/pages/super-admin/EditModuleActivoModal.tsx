@@ -12,7 +12,7 @@ interface EditModuleActivoModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  clienteId: number;
+  clienteId: string;
   modulo: ModuloConInfoActivacion;
 }
 

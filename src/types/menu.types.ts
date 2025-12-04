@@ -3,15 +3,15 @@
 // --- Tipos para el Sidebar (Existentes) ---
 
 export interface SidebarMenuItem { // Renombrado para claridad (antes MenuItem)
-  menu_id: number | string;
+  menu_id: string; // UUID format
   nombre: string;
   icono: string | null; // Hacer opcional si puede ser null
   ruta: string | null; // Hacer opcional si puede ser null
   orden: number | null; // Hacer opcional si puede ser null
   level?: number; // Hacer opcional si no siempre está
   es_activo: boolean; // Asumiendo que el sidebar solo muestra activos? O filtrar en el componente.
-  padre_menu_id: number | null;
-  area_id: number | null;
+  padre_menu_id: string | null; // UUID format
+  area_id: string | null; // UUID format
   area_nombre: string | null;
   children: SidebarMenuItem[]; // Usa el tipo renombrado recursivamente
   isSeparator?: boolean; // <--- AÑADIDO: Para los títulos en el menú estático
@@ -40,21 +40,21 @@ export interface PopoverContentProps {
 
 // Tipo para la lista simple de áreas (para el selector)
 export interface AreaSimpleList {
-  area_id: number;
+  area_id: string; // UUID format
   nombre: string;
 }
 
 // Tipo para los datos que vienen del endpoint GET /menus/area/{id}/tree
 // (Antes de transformarlos para la librería del árbol)
 export interface BackendManageMenuItem {
-  menu_id: number;
+  menu_id: string; // UUID format
   nombre: string;
   icono?: string | null;
   ruta?: string | null;
-  padre_menu_id?: number | null;
+  padre_menu_id?: string | null; // UUID format
   orden?: number | null;
   es_activo: boolean; // Incluye activos e inactivos
-  area_id?: number | null;
+  area_id?: string | null; // UUID format
   area_nombre?: string | null; // Si el backend lo incluye
   level?: number;
   children: BackendManageMenuItem[]; // Estructura anidada del backend
@@ -66,21 +66,23 @@ export interface MenuTreeResponse {
 }
 
 // Tipo para el nodo del árbol que usa @minoru/react-dnd-treeview
+// NOTA: La librería puede requerir number, pero el backend usa UUIDs (string)
+// Puede ser necesario convertir en runtime si la librería no acepta strings
 export interface MenuTreeNode {
-  id: number; // Requerido por la librería -> menu_id
-  parent: number | 0; // Requerido por la librería -> padre_menu_id (usar 0 para raíz)
+  id: string; // UUID format - Requerido por la librería -> menu_id
+  parent: string | 0; // UUID format - Requerido por la librería -> padre_menu_id (usar 0 para raíz)
   text: string; // Requerido por la librería -> nombre
   droppable?: boolean; // ¿Se pueden soltar items sobre este? (Default: true)
   data?: {
     // Nuestros datos específicos del menú
-    menu_id: number;
+    menu_id: string; // UUID format
     nombre: string;
     icono?: string | null;
     ruta?: string | null;
-    padre_menu_id?: number | null;
+    padre_menu_id?: string | null; // UUID format
     orden?: number | null;
     es_activo: boolean;
-    area_id?: number | null;
+    area_id?: string | null; // UUID format
     area_nombre?: string | null;
   };
 }
@@ -90,9 +92,9 @@ export interface MenuCreateData {
   nombre: string;
   icono?: string | null;
   ruta?: string | null;
-  padre_menu_id?: number | null;
+  padre_menu_id?: string | null; // UUID format
   orden?: number | null; // El backend podría calcularlo
-  area_id: number; // Obligatorio al crear
+  area_id: string; // UUID format - Obligatorio al crear
   es_activo?: boolean; // Default true en backend
 }
 
@@ -101,22 +103,22 @@ export interface MenuUpdateData {
   nombre?: string;
   icono?: string | null;
   ruta?: string | null;
-  padre_menu_id?: number | null; // Para drag & drop (cambiar padre)
+  padre_menu_id?: string | null; // UUID format - Para drag & drop (cambiar padre)
   orden?: number | null; // Para drag & drop (cambiar orden)
-  area_id?: number; // ¿Permitir cambiar área?
+  area_id?: string; // UUID format - ¿Permitir cambiar área?
   es_activo?: boolean; // Para activar/desactivar
 }
 
 // Tipo para la respuesta de un solo menú (GET /menus/{id}, POST, PUT)
 // Basado en MenuReadSingle del backend
 export interface MenuSingleResponse {
-    menu_id: number;
+    menu_id: string; // UUID format
     nombre: string;
     icono?: string | null;
     ruta?: string | null;
-    padre_menu_id?: number | null;
+    padre_menu_id?: string | null; // UUID format
     orden?: number | null;
-    area_id?: number | null;
+    area_id?: string | null; // UUID format
     es_activo: boolean;
     area_nombre?: string | null; // Si el backend lo incluye
     fecha_creacion: string; // O Date, dependiendo de cómo lo manejes

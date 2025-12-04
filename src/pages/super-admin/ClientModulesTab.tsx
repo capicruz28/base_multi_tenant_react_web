@@ -29,7 +29,7 @@ import EditModuleActivoModal from './EditModuleActivoModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 interface ClientModulesTabProps {
-  clienteId: number;
+  clienteId: string;
 }
 
 const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {

@@ -21,7 +21,6 @@ import {
   WorkflowDesactivacionCompletaResponse,
   WorkflowEstadoCompletoResponse
 } from '../types/modulo.types';
-import { getErrorMessage } from './error.service';
 
 const BASE_URL = '/modulos';
 
@@ -47,7 +46,8 @@ export const moduloService = {
       return data;
     } catch (error) {
       console.error('Error fetching modules:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al obtener la lista de módulos');
+      // Re-lanzar el error original para preservar la información de Axios
+      throw error;
     }
   },
 
@@ -78,7 +78,8 @@ export const moduloService = {
       return data;
     } catch (error) {
       console.error('Error searching modules:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al buscar módulos');
+      // Re-lanzar el error original para preservar la información de Axios
+      throw error;
     }
   },
 
@@ -95,7 +96,8 @@ export const moduloService = {
       return data.data;
     } catch (error) {
       console.error('Error fetching module by ID:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al obtener el módulo');
+      // Re-lanzar el error original para preservar la información de Axios
+      throw error;
     }
   },
 
@@ -112,7 +114,8 @@ export const moduloService = {
       return data.data;
     } catch (error) {
       console.error('Error creating module:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al crear el módulo');
+      // Re-lanzar el error original para preservar la información de Axios
+      throw error;
     }
   },
 
@@ -129,7 +132,8 @@ export const moduloService = {
       return data.data;
     } catch (error) {
       console.error('Error updating module:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al actualizar el módulo');
+      // Re-lanzar el error original para preservar la información de Axios
+      throw error;
     }
   },
 
@@ -142,7 +146,8 @@ export const moduloService = {
       await api.delete<ModuloDeleteResponse>(`${BASE_URL}/${modulo_id}/`);
     } catch (error) {
       console.error('Error deleting module:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al eliminar el módulo');
+      // Re-lanzar el error original para preservar la información de Axios
+      throw error;
     }
   },
 
@@ -150,13 +155,14 @@ export const moduloService = {
    * Listar módulos de un cliente con información de activación
    * Endpoint: GET /modulos/clientes/{cliente_id}/modulos/
    */
-  async getModulosByCliente(cliente_id: number): Promise<ModuloConInfoActivacion[]> {
+  async getModulosByCliente(cliente_id: string): Promise<ModuloConInfoActivacion[]> {
     try {
       const { data } = await api.get<ModuloConInfoActivacionListResponse>(`${BASE_URL}/clientes/${cliente_id}/modulos/`);
       return data.data;
     } catch (error) {
       console.error('Error fetching client modules:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al obtener módulos del cliente');
+      // Re-lanzar el error original para preservar la información de Axios
+      throw error;
     }
   },
 
@@ -165,7 +171,7 @@ export const moduloService = {
    * Endpoint: POST /modulos/clientes/{cliente_id}/modulos/{modulo_id}/activar/
    */
   async activarModuloCliente(
-    cliente_id: number,
+    cliente_id: string,
     modulo_id: number,
     activacionData: ModuloActivoCreate
   ): Promise<ModuloActivo> {
@@ -179,7 +185,8 @@ export const moduloService = {
       return data.data;
     } catch (error) {
       console.error('Error activating module:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al activar el módulo');
+      // Re-lanzar el error original para preservar la información de Axios
+      throw error;
     }
   },
 
@@ -188,7 +195,7 @@ export const moduloService = {
    * Endpoint: PUT /modulos/clientes/{cliente_id}/modulos/{modulo_id}/
    */
   async updateModuloActivo(
-    cliente_id: number,
+    cliente_id: string,
     modulo_id: number,
     updateData: ModuloActivoUpdate
   ): Promise<ModuloActivo> {
@@ -200,7 +207,8 @@ export const moduloService = {
       return data.data;
     } catch (error) {
       console.error('Error updating active module:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al actualizar el módulo activo');
+      // Re-lanzar el error original para preservar la información de Axios
+      throw error;
     }
   },
 
@@ -208,14 +216,15 @@ export const moduloService = {
    * Desactivar módulo para un cliente
    * Endpoint: POST /modulos/clientes/{cliente_id}/modulos/{modulo_id}/desactivar/
    */
-  async desactivarModuloCliente(cliente_id: number, modulo_id: number): Promise<void> {
+  async desactivarModuloCliente(cliente_id: string, modulo_id: number): Promise<void> {
     try {
       await api.post<{ success: boolean; message: string }>(
         `${BASE_URL}/clientes/${cliente_id}/modulos/${modulo_id}/desactivar/`
       );
     } catch (error) {
       console.error('Error deactivating module:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al desactivar el módulo');
+      // Re-lanzar el error original para preservar la información de Axios
+      throw error;
     }
   },
 
@@ -224,7 +233,7 @@ export const moduloService = {
    * Endpoint: POST /modulos/clientes/{cliente_id}/modulos/{modulo_id}/activar-completo/
    */
   async activarModuloCompleto(
-    cliente_id: number,
+    cliente_id: string,
     modulo_id: number,
     workflowData: WorkflowActivacionCompletaRequest
   ): Promise<WorkflowActivacionCompletaResponse> {
@@ -236,7 +245,8 @@ export const moduloService = {
       return data;
     } catch (error) {
       console.error('Error in workflow activar-completo:', error);
-      throw new Error(getErrorMessage(error).message || 'Error en el workflow de activación completa');
+      // Re-lanzar el error original para preservar la información de Axios
+      throw error;
     }
   },
 
@@ -245,7 +255,7 @@ export const moduloService = {
    * Endpoint: DELETE /modulos/clientes/{cliente_id}/modulos/{modulo_id}/desactivar-completo/
    */
   async desactivarModuloCompleto(
-    cliente_id: number,
+    cliente_id: string,
     modulo_id: number
   ): Promise<WorkflowDesactivacionCompletaResponse> {
     try {
@@ -255,7 +265,8 @@ export const moduloService = {
       return data;
     } catch (error) {
       console.error('Error in workflow desactivar-completo:', error);
-      throw new Error(getErrorMessage(error).message || 'Error en el workflow de desactivación completa');
+      // Re-lanzar el error original para preservar la información de Axios
+      throw error;
     }
   },
 
@@ -264,7 +275,7 @@ export const moduloService = {
    * Endpoint: GET /modulos/clientes/{cliente_id}/modulos/{modulo_id}/estado-completo/
    */
   async obtenerEstadoCompleto(
-    cliente_id: number,
+    cliente_id: string,
     modulo_id: number
   ): Promise<WorkflowEstadoCompletoResponse> {
     try {
@@ -274,7 +285,8 @@ export const moduloService = {
       return data;
     } catch (error) {
       console.error('Error in workflow estado-completo:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al obtener el estado completo del módulo');
+      // Re-lanzar el error original para preservar la información de Axios
+      throw error;
     }
   }
 };

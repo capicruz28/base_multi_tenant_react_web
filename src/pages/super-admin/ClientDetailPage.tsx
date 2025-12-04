@@ -46,7 +46,8 @@ const ClientDetailPage: React.FC = () => {
     setError(null);
     
     try {
-      const clienteId = parseInt(id);
+      // Usar id directamente como string (UUID)
+      const clienteId = id!;
       
       // Cargar datos en paralelo
       const [clienteData, statsData] = await Promise.all([

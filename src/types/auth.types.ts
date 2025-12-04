@@ -7,14 +7,20 @@ export interface LoginCredentials {
 }
 
 // ✅ NUEVO: Interfaz para información del cliente
+// Alineado con ClienteInfo del backend
 export interface ClienteInfo {
-  id: number;
-  nombre: string;
+  cliente_id: string; // UUID format
+  razon_social: string;
   subdominio: string;
+  codigo_cliente?: string | null;
+  nombre_comercial?: string | null;
+  tipo_instalacion: string;
+  estado_suscripcion: string;
 }
 
 export interface UserData {
-  usuario_id: number;
+  usuario_id: string; // UUID format
+  cliente_id: string; // UUID format - REQUERIDO
   nombre_usuario: string;
   correo: string;
   nombre: string;
@@ -65,8 +71,8 @@ export type ApiSimpleError = AxiosError<SimplifiedApiError>;
  * Representa un refresh token activo asociado a un usuario
  */
 export interface ActiveSession {
-  token_id: number;
-  usuario_id: number;
+  token_id: string; // UUID format
+  usuario_id: string; // UUID format
   nombre_usuario: string;
   nombre: string;
   apellido: string;
@@ -81,7 +87,7 @@ export interface ActiveSession {
  */
 export interface RevokeSessionResponse {
   message: string;
-  token_id?: number;
+  token_id?: string; // UUID format
 }
 
 /**
@@ -125,7 +131,7 @@ export interface AuthContextType {
   accessLevel: number;
   isSuperAdmin: boolean;
   userType: UserType;
-  clienteInfo: ClienteInfo | null;
+  clienteInfo: ClienteInfo | null; // Alineado con ClienteInfo del backend
 }
 
 /**

@@ -4,13 +4,13 @@
  */
 
 export interface Cliente {
-  cliente_id: number;
+  cliente_id: string; // UUID format
   codigo_cliente: string;
   subdominio: string;
   razon_social: string;
   nombre_comercial: string | null;
   ruc: string | null;
-  tipo_instalacion: 'cloud' | 'onpremise' | 'hybrid';
+  tipo_instalacion: 'shared' | 'dedicated' | 'onpremise' | 'hybrid';
   servidor_api_local: string | null;
   modo_autenticacion: 'local' | 'sso' | 'hybrid';
   logo_url: string | null;
@@ -42,7 +42,7 @@ export interface ClienteCreate {
   razon_social: string;
   nombre_comercial?: string | null;
   ruc?: string | null;
-  tipo_instalacion: 'cloud' | 'onpremise' | 'hybrid';
+  tipo_instalacion: 'shared' | 'dedicated' | 'onpremise' | 'hybrid';
   servidor_api_local?: string | null;
   modo_autenticacion: 'local' | 'sso' | 'hybrid';
   logo_url?: string | null;
@@ -69,7 +69,7 @@ export interface ClienteUpdate {
   razon_social?: string;
   nombre_comercial?: string | null;
   ruc?: string | null;
-  tipo_instalacion?: 'cloud' | 'onpremise' | 'hybrid';
+  tipo_instalacion?: 'shared' | 'dedicated' | 'onpremise' | 'hybrid';
   servidor_api_local?: string | null;
   modo_autenticacion?: 'local' | 'sso' | 'hybrid';
   logo_url?: string | null;
@@ -92,7 +92,7 @@ export interface ClienteUpdate {
 }
 
 export interface ClienteStats {
-  cliente_id: number;
+  cliente_id: string;
   razon_social: string;
   total_usuarios: number;
   total_usuarios_inactivos: number;

@@ -12,7 +12,7 @@ interface CreateConnectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  clienteId: number;
+  clienteId: string;
 }
 
 /**

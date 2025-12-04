@@ -10,9 +10,9 @@ export type TipoBD = 'sqlserver' | 'postgresql' | 'mysql' | 'oracle';
 // ============================================
 
 export interface Conexion {
-  conexion_id: number;
-  cliente_id: number;
-  modulo_id: number;
+  conexion_id: string; // UUID format
+  cliente_id: string; // UUID format
+  modulo_id: string; // UUID format
   servidor: string;
   puerto: number;
   nombre_bd: string;
@@ -31,12 +31,12 @@ export interface Conexion {
   fecha_ultimo_error: string | null;
   fecha_creacion: string;
   fecha_actualizacion: string | null;
-  creado_por_usuario_id: number | null;
+  creado_por_usuario_id: string | null; // UUID format
 }
 
 export interface ConexionCreate {
-  cliente_id: number;
-  modulo_id: number;
+  cliente_id: string; // UUID format
+  modulo_id: string; // UUID format
   servidor: string;
   puerto: number;
   nombre_bd: string;

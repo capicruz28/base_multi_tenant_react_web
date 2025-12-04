@@ -7,7 +7,7 @@ import {
 const BASE_URL = '/superadmin/auditoria';
 
 export interface AuthLogsParams {
-  cliente_id: number;
+  cliente_id?: string;
   page?: number;
   limit?: number;
   usuario_id?: number;
@@ -35,13 +35,13 @@ export const superadminAuditoriaService = {
     orden = 'desc',
   }: AuthLogsParams): Promise<PaginatedAuthAuditLogResponse> {
     const params: Record<string, any> = {
-      cliente_id,
       page,
       limit,
       ordenar_por,
       orden,
     };
 
+    if (cliente_id !== undefined) params.cliente_id = cliente_id;
     if (usuario_id) params.usuario_id = usuario_id;
     if (evento) params.evento = evento;
     if (typeof exito === 'boolean') params.exito = exito;
@@ -56,11 +56,25 @@ export const superadminAuditoriaService = {
     return response.data;
   },
 
-  async getAuthLogDetalle(logId: number): Promise<AuthAuditLog> {
-    const response = await api.get<AuthAuditLog>(`${BASE_URL}/autenticacion/${logId}/`);
+  async getAuthLogDetalle(logId: number, cliente_id?: string): Promise<AuthAuditLog> {
+    const params: Record<string, any> = {};
+    if (cliente_id !== undefined) params.cliente_id = cliente_id;
+    
+    const response = await api.get<AuthAuditLog>(`${BASE_URL}/autenticacion/${logId}/`, {
+      params,
+    });
     return response.data;
   },
 };
+
+
+
+
+
+
+
+
+
 
 
 

@@ -4,16 +4,16 @@
 import type { SuperadminClienteInfo } from './superadmin-usuario.types';
 
 export interface AuditUsuarioInfo {
-  usuario_id: number;
+  usuario_id: string; // UUID format
   nombre_usuario: string;
   correo?: string | null;
 }
 
 export interface AuthAuditLog {
-  log_id: number;
-  cliente_id: number;
+  log_id: string; // UUID format
+  cliente_id: string; // UUID format
   cliente?: SuperadminClienteInfo | null;
-  usuario_id?: number | null;
+  usuario_id?: string | null; // UUID format
   usuario?: AuditUsuarioInfo | null;
   evento: string;
   nombre_usuario_intento?: string | null;
@@ -34,6 +34,17 @@ export interface PaginatedAuthAuditLogResponse {
   pagina_actual: number;
   total_paginas: number;
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 
