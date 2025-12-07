@@ -3,8 +3,8 @@
  * Funciones helper para cálculos de fechas, límites, estados, etc.
  */
 
-import { ModuloActivacion, ModuloEstadisticas, ModuloAlerta, ConexionEstado } from '@/types/modulo.types';
-import { EstadoConexion } from '@/types/conexion.types';
+import { ModuloActivo, ModuloActivoConEstadisticas, ModuloAlerta } from '@/features/super-admin/modulos/types/modulo.types';
+import { Conexion, EstadoConexion } from '@/features/super-admin/clientes/types/conexion.types';
 
 // ============================================
 // UTILIDADES DE FECHAS
@@ -118,7 +118,7 @@ export const getColorPorcentaje = (porcentaje: number): string => {
 /**
  * Obtiene el estado de una conexión basado en sus propiedades
  */
-export const obtenerEstadoConexion = (conexion: ConexionEstado): EstadoConexion => {
+export const obtenerEstadoConexion = (conexion: Conexion): EstadoConexion => {
     if (!conexion.es_activo) return 'desconectado';
     if (conexion.ultimo_error && conexion.fecha_ultimo_error) {
         const errorReciente = new Date(conexion.fecha_ultimo_error).getTime() >
@@ -173,9 +173,9 @@ export const getTextoEstadoConexion = (estado: EstadoConexion): string => {
  * Genera alertas basadas en el estado del módulo
  */
 export const generarAlertas = (
-    activacion: ModuloActivacion | null,
-    estadisticas: ModuloEstadisticas | null,
-    conexiones: ConexionEstado[]
+    activacion: ModuloActivo | null,
+    estadisticas: ModuloActivoConEstadisticas | null,
+    conexiones: Conexion[]
 ): ModuloAlerta[] => {
     const alertas: ModuloAlerta[] = [];
     const ahora = new Date().toISOString();
@@ -213,11 +213,11 @@ export const generarAlertas = (
             });
         }
 
-        if (activacion.limite_registros && cercaDelLimite(estadisticas.registros_actuales, activacion.limite_registros)) {
+        if (activacion.limite_registros && cercaDelLimite(estadisticas.registros_totales, activacion.limite_registros)) {
             alertas.push({
                 tipo: 'limite_registros',
-                severidad: limiteAlcanzado(estadisticas.registros_actuales, activacion.limite_registros) ? 'error' : 'warning',
-                mensaje: `Límite de registros: ${estadisticas.registros_actuales}/${activacion.limite_registros}`,
+                severidad: limiteAlcanzado(estadisticas.registros_totales, activacion.limite_registros) ? 'error' : 'warning',
+                mensaje: `Límite de registros: ${estadisticas.registros_totales}/${activacion.limite_registros}`,
                 fecha_generacion: ahora,
             });
         }

@@ -9,7 +9,7 @@
 -- ============================================================================
 
 CREATE TABLE cliente (
-cliente_id INT PRIMARY KEY IDENTITY(1,1),
+cliente_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
 -- ========================================
 -- IDENTIFICACIÓN Y BRANDING
 -- ========================================
@@ -39,11 +39,12 @@ ruc NVARCHAR(11) NULL,
 -- ========================================
 -- CONFIGURACIÓN DE INSTALACIÓN
 -- ========================================
-tipo_instalacion NVARCHAR(20) DEFAULT 'cloud' NOT NULL,
+tipo_instalacion NVARCHAR(20) DEFAULT 'shared' NOT NULL,
 -- Define dónde corre el sistema para este cliente:
---   'cloud'      = Tu servidor centralizado (caso 1 y 2)
---   'onpremise'  = Servidor local del cliente (caso 3)
---   'hybrid'     = Local pero sincroniza con central
+--   'shared'      = Cliente usa la BD centralizada
+--   'dedicated'  = Cliente tiene su propia BD en tu infraestructura
+--   'onpremise'     = Cliente tiene BD en su servidor local
+--   'hybrid'     = Cliente con BD local + sincronización con tu SaaS
 
 servidor_api_local NVARCHAR(255) NULL,       
 -- URL del API si el cliente tiene instalación local
@@ -166,8 +167,8 @@ CREATE INDEX IDX_cliente_tipo ON cliente(tipo_instalacion);
 -- Multi-tenant: Cada usuario pertenece a UN solo cliente
 -- ============================================================================
 CREATE TABLE usuario (
-usuario_id INT PRIMARY KEY IDENTITY(1,1),
-cliente_id INT NOT NULL,                      
+usuario_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+cliente_id UNIQUEIDENTIFIER NOT NULL,                      
 -- FK al cliente al que pertenece este usuario
 -- CRÍTICO: Todas las queries DEBEN filtrar por cliente_id
 
@@ -262,7 +263,7 @@ sincronizado_desde NVARCHAR(30) NULL,
 --   'local'      = Enviado a servidor central desde aquí
 --   'cliente_XXX'= Sincronizado desde otro cliente
 
-referencia_sincronizacion_id INT NULL,        
+referencia_sincronizacion_id UNIQUEIDENTIFIER NULL,        
 -- ID del usuario en el sistema origen
 
 fecha_ultima_sincronizacion DATETIME NULL,
@@ -291,7 +292,7 @@ es_eliminado BIT DEFAULT 0,
 
 fecha_eliminacion DATETIME NULL,
 
-usuario_eliminacion_id INT NULL,              
+usuario_eliminacion_id UNIQUEIDENTIFIER NULL,              
 -- Quién eliminó este usuario (para auditoría)
 
 -- ========================================
@@ -316,8 +317,8 @@ CREATE INDEX IDX_usuario_sincronizacion ON usuario(sincronizado_desde, fecha_ult
 -- Estrategia: Soporta roles globales (sistema) y roles por cliente
 -- ============================================================================
 CREATE TABLE rol (
-rol_id INT PRIMARY KEY IDENTITY(1,1),
-cliente_id INT NULL,                          
+rol_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+cliente_id UNIQUEIDENTIFIER NULL,                          
 -- NULL = Rol global del sistema (ej: SUPER_ADMIN)
 -- Con valor = Rol específico de un cliente
 
@@ -375,10 +376,10 @@ WHERE codigo_rol IS NOT NULL;
 -- Un usuario puede tener múltiples roles
 -- ============================================================================
 CREATE TABLE usuario_rol (
-usuario_rol_id INT PRIMARY KEY IDENTITY(1,1),
-usuario_id INT NOT NULL,
-rol_id INT NOT NULL,
-cliente_id INT NOT NULL,                      
+usuario_rol_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+usuario_id UNIQUEIDENTIFIER NOT NULL,
+rol_id UNIQUEIDENTIFIER NOT NULL,
+cliente_id UNIQUEIDENTIFIER NOT NULL,                      
 -- Desnormalizado para queries rápidas
 
 -- ========================================
@@ -395,7 +396,7 @@ es_activo BIT DEFAULT 1 NOT NULL,
 -- ========================================
 -- AUDITORÍA
 -- ========================================
-asignado_por_usuario_id INT NULL,             
+asignado_por_usuario_id UNIQUEIDENTIFIER NULL,             
 -- Quién asignó este rol
 
 -- ========================================
@@ -404,7 +405,7 @@ asignado_por_usuario_id INT NULL,
 CONSTRAINT FK_usuario_rol_usuario FOREIGN KEY (usuario_id) 
     REFERENCES usuario(usuario_id) ON DELETE CASCADE,
 CONSTRAINT FK_usuario_rol_rol FOREIGN KEY (rol_id) 
-    REFERENCES rol(rol_id) ON DELETE CASCADE,
+    REFERENCES rol(rol_id) ON DELETE NO ACTION,
 CONSTRAINT FK_usuario_rol_cliente FOREIGN KEY (cliente_id) 
     REFERENCES cliente(cliente_id) ON DELETE NO ACTION,
 
@@ -422,8 +423,8 @@ CREATE INDEX IDX_usuario_rol_cliente ON usuario_rol(cliente_id);
 -- Estrategia: Áreas globales del sistema + áreas custom por cliente
 -- ============================================================================
 CREATE TABLE area_menu (
-area_id INT PRIMARY KEY IDENTITY(1,1),
-cliente_id INT NULL,                          
+area_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+cliente_id UNIQUEIDENTIFIER NULL,                          
 -- NULL = Área global del sistema
 -- Con valor = Área específica del cliente
 
@@ -455,12 +456,12 @@ CREATE INDEX IDX_area_menu_cliente ON area_menu(cliente_id, es_activo, orden);
 -- Jerarquía: Soporta menús padre-hijo (submenús) mediante padre_menu_id
 -- ============================================================================
 CREATE TABLE menu (
-menu_id INT PRIMARY KEY IDENTITY(1,1),
-cliente_id INT NULL,                          
+menu_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+cliente_id UNIQUEIDENTIFIER NULL,                          
 -- NULL = Menú global del sistema
 -- Con valor = Menú específico del cliente
 
-area_id INT NULL,                             
+area_id UNIQUEIDENTIFIER NULL,                             
 -- FK al área de menú (puede ser NULL para menús sueltos)
 
 nombre NVARCHAR(100) NOT NULL,
@@ -476,7 +477,7 @@ ruta NVARCHAR(255) NULL,
 -- ========================================
 -- JERARQUÍA (para submenús)
 -- ========================================
-padre_menu_id INT NULL,                       
+padre_menu_id UNIQUEIDENTIFIER NULL,                       
 -- FK recursivo a menu(menu_id)
 -- NULL = menú raíz, Con valor = es submenú
 
@@ -505,7 +506,7 @@ fecha_creacion DATETIME DEFAULT GETDATE() NOT NULL,
 CONSTRAINT FK_menu_cliente FOREIGN KEY (cliente_id) 
     REFERENCES cliente(cliente_id) ON DELETE CASCADE,
 CONSTRAINT FK_menu_area FOREIGN KEY (area_id) 
-    REFERENCES area_menu(area_id) ON DELETE SET NULL,
+    REFERENCES area_menu(area_id) ON DELETE NO ACTION,
 CONSTRAINT FK_menu_padre FOREIGN KEY (padre_menu_id) 
     REFERENCES menu(menu_id) ON DELETE NO ACTION  -- Evitar cascada en jerarquía
 );
@@ -521,12 +522,12 @@ CREATE INDEX IDX_menu_ruta ON menu(ruta) WHERE ruta IS NOT NULL;
 -- Define qué puede hacer cada rol en cada menú
 -- ============================================================================
 CREATE TABLE rol_menu_permiso (
-permiso_id INT PRIMARY KEY IDENTITY(1,1),
-cliente_id INT NOT NULL,                      
+permiso_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+cliente_id UNIQUEIDENTIFIER NOT NULL,                      
 -- Desnormalizado para queries rápidas
 
-rol_id INT NOT NULL,
-menu_id INT NOT NULL,
+rol_id UNIQUEIDENTIFIER NOT NULL,
+menu_id UNIQUEIDENTIFIER NOT NULL,
 
 -- ========================================
 -- PERMISOS GRANULARES (Modelo CRUD extendido)
@@ -564,12 +565,12 @@ fecha_creacion DATETIME DEFAULT GETDATE() NOT NULL,
 CONSTRAINT FK_permiso_rol FOREIGN KEY (rol_id) 
     REFERENCES rol(rol_id) ON DELETE CASCADE,
 CONSTRAINT FK_permiso_menu FOREIGN KEY (menu_id) 
-    REFERENCES menu(menu_id) ON DELETE CASCADE,
+    REFERENCES menu(menu_id) ON DELETE NO ACTION,
 CONSTRAINT FK_permiso_cliente FOREIGN KEY (cliente_id) 
     REFERENCES cliente(cliente_id) ON DELETE NO ACTION,
 
 -- Un rol no puede tener permisos duplicados sobre el mismo menú
-CONSTRAINT UQ_rol_menu UNIQUE (rol_id, menu_id)
+CONSTRAINT UQ_rol_menu UNIQUE (cliente_id, rol_id, menu_id)
 );
 -- Índices optimizados para consultas de permisos
 CREATE INDEX IDX_permiso_rol ON rol_menu_permiso(rol_id, puede_ver);
@@ -582,10 +583,10 @@ CREATE INDEX IDX_permiso_cliente ON rol_menu_permiso(cliente_id);
 -- Seguridad: Tokens hasheados (SHA-256), nunca en texto plano
 -- Permite: Revocación de tokens, tracking de sesiones
 -- ============================================================================
-CREATE TABLE refresh_token (
-token_id INT IDENTITY(1,1) PRIMARY KEY,
-cliente_id INT NOT NULL,
-usuario_id INT NOT NULL,
+CREATE TABLE refresh_tokens (
+token_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+cliente_id UNIQUEIDENTIFIER NOT NULL,
+usuario_id UNIQUEIDENTIFIER NOT NULL,
 
 -- ========================================
 -- TOKEN (Hasheado por seguridad)
@@ -647,13 +648,13 @@ uso_count INT DEFAULT 0,
 CONSTRAINT FK_refresh_token_cliente FOREIGN KEY (cliente_id) 
     REFERENCES cliente(cliente_id) ON DELETE CASCADE,
 CONSTRAINT FK_refresh_token_usuario FOREIGN KEY (usuario_id) 
-    REFERENCES usuario(usuario_id) ON DELETE CASCADE
+    REFERENCES usuario(usuario_id) ON DELETE NO ACTION
 );
 -- Índices optimizados
-CREATE INDEX IDX_refresh_token_usuario_cliente ON refresh_token(usuario_id, cliente_id);
-CREATE INDEX IDX_refresh_token_active ON refresh_token(usuario_id, is_revoked, expires_at);
-CREATE INDEX IDX_refresh_token_cleanup ON refresh_token(expires_at, is_revoked);
-CREATE INDEX IDX_refresh_token_device ON refresh_token(device_id) WHERE device_id IS NOT NULL;
+CREATE INDEX IDX_refresh_token_usuario_cliente ON refresh_tokens(usuario_id, cliente_id);
+CREATE INDEX IDX_refresh_token_active ON refresh_tokens(usuario_id, is_revoked, expires_at);
+CREATE INDEX IDX_refresh_token_cleanup ON refresh_tokens(expires_at, is_revoked);
+CREATE INDEX IDX_refresh_token_device ON refresh_tokens(device_id) WHERE device_id IS NOT NULL;
 
 -- ============================================================================
 -- TABLA: cliente_modulo
@@ -661,7 +662,7 @@ CREATE INDEX IDX_refresh_token_device ON refresh_token(device_id) WHERE device_i
 -- Ejemplos: Planillas, Contabilidad, Producción, Ventas, RRHH
 -- ============================================================================
 CREATE TABLE cliente_modulo (
-modulo_id INT PRIMARY KEY IDENTITY(1,1),
+modulo_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
 codigo_modulo NVARCHAR(30) NOT NULL UNIQUE,   
 -- Código único para referencia en código
 -- Ejemplos: 'PLANILLAS', 'CONTABILIDAD', 'PRODUCCION', 'VENTAS'
@@ -692,110 +693,135 @@ fecha_creacion DATETIME DEFAULT GETDATE()
 CREATE INDEX IDX_cliente_modulo_codigo ON cliente_modulo(codigo_modulo);
 
 -- ============================================================================
--- TABLA: cliente_modulo_conexion
--- Propósito: Conexiones de BD específicas por cliente y módulo
--- Permite: Cada cliente puede tener diferentes BDs para cada módulo
--- Caso de uso: Cliente A tiene Planillas en servidor1, Contabilidad en servidor2
+-- TABLA: cliente_conexion
+-- Propósito:
+--      Administrar las conexiones a bases de datos específicas por cliente,
+--      permitiendo una arquitectura multi-tenant híbrida moderna.
+--
+-- Permite:
+--      - Clientes con BD centralizada (shared) sin registros en esta tabla.
+--      - Clientes con BD dedicada (dedicated) usando una única conexión principal.
+--      - Clientes on-premise/híbridos con BD local o en su infraestructura.
+--      - Conexiones externas adicionales (read-only, reportes, ETL, integraciones).
+--
+-- Caso de uso:
+--      ✓ Cliente A usa la BD central → no necesita entradas aquí.
+--      ✓ Cliente B tiene su propia BD aislada → 1 conexión principal.
+--      ✓ Cliente C tiene BD en su servidor (on-premise) → 1 conexión principal.
+--      ✓ Cliente D usa una BD read-only para reportes → entrada secundaria.
+--
+-- Notas:
+--      - Reemplaza al esquema anterior donde había BD por módulo.
+--      - Ahora solo existe 1 conexión principal por cliente (única BD "master").
+--      - Las demás conexiones son opcionales y nunca principales.
 -- ============================================================================
-CREATE TABLE cliente_modulo_conexion (
-conexion_id INT PRIMARY KEY IDENTITY(1,1),
-cliente_id INT NOT NULL,
-modulo_id INT NOT NULL,
 
--- ========================================
--- INFORMACIÓN DE CONEXIÓN
--- ========================================
-servidor NVARCHAR(255) NOT NULL,              
--- Nombre o IP del servidor de BD
--- Ejemplos: 'CARLOSPC', 'perufashions11', 'sql.azure.com', '192.168.1.100'
+CREATE TABLE cliente_conexion (
+    conexion_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
 
-puerto INT DEFAULT 1433,                      
--- Puerto de conexión (1433 para SQL Server)
+    -- FK hacia el cliente
+    cliente_id UNIQUEIDENTIFIER NOT NULL,
 
-nombre_bd NVARCHAR(100) NOT NULL,             
--- Nombre de la base de datos
--- Ejemplos: 'bdpla_psf_web', 'bdcon2020', 'produccion_2024'
+    -- ========================================
+    -- INFORMACIÓN DE CONEXIÓN
+    -- ========================================
+    servidor NVARCHAR(255) NOT NULL,              
+        -- Nombre o IP del servidor SQL
+        -- Ejemplos: 'CARLOSPC', 'sqlserver-01', '192.168.10.50', 'azure.database.windows.net'
 
--- ========================================
--- CREDENCIALES (SIEMPRE ENCRIPTADAS)
--- ========================================
-usuario_encriptado NVARCHAR(500) NOT NULL,    
--- Usuario de BD encriptado con AES-256
--- NUNCA guardar en texto plano
--- Se encripta/desencripta en la aplicación usando SECRET_KEY
+    puerto INT DEFAULT 1433,                      
+        -- Puerto de conexión (por defecto 1433)
 
-password_encriptado NVARCHAR(500) NOT NULL,   
--- Password de BD encriptado
--- CRÍTICO: Nunca exponer este campo en APIs
+    nombre_bd NVARCHAR(100) NOT NULL,             
+        -- Nombre de la BD principal del cliente
+        -- Ejemplos: 'erp_cliente_a', 'fksourcing_db', 'produccion_2024'
 
-connection_string_encriptado NVARCHAR(MAX) NULL,
--- Connection string completo encriptado
--- Se genera automáticamente desde los campos anteriores
--- Formato: "Server=xxx;Database=xxx;User=xxx;Password=xxx;..."
+    -- ========================================
+    -- CREDENCIALES SIEMPRE ENCRIPTADAS
+    -- ========================================
+    usuario_encriptado NVARCHAR(500) NOT NULL,    
+        -- Usuario de BD encriptado con AES-256
+        -- NUNCA guardar en texto plano
 
--- ========================================
--- CONFIGURACIÓN AVANZADA
--- ========================================
-tipo_bd NVARCHAR(20) DEFAULT 'sqlserver',     
--- Tipo de base de datos: 'sqlserver', 'postgresql', 'mysql', 'oracle'
--- Permite soportar diferentes motores en el futuro
+    password_encriptado NVARCHAR(500) NOT NULL,   
+        -- Password encriptado
+        -- CRÍTICO: Nunca exponer vía API
 
-usa_ssl BIT DEFAULT 0,                        
--- Si la conexión usa SSL/TLS
+    connection_string_encriptado NVARCHAR(MAX) NULL,
+        -- Connection string completa encriptada
+        -- Se genera desde la aplicación
+        -- Formato típico: "Server=xxx;Database=xxx;User=xxx;Password=xxx;..."
 
-timeout_segundos INT DEFAULT 30,              
--- Timeout de conexión en segundos
+    -- ========================================
+    -- CONFIGURACIÓN AVANZADA
+    -- ========================================
+    tipo_bd NVARCHAR(20) DEFAULT 'sqlserver',     
+        -- Tipo de motor soportado:
+        -- 'sqlserver', 'postgresql', 'mysql', 'oracle'
+        -- Garantiza portabilidad futura del SaaS
 
-max_pool_size INT DEFAULT 100,                
--- Tamaño máximo del connection pool
+    usa_ssl BIT DEFAULT 0,                        
+        -- Si requiere conexión SSL/TLS
 
--- ========================================
--- CONFIGURACIÓN DE ACCESO
--- ========================================
-es_solo_lectura BIT DEFAULT 0,                
--- True = Conexión read-only (útil para replicas)
+    timeout_segundos INT DEFAULT 30,              
+        -- Timeout de conexión
 
-es_conexion_principal BIT DEFAULT 0,          
--- True = Es la conexión principal del módulo
--- Solo puede haber una conexión principal por cliente-módulo
+    max_pool_size INT DEFAULT 100,                
+        -- Tamaño máximo del pool de conexiones
 
--- ========================================
--- ESTADO Y MONITOREO
--- ========================================
-es_activo BIT DEFAULT 1,
+    -- ========================================
+    -- CONFIGURACIÓN DE ACCESO
+    -- ========================================
+    es_solo_lectura BIT DEFAULT 0,                
+        -- Conexión read-only
+        -- Útil para reporting, replicas, ETL
 
-ultima_conexion_exitosa DATETIME NULL,        
--- Última vez que se conectó exitosamente
--- Se actualiza automáticamente en cada conexión
+    es_conexion_principal BIT DEFAULT 0,          
+        -- Indica si esta conexión es la conexión principal del cliente
+        -- SOLO DEBE HABER UNA CONEXIÓN PRINCIPAL POR CLIENTE
+        -- Para BD dedicada o BD on-premise
 
-ultimo_error NVARCHAR(MAX) NULL,              
--- Último mensaje de error de conexión
--- Para troubleshooting
+    -- ========================================
+    -- ESTADO Y MONITOREO
+    -- ========================================
+    es_activo BIT DEFAULT 1,                      
+        -- Habilita/deshabilita conexión sin eliminarla
 
-fecha_ultimo_error DATETIME NULL,
+    ultima_conexion_exitosa DATETIME NULL,        
+        -- Última conexión exitosa (registrada por el backend)
 
--- ========================================
--- AUDITORÍA
--- ========================================
-fecha_creacion DATETIME DEFAULT GETDATE(),
-fecha_actualizacion DATETIME NULL,
-creado_por_usuario_id INT NULL,               
--- Quién configuró esta conexión
+    ultimo_error NVARCHAR(MAX) NULL,              
+        -- Último error de conexión
 
--- ========================================
--- CONSTRAINTS
--- ========================================
-CONSTRAINT FK_conexion_cliente FOREIGN KEY (cliente_id) 
-    REFERENCES cliente(cliente_id) ON DELETE CASCADE,
-CONSTRAINT FK_conexion_modulo FOREIGN KEY (modulo_id) 
-    REFERENCES cliente_modulo(modulo_id) ON DELETE CASCADE,
+    fecha_ultimo_error DATETIME NULL,
 
--- Solo puede haber una conexión principal por cliente-módulo
-CONSTRAINT UQ_conexion_principal UNIQUE (cliente_id, modulo_id, es_conexion_principal)
+    -- ========================================
+    -- AUDITORÍA
+    -- ========================================
+    fecha_creacion DATETIME DEFAULT GETDATE(),
+    fecha_actualizacion DATETIME NULL,
+    creado_por_usuario_id UNIQUEIDENTIFIER NULL,               
+        -- Usuario que creó/modificó la conexión
+
+    -- ========================================
+    -- RELACIONES
+    -- ========================================
+    CONSTRAINT FK_conexion_cliente_ FOREIGN KEY (cliente_id) 
+        REFERENCES cliente(cliente_id) ON DELETE CASCADE,
+
+    -- SOLO PUEDE HABER UNA CONEXIÓN PRINCIPAL POR CLIENTE
+    CONSTRAINT UQ_conexion_principal_cliente UNIQUE (cliente_id, es_conexion_principal)
 );
--- Índices optimizados
-CREATE INDEX IDX_conexion_cliente_modulo ON cliente_modulo_conexion(cliente_id, modulo_id, es_activo);
-CREATE INDEX IDX_conexion_principal ON cliente_modulo_conexion(cliente_id, modulo_id, es_conexion_principal);
+
+-- ============================================================================
+-- ÍNDICES OPTIMIZADOS PARA LA ARQUITECTURA MULTITENANT
+-- ============================================================================
+CREATE INDEX IDX_conexion_cliente_
+    ON cliente_conexion(cliente_id, es_activo);
+
+CREATE INDEX IDX_conexion_principal
+    ON cliente_conexion(cliente_id, es_conexion_principal);
+
 
 -- ============================================================================
 -- TABLA: cliente_modulo_activo
@@ -803,9 +829,9 @@ CREATE INDEX IDX_conexion_principal ON cliente_modulo_conexion(cliente_id, modul
 -- Control: Licenciamiento y límites por módulo
 -- ============================================================================
 CREATE TABLE cliente_modulo_activo (
-cliente_modulo_activo_id INT PRIMARY KEY IDENTITY(1,1),
-cliente_id INT NOT NULL,
-modulo_id INT NOT NULL,
+cliente_modulo_activo_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+cliente_id UNIQUEIDENTIFIER NOT NULL,
+modulo_id UNIQUEIDENTIFIER NOT NULL,
 
 -- ========================================
 -- LICENCIAMIENTO
@@ -858,8 +884,8 @@ CREATE INDEX IDX_modulo_activo_cliente ON cliente_modulo_activo(cliente_id, esta
 -- Permite: Cada cliente define sus propias reglas de seguridad
 -- ============================================================================
 CREATE TABLE cliente_auth_config (
-config_id INT PRIMARY KEY IDENTITY(1,1),
-cliente_id INT NOT NULL UNIQUE,
+config_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+cliente_id UNIQUEIDENTIFIER NOT NULL UNIQUE,
 -- Un cliente = una configuración
 -- ========================================
 -- POLÍTICAS DE CONTRASEÑA
@@ -975,8 +1001,8 @@ CONSTRAINT FK_auth_config_cliente FOREIGN KEY (cliente_id)
 -- Soporta: Azure AD, Google Workspace, Okta, OIDC genérico, SAML 2.0
 -- ============================================================================
 CREATE TABLE federacion_identidad (
-federacion_id INT PRIMARY KEY IDENTITY(1,1),
-cliente_id INT NOT NULL,
+federacion_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+cliente_id UNIQUEIDENTIFIER NOT NULL,
 -- ========================================
 -- IDENTIFICACIÓN
 -- ========================================
@@ -1085,17 +1111,17 @@ CREATE INDEX IDX_federacion_proveedor ON federacion_identidad(proveedor);
 -- Caso de uso: Cliente con instalación local sincroniza con servidor central
 -- ============================================================================
 CREATE TABLE log_sincronizacion_usuario (
-log_id INT PRIMARY KEY IDENTITY(1,1),
+log_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
 -- ========================================
 -- CONTEXTO DE LA SINCRONIZACIÓN
 -- ========================================
-cliente_origen_id INT NULL,                   
+cliente_origen_id UNIQUEIDENTIFIER NULL,                   
 -- De dónde viene la sincronización
 
-cliente_destino_id INT NULL,                  
+cliente_destino_id UNIQUEIDENTIFIER NULL,                  
 -- Hacia dónde va la sincronización
 
-usuario_id INT NOT NULL,                      
+usuario_id UNIQUEIDENTIFIER NOT NULL,                      
 -- Usuario que se sincronizó
 
 -- ========================================
@@ -1141,7 +1167,7 @@ hash_despues NVARCHAR(64) NULL,
 -- ========================================
 fecha_sincronizacion DATETIME DEFAULT GETDATE() NOT NULL,
 
-usuario_ejecutor_id INT NULL,                 
+usuario_ejecutor_id UNIQUEIDENTIFIER NULL,                 
 -- Quién ejecutó la sincronización (NULL = automático)
 
 duracion_ms INT NULL,                         
@@ -1169,9 +1195,9 @@ CREATE INDEX IDX_log_sync_fecha ON log_sincronizacion_usuario(fecha_sincronizaci
 -- Uso: Auditoría, detección de intrusiones, compliance, troubleshooting
 -- ============================================================================
 CREATE TABLE auth_audit_log (
-log_id INT PRIMARY KEY IDENTITY(1,1),
-cliente_id INT NOT NULL,
-usuario_id INT NULL,                          
+log_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+cliente_id UNIQUEIDENTIFIER NOT NULL,
+usuario_id UNIQUEIDENTIFIER NULL,                          
 -- NULL si el evento es anónimo o login falló
 
 -- ========================================
@@ -1246,7 +1272,7 @@ fecha_evento DATETIME DEFAULT GETDATE() NOT NULL,
 CONSTRAINT FK_audit_cliente FOREIGN KEY (cliente_id) 
     REFERENCES cliente(cliente_id) ON DELETE CASCADE,
 CONSTRAINT FK_audit_usuario FOREIGN KEY (usuario_id) 
-    REFERENCES usuario(usuario_id) ON DELETE SET NULL
+    REFERENCES usuario(usuario_id) ON DELETE NO ACTION
 );
 -- Índices optimizados para queries de auditoría y reporting
 CREATE INDEX IDX_audit_cliente_fecha ON auth_audit_log(cliente_id, fecha_evento DESC);
@@ -1256,3 +1282,4 @@ CREATE INDEX IDX_audit_evento ON auth_audit_log(evento, fecha_evento DESC);
 CREATE INDEX IDX_audit_exito ON auth_audit_log(exito, fecha_evento DESC);
 CREATE INDEX IDX_audit_ip ON auth_audit_log(ip_address, fecha_evento DESC)
 WHERE ip_address IS NOT NULL;
+

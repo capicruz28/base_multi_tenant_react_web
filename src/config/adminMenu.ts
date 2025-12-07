@@ -1,6 +1,6 @@
 // src/config/adminMenu.ts (RENOMBRADO Y AJUSTADO)
 
-import { SidebarMenuItem } from '../types/menu.types'; 
+import { SidebarMenuItem } from '@/features/admin/types/menu.types'; 
 
 /**
  * Menú de Administración de Tenant - Para Administradores de Cliente

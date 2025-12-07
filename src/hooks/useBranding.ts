@@ -3,9 +3,9 @@
  * Proporciona acceso fácil al estado y acciones del branding
  */
 import { useEffect } from 'react';
-import { useBrandingStore } from '../stores/branding.store';
+import { useBrandingStore } from '../features/tenant/stores/branding.store';
 import { applyBranding, resetBranding } from '../utils/branding.utils';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../shared/context/AuthContext';
 
 /**
  * Hook para acceder y gestionar el branding
@@ -23,14 +23,14 @@ export const useBranding = (autoLoad: boolean = true) => {
 
   // Cargar branding automáticamente cuando el usuario se autentica
   useEffect(() => {
-    if (autoLoad && isAuthenticated && clienteInfo?.id) {
-      loadBranding();
+    if (autoLoad && isAuthenticated && clienteInfo?.cliente_id) {
+      loadBranding(clienteInfo.cliente_id);
     } else if (!isAuthenticated && autoLoad) {
       // Resetear branding cuando el usuario cierra sesión (solo si autoLoad está activo)
-      resetBrandingStore();
+      resetBrandingStore(null);
       resetBranding();
     }
-  }, [isAuthenticated, clienteInfo?.id, autoLoad, loadBranding, resetBrandingStore]);
+  }, [isAuthenticated, clienteInfo?.cliente_id, autoLoad, loadBranding, resetBrandingStore]);
 
   // Aplicar branding cuando cambia
   useEffect(() => {
@@ -50,7 +50,7 @@ export const useBranding = (autoLoad: boolean = true) => {
     error,
     loadBranding,
     resetBranding: () => {
-      resetBrandingStore();
+      resetBrandingStore(clienteInfo?.cliente_id || null);
       resetBranding();
     },
   };

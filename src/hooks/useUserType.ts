@@ -1,5 +1,5 @@
 // src/hooks/useUserType.ts
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../shared/context/AuthContext';
 import { UserType, AccessLevel, UserCapabilities } from '../types/auth.types';
 
 /**

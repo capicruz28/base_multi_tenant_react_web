@@ -1,4 +1,4 @@
-import api from './api';
+import api from '../core/api/api';
 import {
   AuthAuditLog,
   PaginatedAuthAuditLogResponse,
@@ -56,7 +56,7 @@ export const superadminAuditoriaService = {
     return response.data;
   },
 
-  async getAuthLogDetalle(logId: number, cliente_id?: string): Promise<AuthAuditLog> {
+  async getAuthLogDetalle(logId: string, cliente_id?: string): Promise<AuthAuditLog> {
     const params: Record<string, any> = {};
     if (cliente_id !== undefined) params.cliente_id = cliente_id;
     

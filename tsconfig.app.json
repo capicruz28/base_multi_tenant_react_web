@@ -22,10 +22,14 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
-    // ✅ Estas son las dos líneas nuevas:
+    // ✅ Path aliases para imports limpios
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@/app/*": ["src/app/*"],
+      "@/core/*": ["src/core/*"],
+      "@/shared/*": ["src/shared/*"],
+      "@/features/*": ["src/features/*"]
     }
   },
   "include": ["src"]

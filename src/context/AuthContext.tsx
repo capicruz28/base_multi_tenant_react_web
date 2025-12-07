@@ -9,7 +9,7 @@ import React, {
 	ReactNode,
 	useCallback,
 } from 'react';
-import api from '../services/api';
+import api from '../core/api/api';
 import { authService } from '../services/auth.service';
 import type {
 	AxiosResponse,
@@ -18,7 +18,7 @@ import type {
 	AxiosRequestHeaders,
 } from 'axios';
 import type { AuthResponse, UserData, ClienteInfo } from '../types/auth.types';
-import { useBrandingStore } from '../stores/branding.store';
+import { useBrandingStore } from '../features/tenant/stores/branding.store';
 
 // ============================================================================
 // BLOQUEO DE CONCURRENCIA GLOBAL (CRÍTICO)
@@ -121,7 +121,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			setUserType('user');
 			setClienteInfo(null);
 			// Resetear branding cuando no hay usuario
-			useBrandingStore.getState().resetBranding();
+			useBrandingStore.getState().resetBranding(null);
 			return;
 		}
 
@@ -159,12 +159,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		// ✅ IMPORTANTE: Cargar branding siempre que el usuario esté autenticado
 		// El endpoint /tenant/branding usa el contexto del tenant (subdominio) del request,
 		// no necesita cliente_id explícito. Funciona para tenant_admin y super_admin.
-		if (userData) {
-			console.log('🎨 [AuthContext] Cargando branding (endpoint usa contexto de tenant)...');
-			useBrandingStore.getState().loadBranding();
+		// NOTA: El branding ahora se carga desde TenantContext cuando cambia el tenant
+		// Este código se mantiene por compatibilidad pero el TenantContext maneja la carga
+		if (userData && userData.cliente?.cliente_id) {
+			console.log('🎨 [AuthContext] Tenant detectado, el TenantContext cargará el branding...');
 		} else {
 			// Solo resetear cuando no hay usuario
-			useBrandingStore.getState().resetBranding();
+			useBrandingStore.getState().resetBranding(null);
 		}
 	}, [determineUserType]);
 
@@ -218,7 +219,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			isRefreshingPromise = null;
 			processQueue(new Error('Session expired'), null);
 			// Resetear branding al hacer logout
-			useBrandingStore.getState().resetBranding();
+			useBrandingStore.getState().clearAll();
 		}
 	}, [processQueue]);
 

@@ -2,7 +2,7 @@
  * Servicio para obtener la configuración de branding del tenant actual
  * Endpoint: GET /api/v1/clientes/tenant/branding
  */
-import api from './api';
+import api from '../core/api/api';
 import { BrandingRead } from '../types/branding.types';
 import { getErrorMessage } from './error.service';
 

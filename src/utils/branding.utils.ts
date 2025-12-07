@@ -188,17 +188,13 @@ export const applyBrandingColors = (branding: BrandingRead): void => {
     root.style.setProperty('--color-secondary-dark-mode-rgb', `${secondaryVariations.darkMode.rgb.r}, ${secondaryVariations.darkMode.rgb.g}, ${secondaryVariations.darkMode.rgb.b}`);
   }
 
-  console.log('✅ Colores de branding aplicados con tokens derivados:', {
-    primary: primaryColor,
-    secondary: secondaryColor,
-    variations: {
-      primary: {
-        hover: primaryVariations.hover.hsl,
-        active: primaryVariations.active.hsl,
-        darkMode: primaryVariations.darkMode.hsl,
-      },
-    },
-  });
+  // Solo log en desarrollo
+  if (import.meta.env.DEV) {
+    console.log('✅ Colores de branding aplicados:', {
+      primary: primaryColor,
+      secondary: secondaryColor,
+    });
+  }
 };
 
 /**
@@ -230,12 +226,18 @@ export const updateFavicon = (faviconUrl: string | null): void => {
     link.href = faviconUrl;
     link.type = typeMap[extension || ''] || 'image/png';
     
-    console.log('✅ Favicon actualizado:', faviconUrl);
+    // Solo log en desarrollo
+    if (import.meta.env.DEV) {
+      console.log('✅ Favicon actualizado:', faviconUrl);
+    }
   } else {
     // Fallback a favicon por defecto
     link.href = '/vite.svg';
     link.type = 'image/svg+xml';
-    console.log('✅ Favicon restaurado a valor por defecto');
+    // Solo log en desarrollo
+    if (import.meta.env.DEV) {
+      console.log('✅ Favicon restaurado a valor por defecto');
+    }
   }
 };
 
@@ -386,6 +388,9 @@ export const resetBranding = (): void => {
   // Resetear tema personalizado
   applyTemaPersonalizado(null);
   
-  console.log('✅ Branding reseteado a valores por defecto');
+  // Solo log en desarrollo
+  if (import.meta.env.DEV) {
+    console.log('✅ Branding reseteado a valores por defecto');
+  }
 };
 

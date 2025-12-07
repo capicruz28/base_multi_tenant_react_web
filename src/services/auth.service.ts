@@ -1,5 +1,5 @@
 // src/services/auth.service.ts
-import api from './api';
+import api from '../core/api/api';
 import { LoginCredentials, AuthResponse, UserData } from '../types/auth.types';
 import { AxiosError, AxiosRequestConfig } from 'axios';
 

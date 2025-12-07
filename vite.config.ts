@@ -8,7 +8,60 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@/app': path.resolve(__dirname, './src/app'),
+      '@/core': path.resolve(__dirname, './src/core'),
+      '@/shared': path.resolve(__dirname, './src/shared'),
+      '@/features': path.resolve(__dirname, './src/features'),
     },
+  },
+  build: {
+    // ✅ Optimización de code splitting
+    rollupOptions: {
+      output: {
+        // Agrupar chunks por feature/módulo
+        manualChunks: (id) => {
+          // node_modules en chunk separado
+          if (id.includes('node_modules')) {
+            // Separar librerías grandes
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@tanstack/react-query')) {
+              return 'vendor-react-query';
+            }
+            if (id.includes('axios')) {
+              return 'vendor-axios';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            // Resto de node_modules
+            return 'vendor';
+          }
+          
+          // Features en chunks separados
+          if (id.includes('/features/super-admin/')) {
+            return 'feature-super-admin';
+          }
+          if (id.includes('/features/auth/')) {
+            return 'feature-auth';
+          }
+          if (id.includes('/features/tenant/')) {
+            return 'feature-tenant';
+          }
+          if (id.includes('/features/admin/')) {
+            return 'feature-admin';
+          }
+          
+          // Core en chunk separado
+          if (id.includes('/core/')) {
+            return 'core';
+          }
+        },
+      },
+    },
+    // Optimizaciones adicionales
+    chunkSizeWarningLimit: 1000, // Avisar si un chunk es > 1MB
   },
   server: {
     host: '0.0.0.0',  // ✅ Permite acceso desde subdominios

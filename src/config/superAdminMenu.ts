@@ -1,4 +1,4 @@
-import { SidebarMenuItem } from '../types/menu.types';
+import { SidebarMenuItem } from '@/features/admin/types/menu.types';
 
 /**
  * Menú de Administración Global - Solo para Super Administradores

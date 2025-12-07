@@ -1,4 +1,4 @@
-import api from './api';
+import api from '../core/api/api';
 import {
   PaginatedSuperadminUsuariosResponse,
   SuperadminUsuario,
@@ -59,7 +59,7 @@ export const superadminUsuarioService = {
   },
 
   async getUsuarioActividad(
-    usuarioId: number,
+    usuarioId: string,
     { limite = 50, tipo_evento }: UsuarioActividadParams = {},
     cliente_id?: string,
   ): Promise<UsuarioActividadResponse> {
@@ -77,7 +77,7 @@ export const superadminUsuarioService = {
   },
 
   async getUsuarioSesiones(
-    usuarioId: number,
+    usuarioId: string,
     { solo_activas = true }: UsuarioSesionesParams = {},
     cliente_id?: string,
   ): Promise<UsuarioSesionesResponse> {
