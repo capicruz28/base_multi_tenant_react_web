@@ -8,6 +8,13 @@
  * Estructura flexible para permitir diferentes parámetros de UI
  */
 export interface TemaPersonalizado {
+  // ✅ NUEVO: Fuentes tipográficas estructuradas
+  fonts?: {
+    display?: string; // Fuente para títulos y elementos destacados
+    body?: string;    // Fuente para texto general
+    mono?: string;    // Fuente monoespaciada para código
+  };
+  // ✅ COMPATIBILIDAD: Mantener fontFamily para retrocompatibilidad
   fontFamily?: string;
   borderRadius?: string;
   appName?: string; // Nombre de la aplicación
@@ -17,16 +24,61 @@ export interface TemaPersonalizado {
     large?: string;
     [key: string]: string | undefined;
   };
+  /** Sombras: small/medium/large (legacy) y xs/sm/base/md/lg/xl/2xl/inner/focus-* (design system) */
   shadows?: {
     small?: string;
     medium?: string;
     large?: string;
+    xs?: string;
+    sm?: string;
+    base?: string;
+    md?: string;
+    lg?: string;
+    xl?: string;
+    '2xl'?: string;
+    inner?: string;
+    'focus-blue'?: string;
+    'focus-cyan'?: string;
+    'focus-red'?: string;
     [key: string]: string | undefined;
   };
   colors?: {
-    [key: string]: string; // Colores personalizados adicionales
+    navy?: string;
+    blue?: string;
+    cyan?: string;
+    mint?: string;
+    slate?: string;
+    amber?: string;
+    red?: string;
+    green?: string;
+    indigo?: string;
+    purple?: string;
+    orange?: string;
+    [key: string]: string | undefined;
   };
-  [key: string]: any; // Permitir propiedades adicionales
+  grays?: {
+    '50'?: string;
+    '100'?: string;
+    '200'?: string;
+    '300'?: string;
+    '400'?: string;
+    '500'?: string;
+    '600'?: string;
+    '700'?: string;
+    '800'?: string;
+    '900'?: string;
+    white?: string;
+    black?: string;
+    [key: string]: string | undefined;
+  };
+  gradients?: {
+    primary?: string;
+    success?: string;
+    dark?: string;
+    subtle?: string;
+    [key: string]: string | undefined;
+  };
+  [key: string]: any;
 }
 
 /**

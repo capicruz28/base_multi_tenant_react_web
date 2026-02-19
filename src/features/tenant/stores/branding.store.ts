@@ -20,7 +20,7 @@ interface BrandingStoreState extends BrandingState {
   // Helper interno para obtener estado completo del tenant
   getTenantState: (tenantId: string | null) => BrandingState;
   // Limpiar todos los tenants (útil para logout)
-  clearAll: () => void;
+  clearAll: (preserveSubdomainCache?: boolean) => void;
 }
 
 /**

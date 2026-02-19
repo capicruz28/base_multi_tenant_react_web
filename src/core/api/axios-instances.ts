@@ -10,8 +10,23 @@
  * const response = await api.get('/clientes');
  * ```
  */
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosError } from 'axios';
+import { toast } from 'react-hot-toast';
 import { DEFAULT_API_BASE_URL } from './api-config';
+
+/** Mensaje global para errores 5xx y timeout; usada por api central (AuthContext) y por instancias locales */
+export function showServerErrorToast(error: AxiosError): void {
+  const status = error.response?.status;
+  const is5xx = status != null && status >= 500;
+  const isTimeout = (error as AxiosError & { code?: string }).code === 'ECONNABORTED';
+  if (!is5xx && !isTimeout) return;
+  const message = isTimeout
+    ? 'La solicitud tardó demasiado. Revisa tu conexión e intenta de nuevo.'
+    : status === 503
+      ? 'El servicio no está disponible temporalmente. Intenta en unos momentos.'
+      : 'Error del servidor. Si el problema persiste, contacta a soporte.';
+  toast.error(message, { duration: 5000 });
+}
 
 /**
  * Instancia de Axios para servidor central (SaaS)
@@ -62,6 +77,15 @@ export const createLocalApi = (localUrl: string): AxiosInstance => {
       'X-Client-Type': 'web',
     },
   });
+
+  // Corrección crítica: mismo manejo de 5xx/timeout que en api central
+  localApi.interceptors.response.use(
+    (res) => res,
+    (error: AxiosError) => {
+      showServerErrorToast(error);
+      return Promise.reject(error);
+    }
+  );
 
   // Cachear instancia
   localApiInstances.set(normalizedUrl, localApi);

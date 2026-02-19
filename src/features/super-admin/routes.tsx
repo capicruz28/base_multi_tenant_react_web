@@ -6,6 +6,10 @@ const SuperAdminDashboard = lazy(() => import('./dashboard/pages/SuperAdminDashb
 const ClientManagementPage = lazy(() => import('./clientes/pages/ClientManagementPage'));
 const ClientDetailPage = lazy(() => import('./clientes/pages/ClientDetailPage'));
 const ModuleManagementPage = lazy(() => import('./modulos/pages/ModuleManagementPage'));
+const SectionManagementPage = lazy(() => import('./modulos/pages/SectionManagementPage'));
+const MenuManagementPageSuperAdmin = lazy(() => import('./modulos/pages/MenuManagementPageSuperAdmin'));
+const RoleTemplateManagementPage = lazy(() => import('./modulos/pages/RoleTemplateManagementPage'));
+const HierarchicalViewPage = lazy(() => import('./modulos/pages/HierarchicalViewPage'));
 
 export const superAdminRoutes: RouteObject = {
   path: 'super-admin',
@@ -40,6 +44,38 @@ export const superAdminRoutes: RouteObject = {
       element: (
         <Suspense fallback={<LoadingSpinner message="Cargando gestión de módulos..." />}>
           <ModuleManagementPage />
+        </Suspense>
+      ),
+    },
+    {
+      path: 'secciones',
+      element: (
+        <Suspense fallback={<LoadingSpinner message="Cargando gestión de secciones..." />}>
+          <SectionManagementPage />
+        </Suspense>
+      ),
+    },
+    {
+      path: 'menus',
+      element: (
+        <Suspense fallback={<LoadingSpinner message="Cargando gestión de menús..." />}>
+          <MenuManagementPageSuperAdmin />
+        </Suspense>
+      ),
+    },
+    {
+      path: 'plantillas-roles',
+      element: (
+        <Suspense fallback={<LoadingSpinner message="Cargando gestión de plantillas..." />}>
+          <RoleTemplateManagementPage />
+        </Suspense>
+      ),
+    },
+    {
+      path: 'vista-jerarquica',
+      element: (
+        <Suspense fallback={<LoadingSpinner message="Cargando vista jerárquica..." />}>
+          <HierarchicalViewPage />
         </Suspense>
       ),
     },

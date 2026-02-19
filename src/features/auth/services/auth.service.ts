@@ -30,13 +30,18 @@ interface ExtendedAuthResponse extends AuthResponse {
  */
 
 /**
- * Login de usuario
+ * Login de usuario.
+ *
+ * Multi-tenant: el backend deduce el tenant del header Host (subdominio), no del body.
+ * No se envía subdominio ni cliente_id en el body; solo username y password (estándar OAuth2).
+ * El frontend debe llamar al login contra la URL del tenant (mismo host que la app).
+ *
  * @param credentials - Credenciales de usuario (username, password)
  * @returns Promise con la respuesta de autenticación (debería incluir Access Token)
  */
 const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
 	try {
-		// Crear FormData para enviar como application/x-www-form-urlencoded
+		// Crear FormData para enviar como application/x-www-form-urlencoded (solo username + password)
 		const params = new URLSearchParams();
 		params.append('username', credentials.username);
 		params.append('password', credentials.password);

@@ -3,7 +3,7 @@
 /**
  * Tipos de permisos disponibles para cada menú.
  */
-export type PermissionType = 'ver' | 'crear' | 'editar' | 'eliminar';
+export type PermissionType = 'ver' | 'crear' | 'editar' | 'eliminar' | 'exportar' | 'imprimir' | 'aprobar';
 
 /**
  * Representa el estado de los permisos para un menú específico.
@@ -11,7 +11,13 @@ export type PermissionType = 'ver' | 'crear' | 'editar' | 'eliminar';
  * El valor es un booleano indicando si el permiso está concedido.
  */
 export type MenuPermissions = {
-  [key in PermissionType]: boolean;
+  ver: boolean;
+  crear: boolean;
+  editar: boolean;
+  eliminar: boolean;
+  exportar?: boolean;
+  imprimir?: boolean;
+  aprobar?: boolean;
 };
 
 /**

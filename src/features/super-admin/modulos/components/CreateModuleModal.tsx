@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { X, Package, Loader } from 'lucide-react';
-import { moduloService } from '../services/modulo.service';
-import { ModuloCreate } from '../types/modulo.types';
+// ✅ NUEVO: Usar servicios y tipos V2
+import { moduloV2Service } from '@/features/modulos/services/modulo-v2.service';
+import type { ModuloV2Create } from '@/features/modulos/types/modulo-v2.types';
 import { getErrorMessage } from '@/core/services/error.service';
+import IconSelector from '@/shared/components/ui/IconSelector';
 
 interface CreateModuleModalProps {
   isOpen: boolean;
@@ -18,14 +20,16 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
 }) => {
   const [loading, setLoading] = useState<boolean>(false);
 
-  const [formData, setFormData] = useState<ModuloCreate>({
-    codigo_modulo: '',
+  // ✅ NUEVO: Usar tipos ModuloV2Create
+  const [formData, setFormData] = useState<ModuloV2Create>({
+    codigo: '',
     nombre: '',
     descripcion: '',
-    icono: '',
-    es_modulo_core: false,
-    requiere_licencia: false,
-    orden: 0
+    icono: 'Package',
+    color: '#6366f1', // Color por defecto (indigo)
+    categoria: '',
+    orden: 0,
+    es_activo: true
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -34,13 +38,14 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
   React.useEffect(() => {
     if (isOpen) {
       setFormData({
-        codigo_modulo: '',
+        codigo: '',
         nombre: '',
         descripcion: '',
-        icono: '',
-        es_modulo_core: false,
-        requiere_licencia: false,
-        orden: 0
+        icono: 'Package',
+        color: '#6366f1',
+        categoria: '',
+        orden: 0,
+        es_activo: true
       });
       setErrors({});
     }
@@ -65,14 +70,22 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.codigo_modulo.trim()) {
-      newErrors.codigo_modulo = 'El código del módulo es requerido';
-    } else if (!/^[A-Z0-9_]+$/.test(formData.codigo_modulo)) {
-      newErrors.codigo_modulo = 'El código debe contener solo mayúsculas, números y guiones bajos';
+    if (!formData.codigo.trim()) {
+      newErrors.codigo = 'El código del módulo es requerido';
+    } else if (!/^[A-Z0-9_]+$/.test(formData.codigo)) {
+      newErrors.codigo = 'El código debe contener solo mayúsculas, números y guiones bajos';
     }
 
     if (!formData.nombre.trim()) {
       newErrors.nombre = 'El nombre del módulo es requerido';
+    }
+
+    if (!formData.categoria.trim()) {
+      newErrors.categoria = 'La categoría es requerida';
+    }
+
+    if (!formData.color || !/^#[0-9A-F]{6}$/i.test(formData.color)) {
+      newErrors.color = 'El color debe ser un código hexadecimal válido (ej: #6366f1)';
     }
 
     if ((formData.orden ?? 0) < 0) {
@@ -93,7 +106,8 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
 
     setLoading(true);
     try {
-      await moduloService.createModulo(formData);
+      // ✅ NUEVO: Usar moduloV2Service
+      await moduloV2Service.createModulo(formData);
       toast.success('Módulo creado exitosamente');
       onSuccess();
       onClose();
@@ -132,22 +146,22 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Código del Módulo */}
           <div>
-            <label htmlFor="codigo_modulo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="codigo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Código del Módulo *
             </label>
             <input
               type="text"
-              id="codigo_modulo"
-              name="codigo_modulo"
-              value={formData.codigo_modulo}
+              id="codigo"
+              name="codigo"
+              value={formData.codigo}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.codigo_modulo ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.codigo ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
                 }`}
               placeholder="Ej: PLANILLAS, CONTABILIDAD"
               disabled={loading}
             />
-            {errors.codigo_modulo && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.codigo_modulo}</p>
+            {errors.codigo && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.codigo}</p>
             )}
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Solo mayúsculas, números y guiones bajos. Usado para referencia en código.
@@ -195,21 +209,71 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
           {/* Icono */}
           <div>
             <label htmlFor="icono" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Icono
+              Icono *
+            </label>
+            <IconSelector
+              value={formData.icono}
+              onChange={(icon) => setFormData(prev => ({ ...prev, icono: icon || 'Package' }))}
+            />
+            {errors.icono && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.icono}</p>
+            )}
+          </div>
+
+          {/* ✅ NUEVO: Color */}
+          <div>
+            <label htmlFor="color" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Color *
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="color"
+                id="color"
+                name="color"
+                value={formData.color}
+                onChange={handleInputChange}
+                className="h-10 w-20 border border-brand-input-border dark:border-brand-input-border rounded-lg cursor-pointer"
+                disabled={loading}
+              />
+              <input
+                type="text"
+                value={formData.color}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (/^#[0-9A-F]{6}$/i.test(value) || value === '') {
+                    setFormData(prev => ({ ...prev, color: value || '#6366f1' }));
+                  }
+                }}
+                className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.color ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                  }`}
+                placeholder="#6366f1"
+                disabled={loading}
+              />
+            </div>
+            {errors.color && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.color}</p>
+            )}
+          </div>
+
+          {/* ✅ NUEVO: Categoría */}
+          <div>
+            <label htmlFor="categoria" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Categoría *
             </label>
             <input
               type="text"
-              id="icono"
-              name="icono"
-              value={formData.icono || ''}
+              id="categoria"
+              name="categoria"
+              value={formData.categoria}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
-              placeholder="Ej: receipt_long, people, inventory_2"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.categoria ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                }`}
+              placeholder="Ej: Finanzas, RRHH, Operaciones"
               disabled={loading}
             />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Nombre del icono según la librería de iconos usada.
-            </p>
+            {errors.categoria && (
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.categoria}</p>
+            )}
           </div>
 
           {/* Orden */}
@@ -236,44 +300,24 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
             </p>
           </div>
 
-          {/* Opciones del Módulo */}
-          <div className="space-y-3">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="es_modulo_core"
-                name="es_modulo_core"
-                checked={formData.es_modulo_core}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
-                disabled={loading}
-              />
-              <label htmlFor="es_modulo_core" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-                Módulo Core del Sistema
-              </label>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
-              Los módulos core son esenciales y siempre disponibles para todos los clientes.
-            </p>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="requiere_licencia"
-                name="requiere_licencia"
-                checked={formData.requiere_licencia}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
-                disabled={loading}
-              />
-              <label htmlFor="requiere_licencia" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-                Requiere Licencia
-              </label>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
-              Los módulos con licencia requieren activación y pago adicional.
-            </p>
+          {/* ✅ NUEVO: Estado del Módulo */}
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="es_activo"
+              name="es_activo"
+              checked={formData.es_activo || false}
+              onChange={handleInputChange}
+              className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+              disabled={loading}
+            />
+            <label htmlFor="es_activo" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+              Módulo Activo
+            </label>
           </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+            Los módulos inactivos no estarán disponibles para los clientes.
+          </p>
 
           {/* Footer */}
           <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">

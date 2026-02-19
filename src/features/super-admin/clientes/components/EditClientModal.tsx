@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { X, Building, Loader, Palette, Calendar, Server } from 'lucide-react';
-import { clienteService } from '../services/cliente.service';
 import { Cliente, ClienteUpdate } from '../types/cliente.types';
-import { getErrorMessage } from '@/core/services/error.service';
 import { InstallationType, AuthenticationMode } from '@/core/constants';
+import { useUpdateCliente } from '@/core/hooks/useClienteMutations';
 
 interface EditClientModalProps {
   isOpen: boolean;
@@ -19,7 +18,10 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
   onSuccess,
   cliente
 }) => {
-  const [loading, setLoading] = useState<boolean>(false);
+  // ✅ CORREGIDO: Usar mutación de React Query para actualizar cliente
+  const updateMutation = useUpdateCliente();
+  const loading = updateMutation.isPending;
+  
   const [activeSection, setActiveSection] = useState<'basic' | 'config' | 'branding' | 'subscription'>('basic');
   
   const [formData, setFormData] = useState<ClienteUpdate>({
@@ -171,36 +173,37 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
       return;
     }
 
-    setLoading(true);
-    try {
-      // Preparar datos para enviar (convertir strings vacíos a null, fechas a formato ISO)
-      const dataToSend: ClienteUpdate = {
-        ...formData,
-        nombre_comercial: formData.nombre_comercial?.trim() || null,
-        ruc: formData.ruc?.trim() || null,
-        servidor_api_local: formData.servidor_api_local?.trim() || null,
-        logo_url: formData.logo_url?.trim() || null,
-        favicon_url: formData.favicon_url?.trim() || null,
-        tema_personalizado: formData.tema_personalizado?.trim() || null,
-        fecha_inicio_suscripcion: formData.fecha_inicio_suscripcion || null,
-        fecha_fin_trial: formData.fecha_fin_trial || null,
-        contacto_nombre: formData.contacto_nombre?.trim() || null,
-        contacto_telefono: formData.contacto_telefono?.trim() || null,
-        api_key_sincronizacion: formData.api_key_sincronizacion?.trim() || null,
-        sincronizacion_habilitada: formData.sincronizacion_habilitada || false,
-      };
+    // Preparar datos para enviar (convertir strings vacíos a null, fechas a formato ISO)
+    const dataToSend: ClienteUpdate = {
+      ...formData,
+      nombre_comercial: formData.nombre_comercial?.trim() || null,
+      ruc: formData.ruc?.trim() || null,
+      servidor_api_local: formData.servidor_api_local?.trim() || null,
+      logo_url: formData.logo_url?.trim() || null,
+      favicon_url: formData.favicon_url?.trim() || null,
+      tema_personalizado: formData.tema_personalizado?.trim() || null,
+      fecha_inicio_suscripcion: formData.fecha_inicio_suscripcion || null,
+      fecha_fin_trial: formData.fecha_fin_trial || null,
+      contacto_nombre: formData.contacto_nombre?.trim() || null,
+      contacto_telefono: formData.contacto_telefono?.trim() || null,
+      api_key_sincronizacion: formData.api_key_sincronizacion?.trim() || null,
+      sincronizacion_habilitada: formData.sincronizacion_habilitada || false,
+    };
 
-      await clienteService.updateCliente(cliente.cliente_id, dataToSend);
-      toast.success('Cliente actualizado exitosamente');
-      onSuccess();
-      onClose();
-    } catch (error) {
-      console.error('Error updating client:', error);
-      const errorData = getErrorMessage(error);
-      toast.error(errorData.message || 'Error al actualizar el cliente');
-    } finally {
-      setLoading(false);
-    }
+    // ✅ CORREGIDO: Usar mutación de React Query que invalida automáticamente las queries
+    updateMutation.mutate(
+      { id: cliente.cliente_id, data: dataToSend },
+      {
+        onSuccess: () => {
+          // El toast de éxito ya se maneja en la mutación
+          // React Query invalidará automáticamente las queries ['clientes', tenantId]
+          // y ['cliente', cliente_id], lo que refrescará la lista automáticamente
+          onSuccess();
+          onClose();
+        },
+        // El error ya se maneja en la mutación con toast
+      }
+    );
   };
 
   if (!isOpen) return null;

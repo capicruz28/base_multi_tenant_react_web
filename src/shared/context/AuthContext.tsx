@@ -21,6 +21,7 @@ import type { AuthResponse, UserData, ClienteInfo } from '../../features/auth/ty
 import { useBrandingStore } from '../../features/tenant/stores/branding.store';
 import type { UserPermissions } from '../../core/auth/types/permission.types';
 import { getUserPermissions } from '../../core/auth/services/permission.service';
+import { showServerErrorToast } from '../../core/api/axios-instances';
 
 // ============================================================================
 // BLOQUEO DE CONCURRENCIA GLOBAL (CRÍTICO)
@@ -151,7 +152,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 				return;
 			}
 
-			const userPermissions = await getUserPermissions(roleIds);
+			const userPermissions = await getUserPermissions(roleIds, userData.cliente ?? undefined);
 			setPermissions(userPermissions);
 			const moduleCount = Object.keys(userPermissions).length;
 			if (moduleCount > 0) {
@@ -512,6 +513,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 						return Promise.reject(error);
 					}
 				}
+
+				// ✅ Corrección crítica: manejo global de 5xx y timeout
+				showServerErrorToast(error);
 
 				return Promise.reject(error);
 			}

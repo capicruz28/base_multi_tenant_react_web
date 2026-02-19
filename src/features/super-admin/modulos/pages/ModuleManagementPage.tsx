@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import {
   Search,
@@ -7,14 +7,14 @@ import {
   Trash2,
   RefreshCw,
   Package,
-  Shield,
   Star,
   CheckCircle,
   XCircle
 } from 'lucide-react';
 
-import { moduloService } from '../services/modulo.service';
-import { Modulo } from '../types/modulo.types';
+// ✅ NUEVO: Usar servicios y tipos V2
+import { moduloV2Service } from '@/features/modulos/services/modulo-v2.service';
+import type { ModuloV2 } from '@/features/modulos/types/modulo-v2.types';
 import { useAuth } from '@/shared/context/AuthContext';
 import { getErrorMessage } from '@/core/services/error.service';
 import CreateModuleModal from '../components/CreateModuleModal';
@@ -22,7 +22,8 @@ import EditModuleModal from '../components/EditModuleModal';
 
 const ModuleManagementPage: React.FC = () => {
   const { isSuperAdmin, isAuthenticated, loading: authLoading } = useAuth();
-  const [modulos, setModulos] = useState<Modulo[]>([]);
+  // ✅ NUEVO: Usar tipos ModuloV2
+  const [modulos, setModulos] = useState<ModuloV2[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,14 +33,15 @@ const ModuleManagementPage: React.FC = () => {
   const [totalModulos, setTotalModulos] = useState<number>(0);
   const limitPerPage = 20;
 
-  // Búsqueda
+  // Búsqueda y filtros
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
+  const [selectedCategoria, setSelectedCategoria] = useState<string>('');
 
   // Modales y Selección
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
-  const [selectedModulo, setSelectedModulo] = useState<Modulo | null>(null);
+  const [selectedModulo, setSelectedModulo] = useState<ModuloV2 | null>(null);
 
   // Debounce para búsqueda
   useEffect(() => {
@@ -59,21 +61,36 @@ const ModuleManagementPage: React.FC = () => {
 
     setLoading(true);
     try {
-      let data;
+      // ✅ NUEVO: Usar moduloV2Service con nueva estructura de paginación
+      const skip = (currentPage - 1) * limitPerPage;
+      const filters: any = {
+        skip,
+        limit: limitPerPage,
+        es_activo: true, // Solo activos por defecto
+      };
+
+      // Agregar búsqueda si existe
       if (debouncedSearchTerm) {
-        // Usar búsqueda del backend
-        data = await moduloService.buscarModulos(currentPage, limitPerPage, {
-          buscar: debouncedSearchTerm,
-          solo_activos: true
-        });
-      } else {
-        // Usar listado normal con paginación
-        data = await moduloService.getModulos(currentPage, limitPerPage, true);
+        filters.nombre = debouncedSearchTerm;
       }
 
-      setModulos(data.data);
-      setTotalModulos(data.pagination.total);
-      setTotalPages(data.pagination.total_pages);
+      // Agregar filtro de categoría si existe
+      if (selectedCategoria) {
+        filters.categoria = selectedCategoria;
+      }
+
+      const data = await moduloV2Service.getModulos(filters);
+
+      // ✅ NUEVO: Estructura de respuesta diferente con validación robusta
+      if (!data) {
+        throw new Error('La respuesta del servidor está vacía');
+      }
+      
+      // Validar que items sea un array
+      const items = Array.isArray(data.items) ? data.items : [];
+      setModulos(items);
+      setTotalModulos(typeof data.total === 'number' ? data.total : items.length);
+      setTotalPages(typeof data.pages === 'number' ? data.pages : 1);
       setError(null);
     } catch (err) {
       console.error('❌ Error cargando módulos:', err);
@@ -83,7 +100,7 @@ const ModuleManagementPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearchTerm, currentPage, isAuthenticated, authLoading]);
+  }, [debouncedSearchTerm, currentPage, selectedCategoria, isAuthenticated, authLoading]);
 
   useEffect(() => {
     fetchModulos();
@@ -116,13 +133,16 @@ const ModuleManagementPage: React.FC = () => {
     toast.success('Módulo actualizado exitosamente');
   };
 
-  const handleToggleActivation = async (modulo: Modulo) => {
+  const handleToggleActivation = async (modulo: ModuloV2) => {
     try {
-      await moduloService.updateModulo(modulo.modulo_id, {
-        es_activo: !modulo.es_activo
-      });
-
-      toast.success(`Módulo ${!modulo.es_activo ? 'activado' : 'desactivado'} exitosamente`);
+      // ✅ CORREGIDO: Usar endpoints específicos de activar/desactivar
+      if (modulo.es_activo) {
+        await moduloV2Service.deactivateModulo(modulo.modulo_id);
+        toast.success('Módulo desactivado exitosamente');
+      } else {
+        await moduloV2Service.activateModulo(modulo.modulo_id);
+        toast.success('Módulo activado exitosamente');
+      }
       fetchModulos();
     } catch (err) {
       const errorData = getErrorMessage(err);
@@ -130,10 +150,24 @@ const ModuleManagementPage: React.FC = () => {
     }
   };
 
-  const openEditModal = (modulo: Modulo) => {
+  const openEditModal = (modulo: ModuloV2) => {
     setSelectedModulo(modulo);
     setIsEditModalOpen(true);
   };
+
+  // ✅ NUEVO: Obtener categorías únicas para el filtro con validación
+  const categorias = useMemo(() => {
+    if (!modulos || !Array.isArray(modulos) || modulos.length === 0) {
+      return [];
+    }
+    try {
+      const cats = new Set(modulos.map(m => m?.categoria).filter(Boolean));
+      return Array.from(cats).sort();
+    } catch (error) {
+      console.error('Error procesando categorías:', error);
+      return [];
+    }
+  }, [modulos]);
 
   // Si no es super admin
   if (!isSuperAdmin) {
@@ -153,6 +187,7 @@ const ModuleManagementPage: React.FC = () => {
   return (
     <div className="w-full">
       {/* Header */}
+      {/*
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           Gestión de Módulos
@@ -161,20 +196,39 @@ const ModuleManagementPage: React.FC = () => {
           Administra los módulos disponibles en el sistema multi-tenant
         </p>
       </div>
-
+      */}
       {/* Barra de herramientas */}
       <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-          {/* Búsqueda */}
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar módulos..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
-            />
+          {/* Búsqueda y Filtros */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar módulos..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+
+            {/* ✅ NUEVO: Filtro por categoría */}
+            {categorias.length > 0 && (
+              <select
+                value={selectedCategoria}
+                onChange={(e) => {
+                  setSelectedCategoria(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+              >
+                <option value="">Todas las categorías</option>
+                {categorias.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Acciones */}
@@ -213,29 +267,16 @@ const ModuleManagementPage: React.FC = () => {
           </div>
         </div>
 
+        {/* ✅ NUEVO: Estadística de categorías */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <Star className="h-8 w-8 text-yellow-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Módulos Core</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Categorías</p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {modulos.filter(m => m.es_modulo_core).length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Shield className="h-8 w-8 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Con Licencia</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {modulos.filter(m => m.requiere_licencia).length}
+                {categorias.length}
               </p>
             </div>
           </div>
@@ -249,7 +290,21 @@ const ModuleManagementPage: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Activos</p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {modulos.filter(m => m.es_activo).length}
+                {modulos?.filter(m => m.es_activo).length || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <XCircle className="h-8 w-8 text-red-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Inactivos</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                {modulos?.filter(m => !m.es_activo).length || 0}
               </p>
             </div>
           </div>
@@ -295,10 +350,10 @@ const ModuleManagementPage: React.FC = () => {
                       Código
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Descripción
+                      Categoría
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Tipo
+                      Descripción
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Estado
@@ -309,13 +364,17 @@ const ModuleManagementPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {modulos.length > 0 ? (
+                  {modulos && modulos.length > 0 ? (
                     modulos.map((modulo) => (
                       <tr key={modulo.modulo_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
-                              <Package className="h-6 w-6 text-brand-primary dark:text-brand-primary" />
+                            {/* ✅ NUEVO: Mostrar color del módulo */}
+                            <div 
+                              className="flex-shrink-0 h-10 w-10 rounded-lg flex items-center justify-center"
+                              style={{ backgroundColor: modulo.color || '#6366f1', color: 'white' }}
+                            >
+                              <Package className="h-6 w-6" />
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -329,28 +388,18 @@ const ModuleManagementPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <code className="text-sm font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                            {modulo.codigo_modulo}
+                            {modulo.codigo}
                           </code>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-500 dark:text-gray-400 max-w-md">
-                            {modulo.descripcion || 'Sin descripción'}
-                          </div>
-                        </td>
+                        {/* ✅ NUEVO: Columna de categoría */}
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex flex-col gap-1">
-                            {modulo.es_modulo_core && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                <Star className="h-3 w-3 mr-1" />
-                                Core
-                              </span>
-                            )}
-                            {modulo.requiere_licencia && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                <Shield className="h-3 w-3 mr-1" />
-                                Con Licencia
-                              </span>
-                            )}
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            {modulo.categoria || 'Sin categoría'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-500 dark:text-gray-400 max-w-md truncate">
+                            {modulo.descripcion || 'Sin descripción'}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">

@@ -20,12 +20,22 @@ import { Checkbox } from "@/shared/components/ui/checkbox";
 // --- Importar servicios REALES ---
 import { menuService } from '../services/menu.service';
 import { permissionService } from '../services/permission.service';
+import { clienteModuloService } from '@/features/modulos/services/cliente-modulo.service';
+import { moduloV2Service } from '@/features/modulos/services/modulo-v2.service';
+import { seccionService } from '@/features/modulos/services/seccion.service';
+
+// --- Importar Auth Context ---
+import { useAuth } from '@/shared/context/AuthContext';
 
 // --- Importar tipos REALES ---
 // Usamos SidebarMenuItem para el estado y la UI interna
 // Usamos BackendManageMenuItem para el tipo de datos que esperamos de la API
 import type { SidebarMenuItem, BackendManageMenuItem } from '../types/menu.types';
 import type { PermissionState } from '../types/permission.types';
+
+// --- Importar utilidades de iconos ---
+import { getIcon } from '@/shared/lib/icon-utils';
+import { Package, Folder } from 'lucide-react';
 
 // --- Props del componente ---
 interface RolePermissionsManagerProps {
@@ -38,7 +48,21 @@ interface RolePermissionsManagerProps {
 
 // --- Interfaz para Datos Agrupados ---
 interface GroupedMenuItems {
-  [areaName: string]: SidebarMenuItem[];
+  [seccionName: string]: SidebarMenuItem[];
+}
+
+// --- Interfaz para estructura jerárquica completa ---
+interface HierarchicalStructure {
+  modulo_id: string;
+  modulo_nombre: string;
+  modulo_icono: string | null;
+  modulo_color: string | null;
+  secciones: Array<{
+    seccion_id: string;
+    seccion_nombre: string;
+    seccion_icono: string | null;
+    menus: SidebarMenuItem[];
+  }>;
 }
 
 // --- FUNCIÓN DE TRANSFORMACIÓN RECURSIVA (CORREGIDA) ---
@@ -78,40 +102,207 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
   onClose,
   onPermissionsUpdate,
 }) => {
-  // --- Estados Internos (usa SidebarMenuItem) ---
-  const [menuTree, setMenuTree] = useState<SidebarMenuItem[]>([]);
+  // --- Auth Context ---
+  const { clienteInfo, auth } = useAuth();
+  
+  // ✅ Obtener cliente_id desde múltiples fuentes (fallback)
+  const clienteId = clienteInfo?.cliente_id || auth.user?.cliente_id || null;
+
+  // --- Estados Internos ---
+  const [menuTree, setMenuTree] = useState<SidebarMenuItem[]>([]); // Mantener para compatibilidad
+  const [hierarchicalStructure, setHierarchicalStructure] = useState<HierarchicalStructure[]>([]); // ✅ NUEVO: Estructura jerárquica completa
   const [permissions, setPermissions] = useState<PermissionState>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  // --- Cargar datos (USANDO TRANSFORMACIÓN RECURSIVA CORREGIDA) ---
+  /**
+   * ✅ ACTUALIZADO: Construir estructura jerárquica completa desde módulos activos del cliente
+   * Mantiene la estructura: Módulo → Sección → Menú → Submenú
+   */
+  const buildHierarchicalMenuFromClienteModulos = useCallback(async (clienteId: string): Promise<HierarchicalStructure[]> => {
+    try {
+      // 1. Obtener módulos activos del cliente
+      const clienteModulos = await clienteModuloService.getClienteModulosByClienteId(clienteId);
+      
+      if (clienteModulos.length === 0) {
+        if (import.meta.env.DEV) {
+          console.log(`ℹ️ Cliente ${clienteId} no tiene módulos activos`);
+        }
+        return [];
+      }
+
+      // 2. Obtener información completa de cada módulo activo
+      const moduloIds = clienteModulos.map(cm => cm.modulo_id);
+      const hierarchicalData: HierarchicalStructure[] = [];
+
+      await Promise.all(
+        moduloIds.map(async (moduloId) => {
+          try {
+            // Obtener detalles del módulo
+            const moduloResponse = await moduloV2Service.getModuloById(moduloId);
+            const moduloData = moduloResponse.data;
+            
+            // Obtener secciones del módulo
+            const seccionesData = await seccionService.getSecciones({
+              modulo_id: moduloId,
+              es_activa: true
+            });
+            
+            // Construir secciones con sus menús
+            const seccionesConMenus: Array<{
+              seccion_id: string;
+              seccion_nombre: string;
+              seccion_icono: string | null;
+              menus: SidebarMenuItem[];
+            }> = [];
+
+            for (const seccion of seccionesData.items) {
+              try {
+                // Obtener menús de la sección
+                const menusData = await menuService.getMenusByModulo(moduloId, seccion.seccion_id);
+                
+                // Transformar BackendManageMenuItem[] a SidebarMenuItem[]
+                const transformMenuToSidebarItem = (menu: BackendManageMenuItem, parentId: string | null = null): SidebarMenuItem => {
+                  const sidebarItem: SidebarMenuItem = {
+                    menu_id: menu.menu_id,
+                    nombre: menu.nombre,
+                    icono: menu.icono || null,
+                    ruta: menu.ruta || null,
+                    orden: menu.orden || null,
+                    level: menu.level || 1,
+                    es_activo: menu.es_activo,
+                    padre_menu_id: parentId,
+                    area_id: seccion.seccion_id,
+                    area_nombre: seccion.nombre,
+                    children: [],
+                  };
+
+                  // Transformar hijos recursivamente
+                  if (menu.children && Array.isArray(menu.children) && menu.children.length > 0) {
+                    sidebarItem.children = menu.children.map(child => transformMenuToSidebarItem(child, menu.menu_id));
+                  }
+
+                  return sidebarItem;
+                };
+                
+                const menuItems = menusData.map(menu => transformMenuToSidebarItem(menu, null));
+                
+                if (menuItems.length > 0) {
+                  seccionesConMenus.push({
+                    seccion_id: seccion.seccion_id,
+                    seccion_nombre: seccion.nombre,
+                    seccion_icono: seccion.icono,
+                    menus: menuItems,
+                  });
+                }
+              } catch (err) {
+                console.error(`Error obteniendo menús de sección ${seccion.seccion_id}:`, err);
+              }
+            }
+            
+            // Solo agregar módulo si tiene secciones con menús
+            if (seccionesConMenus.length > 0) {
+              hierarchicalData.push({
+                modulo_id: moduloData.modulo_id,
+                modulo_nombre: moduloData.nombre,
+                modulo_icono: moduloData.icono,
+                modulo_color: moduloData.color || null,
+                secciones: seccionesConMenus,
+              });
+            }
+          } catch (err) {
+            console.error(`Error obteniendo detalles del módulo ${moduloId}:`, err);
+          }
+        })
+      );
+      
+      if (import.meta.env.DEV) {
+        console.log(`✅ Estructura jerárquica construida para cliente ${clienteId}:`, {
+          totalModulos: hierarchicalData.length,
+          modulos: hierarchicalData.map(m => ({
+            nombre: m.modulo_nombre,
+            secciones: m.secciones.length,
+            menus: m.secciones.reduce((acc, s) => acc + s.menus.length, 0)
+          }))
+        });
+      }
+      
+      return hierarchicalData;
+    } catch (error) {
+      console.error('❌ Error construyendo menú jerárquico desde módulos de cliente:', error);
+      throw error;
+    }
+  }, []);
+
+  // --- Cargar datos (ACTUALIZADO: Usar módulos activos del cliente) ---
   const loadData = useCallback(async () => {
     if (!rolId) return;
+    
+    // ✅ Validar que tenemos cliente_id desde cualquier fuente
+    if (!clienteId) {
+      const errorMsg = 'No se pudo obtener el ID del cliente. Por favor, inicie sesión nuevamente.';
+      setError(errorMsg);
+      toast.error(errorMsg);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setMenuTree([]);
+    setHierarchicalStructure([]);
     setPermissions({});
     try {
-      console.log(`Cargando datos para rol ID: ${rolId}`);
+      console.log(`Cargando datos para rol ID: ${rolId}, cliente: ${clienteId}`);
 
-      // Especificamos explícitamente el tipo esperado de la API para claridad
-      const [menuDataFromApi, permissionsData] = await Promise.all([
-        menuService.getFullMenuTree() as Promise<BackendManageMenuItem[]>, // Casting explícito
-        permissionService.getRolePermissions(rolId),
+      // ✅ ACTUALIZADO: Construir menú desde módulos activos del cliente
+      const [hierarchicalData, permissionsData] = await Promise.all([
+        buildHierarchicalMenuFromClienteModulos(clienteId),
+        permissionService.getRolePermissions(rolId).catch((err) => {
+          // Si falla obtener permisos, loggear el error pero continuar con permisos vacíos
+          console.error('❌ [RolePermissionsManager] Error cargando permisos del rol:', err);
+          if (import.meta.env.DEV) {
+            console.error('Detalles del error:', {
+              message: err instanceof Error ? err.message : String(err),
+              response: (err as any)?.response?.data,
+              status: (err as any)?.response?.status,
+            });
+          }
+          // Retornar objeto vacío para que el componente pueda continuar
+          return {} as PermissionState;
+        }),
       ]);
 
-      console.log("Menu Tree Data (Original API):", menuDataFromApi);
+      console.log("Hierarchical Structure Data:", hierarchicalData);
       console.log("Permissions Data:", permissionsData);
 
-      // --- Aplicar la transformación recursiva ---
-      // Aseguramos que menuDataFromApi es un array antes de mapear
-      const transformedMenuData = (menuDataFromApi || []).map(transformApiMenuItem);
-
-      console.log("Menu Tree Data (Transformed):", transformedMenuData);
-
-      // Usar los datos completamente transformados (SidebarMenuItem[])
-      setMenuTree(transformedMenuData);
+      // ✅ ACTUALIZADO: Guardar estructura jerárquica completa
+      setHierarchicalStructure(hierarchicalData || []);
+      
+      // También mantener menuTree plano para compatibilidad con el código existente
+      const flatMenuItems: SidebarMenuItem[] = [];
+      hierarchicalData.forEach(modulo => {
+        modulo.secciones.forEach(seccion => {
+          flatMenuItems.push(...seccion.menus);
+        });
+      });
+      setMenuTree(flatMenuItems);
+      
+      // ✅ DEBUG: Verificar mapeo de permisos
+      if (import.meta.env.DEV) {
+        const menuIds = flatMenuItems.map(m => m.menu_id);
+        const permissionMenuIds = Object.keys(permissionsData || {});
+        console.log('🔍 [RolePermissionsManager] Debug de permisos:', {
+          totalMenus: menuIds.length,
+          totalPermisos: permissionMenuIds.length,
+          menuIds: menuIds.slice(0, 5), // Primeros 5
+          permissionMenuIds: permissionMenuIds.slice(0, 5), // Primeros 5
+          coincidencias: menuIds.filter(id => permissionMenuIds.includes(id)).length,
+          permisosCargados: permissionsData,
+        });
+      }
+      
       setPermissions(permissionsData || {});
 
     } catch (err) {
@@ -122,18 +313,19 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [rolId]);
+  }, [rolId, clienteId, buildHierarchicalMenuFromClienteModulos]);
 
   // --- Efecto para cargar datos (sin cambios) ---
   useEffect(() => {
     if (isOpen && rolId) {
       loadData();
     } else {
-      setMenuTree([]);
-      setPermissions({});
-      setError(null);
-      setIsLoading(false);
-      setIsSaving(false);
+    setMenuTree([]);
+    setHierarchicalStructure([]);
+    setPermissions({});
+    setError(null);
+    setIsLoading(false);
+    setIsSaving(false);
     }
   }, [isOpen, rolId, loadData]);
 
@@ -171,8 +363,8 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
 
         console.log(`Enviando permisos para rol ID: ${rolId}`, { permisos: permisosArray });
 
-        const payload = { permisos: permisosArray };
-        await permissionService.updateRolePermissions(rolId, payload);
+        // ✅ ACTUALIZADO: Usar el nuevo método que actualiza permisos individualmente
+        await permissionService.updateRolePermissionsBatch(rolId, permisosArray);
 
         toast.success(`Permisos para el rol "${rolName}" actualizados.`);
         onPermissionsUpdate?.();
@@ -203,6 +395,12 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
   // --- Función recursiva para renderizar el árbol (sin cambios) ---
   const renderMenuNode = (node: SidebarMenuItem, level: number = 0): JSX.Element => {
     const nodePermissions = permissions[node.menu_id] || { ver: false, crear: false, editar: false, eliminar: false };
+    
+    // ✅ DEBUG: Log para verificar permisos por menú
+    if (import.meta.env.DEV && level === 0) {
+      console.log(`🔍 [renderMenuNode] Menú: ${node.nombre} (${node.menu_id}), Permisos:`, nodePermissions, 'Existe en permissions:', !!permissions[node.menu_id]);
+    }
+    
     const indentClass = `ml-${level * 4}`;
 
     return (
@@ -230,31 +428,27 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
     );
   };
 
-  // --- Memo para agrupar por área (sin cambios) ---
-  const groupedMenuItems = useMemo(() => {
+  // Memo para agrupar por sección (reservado para posible uso en vista alternativa)
+  const _groupedMenuItems = useMemo(() => {
     const groups: GroupedMenuItems = {};
     menuTree.forEach((item) => {
-      // Usamos padre_menu_id para identificar los items de nivel superior
       if (!item.padre_menu_id) {
-        // Usamos area_nombre para agrupar
-        const areaName = item.area_nombre || 'General'; // Fallback a 'General'
-        if (!groups[areaName]) {
-          groups[areaName] = [];
-        }
-        groups[areaName].push(item);
+        const seccionName = item.area_nombre || 'General';
+        if (!groups[seccionName]) groups[seccionName] = [];
+        groups[seccionName].push(item);
       }
     });
-    // Ordenar áreas
     const sortedGroups: GroupedMenuItems = {};
     if (groups['General']) {
-        sortedGroups['General'] = groups['General'];
-        delete groups['General'];
+      sortedGroups['General'] = groups['General'];
+      delete groups['General'];
     }
-    Object.keys(groups).sort().forEach(areaName => {
-        sortedGroups[areaName] = groups[areaName];
+    Object.keys(groups).sort().forEach((seccionName) => {
+      sortedGroups[seccionName] = groups[seccionName];
     });
     return sortedGroups;
   }, [menuTree]);
+  void _groupedMenuItems; // uso explícito para evitar warning
 
 
   // --- Renderizado del Componente (sin cambios estructurales) ---
@@ -264,7 +458,7 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
         <DialogHeader>
           <DialogTitle className="text-gray-900 dark:text-white">Gestionar Visibilidad para Rol: <span className="font-bold">{rolName}</span></DialogTitle>
           <DialogDescription className="dark:text-gray-400">
-            Selecciona los menús que este rol podrá visualizar, agrupados por área.
+            Selecciona los menús que este rol podrá visualizar. Estructura: Módulo → Sección → Menú → Submenú.
           </DialogDescription>
         </DialogHeader>
 
@@ -282,26 +476,46 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
              </div>
           )}
           {/* Mensajes si no hay datos */}
-          {!isLoading && !error && menuTree.length === 0 && (
+          {!isLoading && !error && hierarchicalStructure.length === 0 && (
              <div className="flex justify-center items-center h-40 text-gray-500 dark:text-gray-400">
-                No se encontró la estructura del menú o no hay menús definidos.
+                No se encontró la estructura del menú o no hay módulos activos con menús definidos.
              </div>
           )}
-          {!isLoading && !error && menuTree.length > 0 && Object.keys(groupedMenuItems).length === 0 && (
-             <div className="flex justify-center items-center h-40 text-gray-500 dark:text-gray-400">
-                No se encontraron menús de nivel superior con área para agrupar. Verifica la estructura de datos y la lógica de agrupación.
-             </div>
-          )}
-          {/* Renderizado por Áreas */}
-          {!isLoading && !error && Object.keys(groupedMenuItems).length > 0 && (
-            <div>
-              {Object.entries(groupedMenuItems).map(([areaName, itemsInArea]) => (
-                <div key={areaName} className="mb-4 pb-2 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
-                  <h3 className="text-md font-semibold text-brand-primary dark:text-brand-primary/80 mb-2 sticky top-0 bg-white dark:bg-gray-800 py-1 z-10">
-                    Área: {areaName}
-                  </h3>
-                  <div className="pl-2">
-                    {itemsInArea.map(node => renderMenuNode(node, 0))}
+          {/* ✅ NUEVO: Renderizado jerárquico completo (Módulo → Sección → Menú → Submenú) */}
+          {!isLoading && !error && hierarchicalStructure.length > 0 && (
+            <div className="space-y-6">
+              {hierarchicalStructure.map((modulo) => (
+                <div key={modulo.modulo_id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
+                  {/* Encabezado del Módulo */}
+                  <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-300 dark:border-gray-600">
+                    <div className="flex-shrink-0" style={{ color: modulo.modulo_color || '#1976D2' }}>
+                      {getIcon(modulo.modulo_icono, Package, { size: 24 })}
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                      {modulo.modulo_nombre}
+                    </h2>
+                  </div>
+                  
+                  {/* Secciones del Módulo */}
+                  <div className="space-y-4 pl-2">
+                    {modulo.secciones.map((seccion) => (
+                      <div key={seccion.seccion_id} className="border-l-2 border-gray-300 dark:border-gray-600 pl-4">
+                        {/* Encabezado de la Sección */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex-shrink-0 text-gray-600 dark:text-gray-400">
+                            {getIcon(seccion.seccion_icono, Folder, { size: 20 })}
+                          </div>
+                          <h3 className="text-md font-semibold text-gray-700 dark:text-gray-300">
+                            {seccion.seccion_nombre}
+                          </h3>
+                        </div>
+                        
+                        {/* Menús de la Sección */}
+                        <div className="space-y-1 pl-2">
+                          {seccion.menus.map((menu) => renderMenuNode(menu, 0))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -320,7 +534,7 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
           <Button
             type="button"
             onClick={handleSaveChanges}
-            disabled={isLoading || isSaving || menuTree.length === 0}
+            disabled={isLoading || isSaving || hierarchicalStructure.length === 0}
             className="bg-brand-primary hover:bg-brand-primary-hover text-white disabled:opacity-50"
           >
             {isSaving && <Loader className="animate-spin h-4 w-4 mr-2" />}

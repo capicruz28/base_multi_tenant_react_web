@@ -58,6 +58,8 @@ export interface BackendManageMenuItem {
   area_nombre?: string | null; // Si el backend lo incluye
   level?: number;
   children: BackendManageMenuItem[]; // Estructura anidada del backend
+  seccion_id?: string | null; // ✅ ID de la sección a la que pertenece
+  modulo_id?: string | null; // ✅ ID del módulo al que pertenece
 }
 
 // Tipo para la respuesta del endpoint GET /menus/area/{id}/tree
@@ -123,4 +125,71 @@ export interface MenuSingleResponse {
     area_nombre?: string | null; // Si el backend lo incluye
     fecha_creacion: string; // O Date, dependiendo de cómo lo manejes
     fecha_actualizacion?: string | null; // O Date
+}
+
+// ============================================
+// TIPOS NUEVOS - ESTRUCTURA JERÁRQUICA V2
+// ============================================
+
+/**
+ * Permisos de un menú específico (nueva estructura)
+ */
+export interface MenuPermisos {
+  ver: boolean;
+  crear: boolean;
+  editar: boolean;
+  eliminar: boolean;
+  exportar: boolean;
+  imprimir: boolean;
+  aprobar: boolean;
+}
+
+/**
+ * Menú con permisos y submenús (nueva estructura)
+ */
+export interface MenuConPermisos {
+  menu_id: string; // UUID format
+  codigo: string;
+  nombre: string;
+  icono: string;
+  ruta: string;
+  nivel: number;
+  tipo_menu: string;
+  orden: number;
+  permisos: MenuPermisos;
+  submenus: MenuConPermisos[];
+}
+
+/**
+ * Sección con sus menús (nueva estructura)
+ */
+export interface SeccionConMenus {
+  seccion_id: string; // UUID format
+  codigo: string;
+  nombre: string;
+  icono: string;
+  orden: number;
+  menus: MenuConPermisos[];
+}
+
+/**
+ * Módulo con sus secciones y menús (nueva estructura)
+ */
+export interface ModuloConSecciones {
+  modulo_id: string; // UUID format
+  codigo: string;
+  nombre: string;
+  icono: string;
+  color: string;
+  categoria: string;
+  orden: number;
+  secciones: SeccionConMenus[];
+}
+
+/**
+ * Respuesta del endpoint GET /modulos-menus/usuario/{usuario_id}/
+ * Nueva estructura jerárquica del menú del usuario
+ */
+export interface ModuloMenuResponse {
+  modulos: ModuloConSecciones[];
 }

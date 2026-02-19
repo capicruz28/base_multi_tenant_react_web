@@ -40,7 +40,7 @@ const IconOptionComponent: React.FC<OptionProps<IconOption, false>> = (props) =>
   <components.Option {...props}>
     <div style={{ display: 'flex', alignItems: 'center' }}>
       <span style={{ marginRight: '8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}>
-        {getIcon(props.data.value, { size: 16 })}
+        {getIcon(props.data.value, undefined, { size: 16 })}
       </span>
       {props.label}
     </div>
@@ -52,7 +52,7 @@ const SingleValueComponent: React.FC<SingleValueProps<IconOption, false>> = (pro
   <components.SingleValue {...props}>
     <div style={{ display: 'flex', alignItems: 'center' }}>
       <span style={{ marginRight: '8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}>
-         {getIcon(props.data.value, { size: 16 })}
+         {getIcon(props.data.value, undefined, { size: 16 })}
       </span>
       {props.children}
     </div>

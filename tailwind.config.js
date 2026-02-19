@@ -66,8 +66,9 @@ module.exports = {
         // ========================================
         
         'brand-primary': {
-          DEFAULT: 'rgb(var(--color-primary-rgb, 25, 118, 210))',
-          hex: 'var(--color-primary)',
+          // ✅ MEJORADO: Priorizar --caxis-blue si existe (de tema_personalizado), sino usar --color-primary
+          DEFAULT: 'var(--caxis-blue, rgb(var(--color-primary-rgb, 25, 118, 210)))',
+          hex: 'var(--caxis-blue, var(--color-primary))',
           hover: 'hsl(var(--color-primary-hover-hsl, 210 79% 41%))',
           active: 'hsl(var(--color-primary-active-hsl, 210 79% 36%))',
           light: 'hsl(var(--color-primary-light-hsl, 210 79% 86%))',
@@ -76,8 +77,9 @@ module.exports = {
         // Alias para compatibilidad (bg-brand-primary-hover funciona)
         'brand-primary-hover': 'hsl(var(--color-primary-hover-hsl, 210 79% 41%))',
         'brand-secondary': {
-          DEFAULT: 'rgb(var(--color-secondary-rgb, 66, 66, 66))',
-          hex: 'var(--color-secondary)',
+          // ✅ MEJORADO: Priorizar --caxis-navy si existe (de tema_personalizado), sino usar --color-secondary
+          DEFAULT: 'var(--caxis-navy, rgb(var(--color-secondary-rgb, 66, 66, 66)))',
+          hex: 'var(--caxis-navy, var(--color-secondary))',
           hover: 'hsl(var(--color-secondary-hover-hsl, 0 0% 23%))',
           active: 'hsl(var(--color-secondary-active-hsl, 0 0% 21%))',
           light: 'hsl(var(--color-secondary-light-hsl, 0 0% 56%))',
@@ -95,17 +97,86 @@ module.exports = {
         'brand-input': {
           bg: 'hsl(var(--color-input-bg, 0 0% 100%))',
           border: 'hsl(var(--color-input-border, 0 0% 89.8%))',
+        },
+        // ✅ NUEVO: Colores de la paleta completa (prefijo caxis-)
+        'caxis': {
+          navy: 'var(--caxis-navy, #0A1628)',
+          blue: 'var(--caxis-blue, #1E56A0)',
+          cyan: 'var(--caxis-cyan, #1FB6E8)',
+          mint: 'var(--caxis-mint, #00D4AA)',
+          slate: 'var(--caxis-slate, #64748B)',
+          amber: 'var(--caxis-amber, #F59E0B)',
+          red: 'var(--caxis-red, #EF4444)',
+          green: 'var(--caxis-green, #10B981)',
+          indigo: 'var(--caxis-indigo, #4F46E5)',
+          purple: 'var(--caxis-purple, #8B5CF6)',
+          orange: 'var(--caxis-orange, #F97316)',
+          // Escala de grises
+          white: 'var(--caxis-white, #FFFFFF)',
+          'gray-50': 'var(--caxis-gray-50, #F8FAFC)',
+          'gray-100': 'var(--caxis-gray-100, #F1F5F9)',
+          'gray-200': 'var(--caxis-gray-200, #E2E8F0)',
+          'gray-300': 'var(--caxis-gray-300, #CBD5E1)',
+          'gray-400': 'var(--caxis-gray-400, #94A3B8)',
+          'gray-500': 'var(--caxis-gray-500, #64748B)',
+          'gray-600': 'var(--caxis-gray-600, #475569)',
+          'gray-700': 'var(--caxis-gray-700, #334155)',
+          'gray-800': 'var(--caxis-gray-800, #1E293B)',
+          'gray-900': 'var(--caxis-gray-900, #0F172A)',
+          black: 'var(--caxis-black, #020617)',
         }
         // --- NO AÑADIR aquí referencias como 'colors.text.light' ---
         // --- NO AÑADIR aquí backgroundColor o textColor, usar clases directas ---
       },
       borderRadius: {
-        lg: "var(--border-radius, var(--radius))",
-        md: "calc(var(--border-radius, var(--radius)) - 2px)",
-        sm: "calc(var(--border-radius, var(--radius)) - 4px)",
+        none: "var(--radius-none, 0)",
+        sm: "var(--radius-sm, 0.25rem)",
+        base: "var(--radius-base, 0.375rem)",
+        md: "var(--radius-md, var(--border-radius, var(--radius)))",
+        lg: "var(--radius-lg, 0.75rem)",
+        xl: "var(--radius-xl, 1rem)",
+        '2xl': "var(--radius-2xl, 1.5rem)",
+        '3xl': "var(--radius-3xl, 2rem)",
+        full: "var(--radius-full, 9999px)",
+      },
+      boxShadow: {
+        'xs': 'var(--shadow-xs)',
+        'sm': 'var(--shadow-sm)',
+        'base': 'var(--shadow-base)',
+        'md': 'var(--shadow-md)',
+        'lg': 'var(--shadow-lg)',
+        'xl': 'var(--shadow-xl)',
+        '2xl': 'var(--shadow-2xl)',
+        'inner': 'var(--shadow-inner)',
+        'focus-blue': 'var(--shadow-focus-blue)',
+        'focus-cyan': 'var(--shadow-focus-cyan)',
+        'focus-red': 'var(--shadow-focus-red)',
+        'none': 'var(--shadow-none)',
+      },
+      backgroundImage: {
+        'gradient-primary': 'var(--gradient-primary)',
+        'gradient-success': 'var(--gradient-success)',
+        'gradient-dark': 'var(--gradient-dark)',
+        'gradient-subtle': 'var(--gradient-subtle)',
+      },
+      transitionDuration: {
+        'fast': 'var(--transition-fast)',
+        'base': 'var(--transition-base)',
+        'medium': 'var(--transition-medium)',
+        'slow': 'var(--transition-slow)',
+      },
+      transitionTimingFunction: {
+        'linear': 'var(--ease-linear)',
+        'in': 'var(--ease-in)',
+        'out': 'var(--ease-out)',
+        'in-out': 'var(--ease-in-out)',
+        'spring': 'var(--ease-spring)',
       },
       fontFamily: {
-        sans: ['var(--font-family)', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['var(--font-body, var(--font-family))', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['var(--font-display)', 'serif'],
+        body: ['var(--font-body, var(--font-family))', 'sans-serif'],
+        mono: ['var(--font-mono)', 'monospace'],
       },
       keyframes: { // Necesario para tailwindcss-animate
         "accordion-down": {

@@ -155,13 +155,28 @@ export const clienteService = {
   /**
    * Obtener estadísticas de un cliente
    * Endpoint: GET /clientes/{cliente_id}/estadisticas/
+   * 
+   * ⚠️ NOTA: Este endpoint puede no estar implementado en el backend.
+   * Si devuelve 500, se retorna null en lugar de lanzar error.
    */
-  async getClienteStats(id: string): Promise<ClienteStats> {
+  async getClienteStats(id: string): Promise<ClienteStats | null> {
     try {
       const { data } = await api.get<ClienteStats>(`${BASE_URL}/${id}/estadisticas/`);
       return data;
-    } catch (error) {
-      console.error('❌ Error fetching client stats:', error);
+    } catch (error: any) {
+      // ✅ Si es un error 500 o 404, el endpoint no está disponible
+      // Retornar null en lugar de lanzar error para que el componente pueda continuar
+      if (error?.response?.status === 500 || error?.response?.status === 404) {
+        // Solo log en desarrollo, sin warnings visibles
+        if (import.meta.env.DEV) {
+          console.log(`ℹ️ Endpoint /clientes/${id}/estadisticas/ no disponible (${error?.response?.status})`);
+        }
+        return null;
+      }
+      // Para otros errores (401, 403, etc.), lanzar normalmente
+      if (import.meta.env.DEV) {
+        console.error('❌ Error fetching client stats:', error);
+      }
       throw new Error(getErrorMessage(error).message || 'Error al obtener estadísticas del cliente');
     }
   },

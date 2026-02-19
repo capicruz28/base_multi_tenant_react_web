@@ -8,8 +8,10 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { X, Package, Loader, Settings, FileCheck } from 'lucide-react';
-import { moduloService } from '../services/modulo.service';
-import { ModuloConInfoActivacion, ModuloActivoCreate } from '../types/modulo.types';
+// ✅ REFACTORIZADO: Usar nuevo servicio clienteModuloService
+import { clienteModuloService } from '@/features/modulos/services/cliente-modulo.service';
+import type { ClienteModuloCreate } from '@/features/modulos/types/cliente-modulo.types';
+import type { ModuloConInfoActivacion } from '@/features/super-admin/clientes/components/ClientModulesTab';
 import { getErrorMessage } from '@/core/services/error.service';
 import { Wizard } from '@/shared/components/ui/Wizard';
 
@@ -30,7 +32,7 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
 }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<number>(0);
-  const [formData, setFormData] = useState<ModuloActivoCreate>({
+  const [formData, setFormData] = useState<ClienteModuloCreate>({
     cliente_id: clienteId,
     modulo_id: modulo.modulo_id,
     configuracion_json: null,
@@ -56,7 +58,7 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
         limite_usuarios: null,
         limite_registros: null,
         fecha_vencimiento: null
-      });
+      } as ClienteModuloCreate);
       setConfigJson('');
       setErrors({});
       setCurrentStep(0);
@@ -158,7 +160,8 @@ const ActivateModuleModal: React.FC<ActivateModuleModalProps> = ({
 
     setLoading(true);
     try {
-      await moduloService.activarModuloCliente(clienteId, modulo.modulo_id, formData);
+      // ✅ REFACTORIZADO: Usar nuevo endpoint POST /cliente-modulo/
+      await clienteModuloService.activateModulo(formData);
       toast.success(`Módulo "${modulo.nombre}" activado exitosamente`);
       onSuccess();
     } catch (error) {

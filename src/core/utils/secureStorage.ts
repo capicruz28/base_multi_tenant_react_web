@@ -25,13 +25,32 @@ let SecureLS: any = null;
 let secureStorageInstance: any = null;
 
 /**
+ * Obtiene el secreto de cifrado. En producción no se usa valor por defecto (riesgo de seguridad).
+ */
+function getEncryptionSecret(): string | undefined {
+  const secret = import.meta.env.VITE_ENCRYPTION_SECRET;
+  if (import.meta.env.PROD && !secret) {
+    console.warn(
+      '⚠️ [secureStorage] VITE_ENCRYPTION_SECRET no definido en producción. ' +
+      'Secure storage no estará disponible; se usará localStorage sin cifrado.'
+    );
+    return undefined;
+  }
+  return secret || 'default-secret-change-in-production';
+}
+
+/**
  * Configuración por defecto de secure-ls
  */
-const defaultConfig = {
-  encodingType: 'aes', // AES encryption
-  isCompression: false, // No comprimir (tokens son pequeños)
-  encryptionSecret: import.meta.env.VITE_ENCRYPTION_SECRET || 'default-secret-change-in-production', // ⚠️ CAMBIAR EN PRODUCCIÓN
-};
+function getDefaultConfig(): { encodingType: string; isCompression: boolean; encryptionSecret: string } | null {
+  const secret = getEncryptionSecret();
+  if (!secret) return null;
+  return {
+    encodingType: 'aes',
+    isCompression: false,
+    encryptionSecret: secret,
+  };
+}
 
 /**
  * Carga secure-ls de forma lazy
@@ -62,12 +81,17 @@ async function getSecureStorage() {
     return secureStorageInstance;
   }
 
+  const config = getDefaultConfig();
+  if (!config) {
+    return null;
+  }
+
   const SecureLSClass = await loadSecureLS();
   if (!SecureLSClass) {
     return null;
   }
 
-  secureStorageInstance = new SecureLSClass(defaultConfig);
+  secureStorageInstance = new SecureLSClass(config);
   return secureStorageInstance;
 }
 

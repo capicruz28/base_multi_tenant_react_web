@@ -59,6 +59,58 @@ export const superAdminNavItems: SidebarMenuItem[] = [
     area_nombre: null,
     orden: 3,
   },
+  // Gestión de Secciones
+  {
+    menu_id: 'section_management',
+    nombre: 'Secciones',
+    ruta: '/super-admin/secciones',
+    icono: 'Folder',
+    children: [],
+    es_activo: true,
+    padre_menu_id: null,
+    area_id: null,
+    area_nombre: null,
+    orden: 4,
+  },
+  // Gestión de Menús
+  {
+    menu_id: 'menu_management',
+    nombre: 'Menús',
+    ruta: '/super-admin/menus',
+    icono: 'Menu',
+    children: [],
+    es_activo: true,
+    padre_menu_id: null,
+    area_id: null,
+    area_nombre: null,
+    orden: 5,
+  },
+  // Gestión de Plantillas de Roles
+  {
+    menu_id: 'role_template_management',
+    nombre: 'Plantillas de Roles',
+    ruta: '/super-admin/plantillas-roles',
+    icono: 'Shield',
+    children: [],
+    es_activo: true,
+    padre_menu_id: null,
+    area_id: null,
+    area_nombre: null,
+    orden: 6,
+  },
+  // Vista Jerárquica
+  {
+    menu_id: 'hierarchical_view',
+    nombre: 'Vista Jerárquica',
+    ruta: '/super-admin/vista-jerarquica',
+    icono: 'Network',
+    children: [],
+    es_activo: true,
+    padre_menu_id: null,
+    area_id: null,
+    area_nombre: null,
+    orden: 7,
+  },
   // Auditoría Global del Sistema
   {
     menu_id: 'global_audit',
@@ -70,7 +122,7 @@ export const superAdminNavItems: SidebarMenuItem[] = [
     padre_menu_id: null,
     area_id: null,
     area_nombre: null,
-    orden: 5,
+    orden: 8,
   },
 ];
 

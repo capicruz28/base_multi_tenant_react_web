@@ -1,5 +1,8 @@
 /* src/index.css (CORREGIDO) */
 
+/* 0. Importar design system tokens (valores por defecto) */
+@import './styles/caxis-tokens.css';
+
 /* 1. Definir variables CSS PRIMERO */
 @layer base {
   :root {
@@ -63,8 +66,10 @@
     --color-input-border: 0 0% 89.8%;
     
     /* Variables de tema personalizado (actualizadas por JavaScript) */
-    --font-family: system-ui, -apple-system, sans-serif;
-    --border-radius: 0.5rem;
+    /* Nota: Los valores por defecto están en caxis-tokens.css */
+    /* Estas variables pueden ser sobrescritas dinámicamente desde tema_personalizado */
+    --font-family: var(--font-body, system-ui, -apple-system, sans-serif);
+    --border-radius: var(--radius-md, 0.5rem);
   }
   .dark {
     /* Variables de shadcn/ui para dark mode */
@@ -139,8 +144,8 @@
     @apply bg-background text-foreground;
     /* Añade aquí mejoras de fuente si lo deseas, ejemplo: */
     font-feature-settings: "rlig" 1, "calt" 1;
-    /* Aplicar fuente personalizada si está definida */
-    font-family: var(--font-family);
+    /* ✅ MEJORADO: Aplicar fuente body personalizada si está definida */
+    font-family: var(--font-body, var(--font-family));
   }
 }
 

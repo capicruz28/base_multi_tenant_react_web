@@ -15,13 +15,10 @@ import {
   AlertTriangle,
   Loader,
   Search,
-  Server,
-  Package
+  Server
 } from 'lucide-react';
 import { conexionService } from '../services/conexion.service';
-import { moduloService } from '@/features/super-admin/modulos/services/modulo.service';
 import { Conexion } from '../types/conexion.types';
-import { Modulo } from '@/features/super-admin/modulos/types/modulo.types';
 import { getErrorMessage } from '@/core/services/error.service';
 import CreateConnectionModal from './CreateConnectionModal';
 import EditConnectionModal from './EditConnectionModal';
@@ -32,11 +29,9 @@ interface ClientConnectionsTabProps {
 
 const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }) => {
   const [conexiones, setConexiones] = useState<Conexion[]>([]);
-  const [modulos, setModulos] = useState<Modulo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [filterModulo, setFilterModulo] = useState<string | null>(null);
   
   // Modales
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
@@ -59,19 +54,9 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
     }
   }, [clienteId]);
 
-  const fetchModulos = useCallback(async () => {
-    try {
-      const data = await moduloService.getModulos(1, 100, true);
-      setModulos(data.data);
-    } catch (err) {
-      console.error('Error fetching modules:', err);
-    }
-  }, []);
-
   useEffect(() => {
     fetchConexiones();
-    fetchModulos();
-  }, [fetchConexiones, fetchModulos]);
+  }, [fetchConexiones]);
 
 
   const handleEdit = (conexion: Conexion) => {
@@ -111,15 +96,8 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
       conexion.servidor.toLowerCase().includes(searchTerm.toLowerCase()) ||
       conexion.nombre_bd.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesModulo = filterModulo === null || conexion.modulo_id === filterModulo;
-    
-    return matchesSearch && matchesModulo;
+    return matchesSearch;
   });
-
-  const getModuloNombre = (moduloId: string): string => {
-    const modulo = modulos.find(m => m.modulo_id === moduloId);
-    return modulo ? modulo.nombre : `Módulo ${moduloId}`;
-  };
 
   const getEstadoConexion = (conexion: Conexion): { label: string; color: string; icon: any } => {
     if (!conexion.es_activo) {
@@ -218,32 +196,17 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
       {/* Barra de herramientas */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-          {/* Búsqueda y filtros */}
+          {/* Búsqueda */}
           <div className="flex-1 flex gap-2">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Buscar conexiones..."
+                placeholder="Buscar conexiones por servidor o base de datos..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
               />
-            </div>
-            <div className="relative">
-              <Package className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <select
-                value={filterModulo || ''}
-                onChange={(e) => setFilterModulo(e.target.value || null)}
-                className="pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">Todos los módulos</option>
-                {modulos.map(modulo => (
-                  <option key={modulo.modulo_id} value={modulo.modulo_id}>
-                    {modulo.nombre}
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
 
@@ -276,9 +239,6 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Conexión
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Módulo
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Estado
@@ -320,11 +280,6 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
                               )}
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          {getModuloNombre(conexion.modulo_id)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -371,7 +326,7 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
                 })
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                     <Database className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                     <p>No se encontraron conexiones</p>
                     {searchTerm && (

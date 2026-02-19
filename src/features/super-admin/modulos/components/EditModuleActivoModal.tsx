@@ -4,8 +4,10 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { X, Package, Loader } from 'lucide-react';
-import { moduloService } from '../services/modulo.service';
-import { ModuloConInfoActivacion, ModuloActivoUpdate } from '../types/modulo.types';
+// ✅ REFACTORIZADO: Usar nuevo servicio clienteModuloService
+import { clienteModuloService } from '@/features/modulos/services/cliente-modulo.service';
+import type { ClienteModuloUpdate } from '@/features/modulos/types/cliente-modulo.types';
+import type { ModuloConInfoActivacion } from '@/features/super-admin/clientes/components/ClientModulesTab';
 import { getErrorMessage } from '@/core/services/error.service';
 
 interface EditModuleActivoModalProps {
@@ -20,11 +22,12 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  clienteId,
+  clienteId: _clienteId,
   modulo
 }) => {
+  void _clienteId;
   const [loading, setLoading] = useState<boolean>(false);
-  const [formData, setFormData] = useState<ModuloActivoUpdate>({
+  const [formData, setFormData] = useState<ClienteModuloUpdate>({
     configuracion_json: modulo.configuracion_json,
     limite_usuarios: modulo.limite_usuarios,
     limite_registros: modulo.limite_registros,
@@ -44,7 +47,7 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
         limite_registros: modulo.limite_registros,
         fecha_vencimiento: modulo.fecha_vencimiento || null,
         esta_activo: true
-      });
+      } as ClienteModuloUpdate);
       setConfigJson(modulo.configuracion_json ? JSON.stringify(modulo.configuracion_json, null, 2) : '');
       setErrors({});
     }
@@ -122,7 +125,11 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
 
     setLoading(true);
     try {
-      await moduloService.updateModuloActivo(clienteId, modulo.modulo_id, formData);
+      // ✅ REFACTORIZADO: Usar nuevo endpoint PUT /cliente-modulo/{cliente_modulo_id}/
+      if (!modulo.cliente_modulo_id) {
+        throw new Error('No se encontró el ID del cliente-módulo');
+      }
+      await clienteModuloService.updateClienteModulo(modulo.cliente_modulo_id, formData);
       toast.success(`Configuración del módulo "${modulo.nombre}" actualizada exitosamente`);
       onSuccess();
     } catch (error) {

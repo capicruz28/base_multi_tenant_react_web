@@ -9,8 +9,18 @@ import { Popover } from 'react-tiny-popover';
 import * as LucideIcons from 'lucide-react';
 import { useBranding } from '../../../features/tenant/hooks/useBranding';
 
-import { menuService } from '@/features/admin/services/menu.service'; 
-import type { SidebarMenuItem, SidebarProps, PopoverContentProps } from '@/features/admin/types/menu.types'; 
+import { menuService } from '@/features/admin/services/menu.service';
+import { clienteModuloService } from '@/features/modulos/services/cliente-modulo.service';
+import { seccionService } from '@/features/modulos/services/seccion.service';
+import { moduloV2Service } from '@/features/modulos/services/modulo-v2.service'; 
+import type { 
+  SidebarMenuItem, 
+  SidebarProps, 
+  PopoverContentProps,
+  ModuloConSecciones,
+  MenuConPermisos,
+  BackendManageMenuItem,
+} from '@/features/admin/types/menu.types'; 
 // ✅ MODIFICADO: Cambiar importación para usar el selector dinámico
 import { getMenuItemsByUserType } from './MenuSelector';
 
@@ -58,7 +68,7 @@ const PopoverContent: React.FC<PopoverContentProps> = React.memo(({
     if (!item.children || item.children.length === 0) return null;
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-100 dark:border-gray-700 p-1 min-w-[220px] z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-100 dark:border-gray-700 p-1.5 min-w-[280px] max-w-sm z-50">
             {item.children.map((child: SidebarMenuItem) => { 
                 const itemIdentifier = getItemIdentifier(child);
                 const childPath = child.ruta ? (child.ruta.startsWith('/') ? child.ruta : `/${child.ruta}`) : '#';
@@ -91,7 +101,7 @@ const PopoverContent: React.FC<PopoverContentProps> = React.memo(({
                                 }
                             }}
                             className={`
-                                flex items-center p-2 rounded-md transition-colors duration-150
+                                flex items-start p-2.5 rounded-md transition-colors duration-150 group
                                 ${hasValidRoute ? 'cursor-pointer' : 'cursor-default'}
                                 ${isChildActive 
                                     ? 'bg-brand-primary/10 dark:bg-gray-700 text-brand-primary dark:text-brand-primary font-medium' 
@@ -100,16 +110,17 @@ const PopoverContent: React.FC<PopoverContentProps> = React.memo(({
                                     : 'text-gray-500 dark:text-gray-400'
                                 }
                             `}
+                            title={child.nombre}
                         >
                             <span className={`
-                                w-1.5 h-1.5 rounded-full mr-3 flex-shrink-0
+                                w-1.5 h-1.5 rounded-full mr-3 flex-shrink-0 mt-1.5
                                 ${isChildActive ? 'bg-brand-primary' : 'bg-gray-400 dark:bg-gray-500'}
                             `}></span>
-                            <span className="text-sm truncate">
+                            <span className="text-sm leading-relaxed min-w-0 flex-1 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                                 {child.nombre}
                             </span>
                             {hasChildren && (
-                                <LucideIcons.ChevronRight className="w-4 h-4 ml-auto text-gray-500 dark:text-gray-400" />
+                                <LucideIcons.ChevronRight className="w-4 h-4 ml-2 flex-shrink-0 text-gray-500 dark:text-gray-400 mt-0.5" />
                             )}
                         </div>
                         
@@ -134,25 +145,27 @@ const PopoverContent: React.FC<PopoverContentProps> = React.memo(({
 
 const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
     const { isDarkMode, toggleDarkMode } = useTheme();
-    const { logout, hasRole, isSuperAdmin, accessLevel } = useAuth(); // ✅ AGREGAR isSuperAdmin y accessLevel
+    const { logout, isSuperAdmin, accessLevel, auth, clienteInfo } = useAuth(); // ✅ AGREGAR clienteInfo para obtener cliente_id
     const { setBreadcrumbs } = useBreadcrumb();
     const navigate = useNavigate();
     const location = useLocation();
     const currentPath = location.pathname;
     const { branding } = useBranding(); // ✅ NUEVO: Obtener branding
-
-    const isAdmin = useMemo(() => hasRole('admin'), [hasRole]);
     
+    // ✅ NUEVO: Estado para estructura jerárquica
+    const [, setModulosMenu] = useState<ModuloConSecciones[]>([]);
+    // ⚠️ MANTENER temporalmente para compatibilidad con código antiguo
     const [menuItems, setMenuItems] = useState<SidebarMenuItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // ✅ ACTUALIZADO: Inicializar vacío para que todo esté colapsado por defecto
     const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
     const [popoverItem, setPopoverItem] = useState<SidebarMenuItem | null>(null);
     const [nestedPopover, setNestedPopover] = useState<string | null>(null); 
 
-    // Función para buscar breadcrumb (SIN CAMBIOS)
+    // ✅ ACTUALIZADO: Función para buscar breadcrumb incluyendo módulos y secciones
     const findBreadcrumbPath = useCallback((
         items: SidebarMenuItem[], 
         targetPath: string, 
@@ -160,12 +173,15 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
     ): Array<{nombre: string, ruta?: string | null}> | null => {
         for (const item of items) {
             const itemPath = item.ruta ? (item.ruta.startsWith('/') ? item.ruta : `/${item.ruta}`) : '#';
+            // ✅ ACTUALIZADO: Incluir módulos y secciones (sin ruta) en el breadcrumb
             const newBreadcrumb = [...currentBreadcrumb, { nombre: item.nombre, ruta: item.ruta || null }];
             
+            // Si el item tiene ruta y coincide exactamente con el path actual
             if (item.ruta && itemPath === targetPath) {
                 return newBreadcrumb;
             }
             
+            // Buscar recursivamente en hijos (incluye módulos → secciones → menús → submenús)
             if (item.children && item.children.length > 0) {
                 const childResult = findBreadcrumbPath(item.children, targetPath, newBreadcrumb);
                 if (childResult) {
@@ -173,6 +189,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                 }
             }
             
+            // Si el path actual comienza con el path del item (para rutas anidadas)
             if (item.ruta && targetPath.startsWith(itemPath) && itemPath !== '/') {
                 return newBreadcrumb;
             }
@@ -180,12 +197,13 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         return null;
     }, []);
 
-    // Actualizar breadcrumb (SIN CAMBIOS)
+    // ✅ ACTUALIZADO: Actualizar breadcrumb para TODOS los tipos de usuario
     useEffect(() => {
+        // 1. Buscar breadcrumb en la estructura jerárquica de módulos (funciona para todos los usuarios)
         let breadcrumb = findBreadcrumbPath(menuItems, currentPath);
         
-        if (!breadcrumb && isAdmin) {
-            // ✅ MODIFICADO: Usar función dinámica para obtener items de admin
+        // 2. Si no se encuentra y es admin, buscar en el menú estático de administración
+        if (!breadcrumb && (isSuperAdmin || accessLevel >= 4)) {
             const adminMenuItems = getMenuItemsByUserType(isSuperAdmin, accessLevel >= 4);
             const adminItem = adminMenuItems.find(item => {
                 if (item.isSeparator) return false;
@@ -195,18 +213,19 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
             
             if (adminItem) {
                 breadcrumb = [
-                    { nombre: 'Administración', ruta: null }, 
+                    { nombre: isSuperAdmin ? 'Administración Global' : 'Administración', ruta: null }, 
                     { nombre: adminItem.nombre, ruta: adminItem.ruta || null }
                 ];
             }
         }
         
-        if (breadcrumb) {
+        // 3. Establecer breadcrumb (vacío si no se encuentra nada)
+        if (breadcrumb && breadcrumb.length > 0) {
             setBreadcrumbs(breadcrumb);
         } else {
             setBreadcrumbs([]);
         }
-    }, [currentPath, menuItems, isAdmin, findBreadcrumbPath, setBreadcrumbs]);
+    }, [currentPath, menuItems, isSuperAdmin, accessLevel, findBreadcrumbPath, setBreadcrumbs]);
 
     const handleNavigate = useCallback((path: string) => {
         const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -247,27 +266,327 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         });
     }, []);
 
-    // Fetch data (SIN CAMBIOS)
+    /**
+     * ✅ NUEVO: Construir estructura jerárquica desde módulos activos del cliente
+     * Flujo: Cliente → Módulos Activos → Secciones → Menús → Submenús
+     */
+    const buildHierarchicalMenuFromClienteModulos = useCallback(async (clienteId: string): Promise<ModuloConSecciones[]> => {
+        try {
+            // 1. Obtener módulos activos del cliente
+            const clienteModulos = await clienteModuloService.getClienteModulosByClienteId(clienteId);
+            
+            if (clienteModulos.length === 0) {
+                if (import.meta.env.DEV) {
+                    console.log(`ℹ️ Cliente ${clienteId} no tiene módulos activos`);
+                }
+                return [];
+            }
+
+            // 2. Obtener información completa de cada módulo activo
+            const moduloIds = clienteModulos.map(cm => cm.modulo_id);
+            const modulosCompletos = await Promise.all(
+                moduloIds.map(async (moduloId) => {
+                    try {
+                        // Obtener detalles del módulo
+                        const moduloResponse = await moduloV2Service.getModuloById(moduloId);
+                        const moduloData = moduloResponse.data; // ✅ Extraer data de la respuesta
+                        
+                        // Obtener secciones del módulo (limit alto para sidebar: no paginar en memoria)
+                        const seccionesData = await seccionService.getSecciones({
+                            modulo_id: moduloId,
+                            es_activa: true,
+                            limit: 200,
+                            skip: 0
+                        });
+                        
+                        // Construir secciones con sus menús
+                        const seccionesConMenus = await Promise.all(
+                            seccionesData.items.map(async (seccion) => {
+                                try {
+                                    // Obtener menús de la sección
+                                    const menusData = await menuService.getMenusByModulo(moduloId, seccion.seccion_id);
+                                    
+                                    // Transformar BackendManageMenuItem[] a MenuConPermisos[]
+                                    const transformMenuToMenuConPermisos = (menu: BackendManageMenuItem): MenuConPermisos => {
+                                        return {
+                                            menu_id: menu.menu_id,
+                                            codigo: menu.menu_id, // Usar menu_id como código temporal
+                                            nombre: menu.nombre,
+                                            icono: menu.icono || '',
+                                            ruta: menu.ruta || '',
+                                            nivel: menu.level || 1,
+                                            tipo_menu: 'pantalla',
+                                            orden: menu.orden || 0,
+                                            permisos: {
+                                                ver: menu.es_activo,
+                                                crear: false,
+                                                editar: false,
+                                                eliminar: false,
+                                                exportar: false,
+                                                imprimir: false,
+                                                aprobar: false,
+                                            },
+                                            submenus: menu.children?.map(transformMenuToMenuConPermisos) || [],
+                                        };
+                                    };
+                                    
+                                    const menus = menusData.map(transformMenuToMenuConPermisos);
+                                    
+                                    return {
+                                        seccion_id: seccion.seccion_id,
+                                        codigo: seccion.codigo,
+                                        nombre: seccion.nombre,
+                                        icono: seccion.icono,
+                                        orden: seccion.orden,
+                                        menus: menus,
+                                    };
+                                } catch (err) {
+                                    console.error(`Error obteniendo menús de sección ${seccion.seccion_id}:`, err);
+                                    return {
+                                        seccion_id: seccion.seccion_id,
+                                        codigo: seccion.codigo,
+                                        nombre: seccion.nombre,
+                                        icono: seccion.icono,
+                                        orden: seccion.orden,
+                                        menus: [],
+                                    };
+                                }
+                            })
+                        );
+                        
+                        return {
+                            modulo_id: moduloData.modulo_id,
+                            codigo: moduloData.codigo,
+                            nombre: moduloData.nombre,
+                            icono: moduloData.icono,
+                            color: moduloData.color || '#1976D2',
+                            categoria: moduloData.categoria || '',
+                            orden: moduloData.orden,
+                            secciones: seccionesConMenus.filter(s => s.menus.length > 0), // Solo secciones con menús
+                        };
+                    } catch (err) {
+                        console.error(`Error obteniendo detalles del módulo ${moduloId}:`, err);
+                        return null;
+                    }
+                })
+            );
+            
+            // Filtrar módulos nulos y ordenar por orden
+            const modulosValidos = modulosCompletos
+                .filter((m): m is ModuloConSecciones => m !== null && m.secciones.length > 0)
+                .sort((a, b) => (a.orden || 0) - (b.orden || 0));
+            
+            if (import.meta.env.DEV) {
+                console.log(`✅ Estructura jerárquica construida para cliente ${clienteId}:`, {
+                    totalModulos: modulosValidos.length,
+                    modulos: modulosValidos.map(m => ({
+                        nombre: m.nombre,
+                        secciones: m.secciones.length,
+                        menus: m.secciones.reduce((acc, s) => acc + s.menus.length, 0)
+                    }))
+                });
+            }
+            
+            return modulosValidos;
+        } catch (error) {
+            console.error(`Error construyendo menú jerárquico para cliente ${clienteId}:`, error);
+            throw error;
+        }
+    }, []);
+
+    // ✅ ACTUALIZADO: Fetch data usando el endpoint correcto según el tipo de usuario
     useEffect(() => {
         const fetchData = async () => {
+            // Solo cargar menú si el usuario está autenticado
+            if (!auth.user?.usuario_id) {
+                setLoading(false);
+                return;
+            }
+
+            const clienteId = clienteInfo?.cliente_id || auth.user?.cliente_id;
+            const usuarioId = auth.user.usuario_id;
+
             setLoading(true);
             setError(null);
             try {
-                const items = await menuService.getSidebarMenu();
-                setMenuItems(items);
-            } catch (err) {
+                let modulos: ModuloConSecciones[] = [];
+
+                // ✅ NUEVO: Determinar qué endpoint usar según el tipo de usuario
+                // Usuario normal (no superadmin ni tenant admin) usa endpoint con roles y permisos
+                const isNormalUser = !isSuperAdmin && accessLevel < 4;
+                
+                if (isNormalUser) {
+                    // ✅ Usuario normal: usar endpoint que filtra por roles y permisos
+                    if (import.meta.env.DEV) {
+                        console.log('👤 [NewSidebar] Usuario normal detectado, usando endpoint con roles y permisos');
+                    }
+                    modulos = await menuService.getUserMenu(usuarioId, clienteId || undefined);
+                } else {
+                    // ✅ SuperAdmin o Tenant Admin: construir desde módulos activos del cliente
+                    if (!clienteId) {
+                        if (import.meta.env.DEV) {
+                            console.warn('⚠️ [NewSidebar] SuperAdmin/TenantAdmin sin cliente_id, no se puede construir menú');
+                        }
+                        setLoading(false);
+                        return;
+                    }
+                    
+                    if (import.meta.env.DEV) {
+                        console.log('👑 [NewSidebar] SuperAdmin/TenantAdmin detectado, construyendo desde módulos activos');
+                    }
+                    modulos = await buildHierarchicalMenuFromClienteModulos(clienteId);
+                }
+
+                setModulosMenu(modulos);
+                
+                // ✅ Transformar a estructura jerárquica completa para el sidebar
+                const transformedItems = transformModulosToSidebarItems(modulos);
+                setMenuItems(transformedItems);
+            } catch (err: any) {
                 console.error('❌ Error fetching sidebar data:', err);
-                setError(`No se pudieron cargar los datos del menú. Intente recargar.`);
-                setMenuItems([]);
+                
+                // ✅ FALLBACK: Si falla, intentar método antiguo
+                const isServerError = err?.response?.status === 500 || err?.response?.status >= 500;
+                if (isServerError) {
+                    if (import.meta.env.DEV) {
+                        console.warn('⚠️ [NewSidebar] Endpoint principal falló, usando método antiguo como fallback');
+                    }
+                    
+                    try {
+                        // Fallback al método antiguo
+                        const oldMenuItems = await menuService.getSidebarMenu();
+                        setMenuItems(oldMenuItems);
+                        setModulosMenu([]);
+                        setError(null);
+                    } catch (fallbackError) {
+                        console.error('❌ Error en fallback también:', fallbackError);
+                        setError(`No se pudieron cargar los datos del menú. El servidor puede estar experimentando problemas.`);
+                        setModulosMenu([]);
+                        setMenuItems([]);
+                    }
+                } else {
+                    setError(`No se pudieron cargar los datos del menú. Intente recargar.`);
+                    setModulosMenu([]);
+                    setMenuItems([]);
+                }
             } finally {
                 setLoading(false);
             }
         };
 
         fetchData();
-    }, [isAdmin]);
+    }, [clienteInfo?.cliente_id, auth.user?.cliente_id, auth.user?.usuario_id, isSuperAdmin, accessLevel, buildHierarchicalMenuFromClienteModulos]);
 
-    // Expand Parents (SIN CAMBIOS)
+    /**
+     * ✅ NUEVO: Función de transformación que preserva la estructura jerárquica completa
+     * Convierte ModuloConSecciones[] a SidebarMenuItem[] con estructura: Módulo → Sección → Menú → Submenú
+     * Todo estará colapsado por defecto
+     */
+    const transformModulosToSidebarItems = useCallback((modulos: ModuloConSecciones[]): SidebarMenuItem[] => {
+        const items: SidebarMenuItem[] = [];
+        
+        modulos.forEach(modulo => {
+            // Crear item de módulo (sin ruta, solo para expandir/colapsar)
+            const moduloItem: SidebarMenuItem = {
+                menu_id: `modulo-${modulo.modulo_id}`, // ID único para módulo
+                nombre: modulo.nombre,
+                icono: modulo.icono,
+                ruta: null, // Módulo no tiene ruta, solo expande/colapsa
+                orden: modulo.orden,
+                level: 0, // Nivel 0 = módulo
+                es_activo: true,
+                padre_menu_id: null,
+                area_id: modulo.modulo_id,
+                area_nombre: modulo.nombre,
+                children: [], // Se llenará con secciones
+            };
+            
+            // Procesar secciones del módulo
+            modulo.secciones.forEach(seccion => {
+                // Crear item de sección (sin ruta, solo para expandir/colapsar)
+                const seccionItem: SidebarMenuItem = {
+                    menu_id: `seccion-${seccion.seccion_id}`, // ID único para sección
+                    nombre: seccion.nombre,
+                    icono: seccion.icono,
+                    ruta: null, // Sección no tiene ruta, solo expande/colapsa
+                    orden: seccion.orden,
+                    level: 1, // Nivel 1 = sección
+                    es_activo: true,
+                    padre_menu_id: moduloItem.menu_id,
+                    area_id: modulo.modulo_id,
+                    area_nombre: modulo.nombre,
+                    children: [], // Se llenará con menús
+                };
+                
+                // Procesar menús de la sección
+                seccion.menus.forEach(menu => {
+                    // Solo incluir menús con permiso "ver"
+                    if (!menu.permisos.ver) return;
+                    
+                    // Crear item de menú (con ruta)
+                    const menuItem: SidebarMenuItem = {
+                        menu_id: menu.menu_id,
+                        nombre: menu.nombre,
+                        icono: menu.icono,
+                        ruta: menu.ruta,
+                        orden: menu.orden,
+                        level: 2, // Nivel 2 = menú
+                        es_activo: true,
+                        padre_menu_id: seccionItem.menu_id,
+                        area_id: modulo.modulo_id,
+                        area_nombre: modulo.nombre,
+                        children: [], // Se llenará con submenús
+                    };
+                    
+                    // Procesar submenús
+                    if (menu.submenus && menu.submenus.length > 0) {
+                        menuItem.children = menu.submenus
+                            .filter(submenu => submenu.permisos.ver) // Solo submenús con permiso ver
+                            .map(submenu => ({
+                                menu_id: submenu.menu_id,
+                                nombre: submenu.nombre,
+                                icono: submenu.icono,
+                                ruta: submenu.ruta,
+                                orden: submenu.orden,
+                                level: 3, // Nivel 3 = submenú
+                                es_activo: true,
+                                padre_menu_id: menuItem.menu_id,
+                                area_id: modulo.modulo_id,
+                                area_nombre: modulo.nombre,
+                                children: [], // Los submenús no tienen hijos por ahora
+                            }));
+                    }
+                    
+                    seccionItem.children.push(menuItem);
+                });
+                
+                // Solo agregar sección si tiene menús visibles
+                if (seccionItem.children.length > 0) {
+                    moduloItem.children.push(seccionItem);
+                }
+            });
+            
+            // Solo agregar módulo si tiene secciones con menús visibles
+            if (moduloItem.children.length > 0) {
+                items.push(moduloItem);
+            }
+        });
+        
+        // Ordenar por orden
+        const sortByOrder = (items: SidebarMenuItem[]): SidebarMenuItem[] => {
+            return items
+                .sort((a, b) => (a.orden || 0) - (b.orden || 0))
+                .map(item => ({
+                    ...item,
+                    children: item.children ? sortByOrder(item.children) : []
+                }));
+        };
+        
+        return sortByOrder(items);
+    }, []);
+
+    // ✅ ACTUALIZADO: Expandir automáticamente solo los padres del path actual
+    // Esto permite que el usuario vea dónde está sin expandir todo
     useEffect(() => {
         const findAndExpandParents = (
             items: SidebarMenuItem[], 
@@ -280,12 +599,15 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                 const itemIdentifier = getItemIdentifier(item);
                 const itemPath = item.ruta ? (item.ruta.startsWith('/') ? item.ruta : `/${item.ruta}`) : '#';
 
+                // Si el item tiene ruta y coincide con el path actual, expandir sus padres
                 if (item.ruta && targetPath.startsWith(itemPath) && targetPath !== '/') {
                     return true;
                 }
                 
+                // Buscar recursivamente en hijos
                 if (item.children && item.children.length > 0) {
                     if (findAndExpandParents(item.children, targetPath, currentExpanded)) {
+                        // Si se encontró en los hijos, expandir este item
                         currentExpanded.add(itemIdentifier);
                         found = true;
                     }
@@ -294,8 +616,9 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
             return found;
         };
 
+        // ✅ ACTUALIZADO: Solo expandir los padres del path actual, no todo
         const newExpanded = new Set<string>();
-        if (menuItems.length > 0) {
+        if (menuItems.length > 0 && currentPath && currentPath !== '/') {
             findAndExpandParents(menuItems, currentPath, newExpanded);
         }
         setExpandedItems(newExpanded);
@@ -312,7 +635,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         const isActive = exactMatch ? currentPath === normalizedPath : currentPath.startsWith(normalizedPath);
         
         return `
-            flex items-center p-2 rounded-lg relative
+            flex items-center p-2.5 rounded-lg relative
             ${isCollapsed ? 'justify-center' : 'w-full'}
             ${transitionClass}
             ${isActive
@@ -322,7 +645,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         `;
     }, [currentPath, isCollapsed, transitionClass]);
 
-    // Función auxiliar para renderizar el contenido del item de menú (SIN CAMBIOS)
+    // ✅ MEJORADO: Función auxiliar para renderizar el contenido del item de menú con mejor UX
     const renderLinkContent = (item: SidebarMenuItem, hasChildren: boolean, isExpanded: boolean) => {
         const Icon = getIcon(item.icono, LucideIcons.Circle);
         return (
@@ -332,10 +655,15 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                 </div>
                 {!isCollapsed && (
                     <>
-                        <span className="ml-3 text-sm flex-1 truncate">{item.nombre}</span>
+                        <span 
+                            className="ml-3 text-sm flex-1 truncate leading-relaxed" 
+                            title={item.nombre}
+                        >
+                            {item.nombre}
+                        </span>
                         {hasChildren && (
                             <LucideIcons.ChevronDown 
-                                className={`w-4 h-4 ml-auto text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                                className={`w-4 h-4 ml-auto flex-shrink-0 text-gray-400 dark:text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
                             />
                         )}
                     </>
@@ -365,6 +693,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                         to={itemPath}
                         className={`flex-1 text-left ${getLinkClasses(itemPath, true)}`}
                         end={true}
+                        title={item.nombre}
                     >
                         <div className="flex items-center w-full">
                             {renderLinkContent(item, false, false)} 
@@ -399,13 +728,14 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                 <button
                     onClick={() => toggleExpanded(itemIdentifier)}
                     className={`
-                        flex items-center p-2 rounded-lg w-full text-left
+                        flex items-center p-2.5 rounded-lg w-full text-left
                         ${transitionClass} ${indentClass}
                         ${isExpanded || isChildActive
                             ? 'bg-gray-100 dark:bg-gray-700 font-semibold text-brand-primary dark:text-brand-primary' 
                             : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                         }
                     `}
+                    title={item.nombre}
                 >
                     {renderLinkContent(item, hasChildren, isExpanded)}
                 </button>
@@ -432,7 +762,12 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         const isDirectlyActive = hasValidRoute && currentPath.startsWith(itemPath);
         const isActive = isDirectlyActive || isChildActive; 
 
-        const indentClass = level > 0 ? 'pl-4' : '';
+        // ✅ MEJORADO: Indentación basada en el nivel jerárquico (reducida para mejor UX)
+        // Nivel 0 (Módulo): sin indentación
+        // Nivel 1 (Sección): pl-2
+        // Nivel 2 (Menú): pl-2 (reducido aún más)
+        // Nivel 3 (Submenú): pl-4 (reducido aún más)
+        const indentClass = level === 0 ? '' : level === 1 ? 'pl-2' : level === 2 ? 'pl-2' : 'pl-4';
 
         // 1. Colapsado con hijos (Popover)
         if (isCollapsed && hasChildren) {
@@ -509,10 +844,17 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                             className={`
                                 ${isExpanded ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 pointer-events-none'} 
                                 overflow-hidden ${transitionClass}
-                                ml-4 mt-1 space-y-1 border-l border-gray-200 dark:border-gray-700 pl-3
+                                mt-1 space-y-0.5
+                                ${level === 0 ? 'ml-3 border-l border-gray-200 dark:border-gray-700 pl-2' : ''}
+                                ${level === 1 ? 'ml-3 border-l border-gray-200 dark:border-gray-700 pl-2' : ''}
+                                ${level >= 2 ? 'ml-2' : ''}
                             `}
                         >
-                            {item.children?.map(child => renderMenuItem(child, level + 1))}
+                            {item.children?.map(child => {
+                                // ✅ Asegurar que se pase el nivel correcto basado en el level del item
+                                const childLevel = (item.level ?? level) + 1;
+                                return renderMenuItem(child, childLevel);
+                            })}
                         </div>
                     )}
                 </div>
@@ -537,37 +879,21 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         renderLinkContent
     ]);
 
-    // Renderizados (AJUSTE: Se conserva mt-4 entre áreas)
+    // ✅ ACTUALIZADO: Renderizar estructura jerárquica completa (Módulo → Sección → Menú → Submenú)
+    // Todo estará colapsado por defecto, solo se expandirá automáticamente el path actual
     const renderDynamicMenu = useMemo(() => {
-        const menuByArea = menuItems.reduce((acc, item) => {
-            const areaName = item.area_nombre || 'General';
-            if (!acc[areaName]) {
-                acc[areaName] = [];
-            }
-            acc[areaName].push(item);
-            return acc;
-        }, {} as Record<string, SidebarMenuItem[]>);
+        // Usar menuItems que ya tiene la estructura jerárquica transformada
+        // (Módulo → Sección → Menú → Submenú)
+        if (menuItems.length === 0) {
+            return null;
+        }
 
-        return Object.entries(menuByArea).map(([areaName, items]) => (
-            <div key={areaName} className="mt-4 first:mt-0"> 
-                {!isCollapsed && areaName !== 'General' && ( // Asumiendo que 'General' es el área raíz sin título explícito si hay otras áreas, o lo modificamos para que siempre aparezca el título 'PLANILLAS' debajo de MÓDULOS.
-                    <h3 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2 pl-2">
-                        {areaName}
-                    </h3>
-                )}
-                {/* En el ejemplo, 'PLANILLAS' es el subtítulo que sigue al icono de MODULOS. 
-                    Si 'PLANILLAS' es el 'areaName', se usa 'mb-2' para separarlo de los items. */}
-                {!isCollapsed && areaName === 'PLANILLAS' && (
-                    <h3 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2 pl-2">
-                        {areaName}
-                    </h3>
-                )}
-                <div className="space-y-1">
-                    {items.map(item => renderMenuItem(item))}
-                </div>
+        return (
+            <div className="space-y-1">
+                {menuItems.map(item => renderMenuItem(item, 0))}
             </div>
-        ));
-    }, [menuItems, isCollapsed, renderMenuItem]);
+        );
+    }, [menuItems, renderMenuItem]);
 
     // Renderizado estático del menú de administración (MODIFICADO)
     const renderAdminStaticMenu = useMemo(() => {
@@ -627,7 +953,12 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                         >
                             {IconComponent}
                             {!isCollapsed && (
-                                <span className="ml-3 text-sm flex-1 truncate">{item.nombre}</span>
+                                <span 
+                                    className="ml-3 text-sm flex-1 truncate leading-relaxed" 
+                                    title={item.nombre}
+                                >
+                                    {item.nombre}
+                                </span>
                             )}
                         </NavLink>
                     );
@@ -665,7 +996,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                                 if (parent && !parent.querySelector('.logo-fallback')) {
                                     const fallback = document.createElement('div');
                                     fallback.className = 'logo-fallback font-bold text-lg text-brand-primary truncate';
-                                    fallback.textContent = branding?.tema_personalizado?.appName || 'Fidesoft';
+                                    fallback.textContent = branding?.tema_personalizado?.appName || 'CAXIS';
                                     parent.appendChild(fallback);
                                 }
                             }}
@@ -677,7 +1008,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                         className="font-bold text-lg text-gray-900 dark:text-white truncate"
                         style={{ display: branding?.logo_url ? 'none' : 'block' }}
                     >
-                        Fidesoft
+                        CAXIS
                     </div>
                 )}
                 <button
@@ -768,26 +1099,23 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                             <LucideIcons.Moon className="w-5 h-5" />
                         )}
                         {!isCollapsed && (
-                            <span className="ml-3 text-sm flex-1 text-left">
-                                {isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}
-                            </span>
+                            <span className="ml-3 text-sm">{isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>
                         )}
                     </button>
-                    
                     <button
-                        onClick={logout}
+                        onClick={() => logout()}
                         className={`
                             flex items-center p-2 rounded-lg 
                             ${transitionClass}
-                            hover:bg-gray-100 dark:hover:bg-gray-700
-                            text-gray-600 dark:text-gray-300 group
+                            hover:bg-red-50 dark:hover:bg-red-900/20
+                            text-red-600 dark:text-red-400
                             ${isCollapsed ? 'justify-center' : 'w-full'}
                         `}
-                        title={isCollapsed ? 'Cerrar Sesión' : 'Cerrar Sesión'}
+                        title={isCollapsed ? 'Salir' : 'Cerrar sesión'}
                     >
-                        <LucideIcons.LogOut className="w-5 h-5 group-hover:text-red-500" />
+                        <LucideIcons.LogOut className="w-5 h-5" />
                         {!isCollapsed && (
-                            <span className="ml-3 text-sm flex-1 text-left">Cerrar Sesión</span>
+                            <span className="ml-3 text-sm">Cerrar Sesión</span>
                         )}
                     </button>
                 </div>

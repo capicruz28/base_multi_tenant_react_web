@@ -1,5 +1,8 @@
 /**
  * Servicio para gestión de módulos (Super Admin)
+ * ⚠️ DEPRECADO: Este servicio usa endpoints antiguos (/modulos/)
+ * ✅ NUEVO: Usar moduloV2Service y clienteModuloService para nuevos endpoints
+ * 
  * Alineado 100% con los endpoints del backend (app.api.v1.endpoints.modulos)
  */
 import api from '@/core/api/api';
@@ -26,14 +29,20 @@ const BASE_URL = '/modulos';
 
 export const moduloService = {
   /**
-   * Listar catálogo de módulos con paginación
+   * ⚠️ DEPRECADO: Listar catálogo de módulos con paginación
    * Endpoint: GET /modulos/?skip=0&limit=100&solo_activos=true
+   * 
+   * ✅ NUEVO: Usar moduloV2Service.getModulos() en su lugar
+   * @deprecated Usar moduloV2Service.getModulos() para nueva estructura
    */
   async getModulos(
     pagina: number = 1,
     limite: number = 100,
     solo_activos: boolean = true
   ): Promise<PaginatedModuloResponse> {
+    if (import.meta.env.DEV) {
+      console.warn('⚠️ [ModuloService] getModulos() está deprecado. Usar moduloV2Service.getModulos() en su lugar.');
+    }
     try {
       const params = new URLSearchParams();
       const skip = (pagina - 1) * limite;

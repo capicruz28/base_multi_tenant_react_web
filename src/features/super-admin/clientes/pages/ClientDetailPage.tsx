@@ -50,14 +50,14 @@ const ClientDetailPage: React.FC = () => {
       // Usar id directamente como string (UUID)
       const clienteId = id!;
       
-      // Cargar datos en paralelo
-      const [clienteData, statsData] = await Promise.all([
-        clienteService.getClienteById(clienteId),
-        clienteService.getClienteStats(clienteId)
-      ]);
-      
+      // ✅ CORRECCIÓN: Cargar cliente primero, estadísticas de forma opcional
+      const clienteData = await clienteService.getClienteById(clienteId);
       setCliente(clienteData);
-      setStats(statsData);
+      
+      // ✅ Intentar cargar estadísticas de forma independiente (no bloquea si falla)
+      // El servicio retorna null si el endpoint no está disponible (500/404)
+      const statsData = await clienteService.getClienteStats(clienteId);
+      setStats(statsData); // Puede ser null si el endpoint no está disponible
     } catch (err) {
       console.error('Error fetching client details:', err);
       const errorData = getErrorMessage(err);

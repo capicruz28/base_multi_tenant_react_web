@@ -12,12 +12,16 @@ import toast from 'react-hot-toast';
 
 // --- Importaciones de Servicios y Tipos Propios ---
 import { menuService } from '../services/menu.service';
+import { moduloV2Service } from '@/features/modulos/services/modulo-v2.service';
+import { seccionService } from '@/features/modulos/services/seccion.service';
 import type {
   AreaSimpleList,
   BackendManageMenuItem,
   MenuCreateData,
   MenuUpdateData,
 } from '../types/menu.types';
+import type { ModuloV2 } from '@/features/modulos/types/modulo-v2.types';
+import type { Seccion } from '@/features/modulos/types/seccion.types';
 
 // --- NUEVAS IMPORTACIONES ---
 import { getIcon } from '@/shared/lib/icon-utils';
@@ -46,8 +50,15 @@ type EditFormData = Omit<MenuUpdateData, 'padre_menu_id' | 'orden'>;
 
 // --- Componente Principal ---
 const MenuManagementPage: React.FC = () => {
+  // ⚠️ DEPRECADO: Mantener temporalmente para compatibilidad
   const [areas, setAreas] = useState<AreaSimpleList[]>([]);
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  
+  // ✅ NUEVO: Estado para módulos y secciones
+  const [modulos, setModulos] = useState<ModuloV2[]>([]);
+  const [selectedModuloId, setSelectedModuloId] = useState<string | null>(null);
+  const [secciones, setSecciones] = useState<Seccion[]>([]);
+  const [selectedSeccionId, setSelectedSeccionId] = useState<string | null>(null);
   // Mapeo: número temporal (para la librería) -> UUID (real del backend)
   const [numberToUuidMap, setNumberToUuidMap] = useState<Map<number, string>>(new Map());
   const [treeViewData, setTreeViewData] = useState<NodeModel<MenuNodeData>[]>([]);
@@ -68,9 +79,71 @@ const MenuManagementPage: React.FC = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ⚠️ DEPRECADO: Mantener temporalmente
   useEffect(() => {
-    const fetchAreas = async () => { setIsLoadingAreas(true); setError(null); try { const areaList = await menuService.getAreaList(); setAreas(areaList); } catch (err) { console.error("Error fetching areas:", err); setError("No se pudo cargar la lista de áreas."); toast.error("Error al cargar áreas."); } finally { setIsLoadingAreas(false); } }; fetchAreas();
+    const fetchAreas = async () => { 
+      setIsLoadingAreas(true); 
+      setError(null); 
+      try { 
+        const areaList = await menuService.getAreaList(); 
+        setAreas(areaList); 
+      } catch (err) { 
+        console.error("Error fetching areas:", err); 
+        setError("No se pudo cargar la lista de áreas."); 
+        toast.error("Error al cargar áreas."); 
+      } finally { 
+        setIsLoadingAreas(false); 
+      } 
+    }; 
+    fetchAreas();
   }, []);
+
+  // ✅ NUEVO: Cargar módulos
+  useEffect(() => {
+    const fetchModulos = async () => {
+      setIsLoadingAreas(true);
+      setError(null);
+      try {
+        const response = await moduloV2Service.getModulos({ es_activo: true });
+        setModulos(response.items);
+      } catch (err) {
+        console.error("Error fetching modulos:", err);
+        setError("No se pudo cargar la lista de módulos.");
+        toast.error("Error al cargar módulos.");
+      } finally {
+        setIsLoadingAreas(false);
+      }
+    };
+    fetchModulos();
+  }, []);
+
+  // ✅ NUEVO: Cargar secciones cuando se selecciona un módulo
+  useEffect(() => {
+    if (!selectedModuloId) {
+      setSecciones([]);
+      setSelectedSeccionId(null);
+      return;
+    }
+
+    const fetchSecciones = async () => {
+      setIsLoadingTree(true);
+      setError(null);
+      try {
+        const response = await seccionService.getSecciones({ 
+          modulo_id: selectedModuloId,
+          es_activa: true 
+        });
+        setSecciones(response.items);
+      } catch (err) {
+        console.error("Error fetching secciones:", err);
+        setError("No se pudo cargar la lista de secciones.");
+        toast.error("Error al cargar secciones.");
+      } finally {
+        setIsLoadingTree(false);
+      }
+    };
+    fetchSecciones();
+  }, [selectedModuloId]);
 
   const transformBackendDataToTreeNodes = useCallback((nodes: BackendManageMenuItem[]): NodeModel<MenuNodeData>[] => {
     const treeNodes: NodeModel<MenuNodeData>[] = [];
@@ -148,6 +221,23 @@ const MenuManagementPage: React.FC = () => {
   const handleAreaChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const newAreaId = event.target.value || null;
     setSelectedAreaId(newAreaId);
+  };
+
+  // ✅ NUEVO: Handlers para módulos y secciones
+  const handleModuloChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newModuloId = event.target.value || null;
+    setSelectedModuloId(newModuloId);
+    setSelectedSeccionId(null); // Reset sección al cambiar módulo
+  };
+
+  const handleSeccionChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSeccionId = event.target.value || null;
+    setSelectedSeccionId(newSeccionId);
+    // ⚠️ TEMPORAL: Usar seccion_id como area_id para compatibilidad con endpoint antiguo
+    // Esto se actualizará cuando el backend tenga endpoint de menús por sección
+    if (newSeccionId) {
+      setSelectedAreaId(newSeccionId);
+    }
   };
 
   const handleDrop = useCallback(
@@ -308,7 +398,11 @@ const MenuManagementPage: React.FC = () => {
 
   const handleCreateSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedAreaId) { toast.error("Selecciona área."); return; }
+    // ✅ NUEVO: Validar que haya sección o área seleccionada
+    if (!selectedSeccionId && !selectedAreaId) {
+      toast.error("Selecciona una sección o área.");
+      return;
+    }
     if (!newMenuData.nombre.trim()) { toast.error("Nombre obligatorio."); return; }
     setIsSubmitting(true);
     const parentNumericId = parentNodeForCreate ? parentNodeForCreate.id : null;
@@ -325,14 +419,17 @@ const MenuManagementPage: React.FC = () => {
         ...newMenuData,
         icono: newMenuData.icono || null,
         ruta: newMenuData.ruta || null,
-        area_id: selectedAreaId!,
+        // ✅ NUEVO: Usar seccion_id si está disponible, sino area_id
+        area_id: selectedSeccionId || selectedAreaId!,
         padre_menu_id: parentUuid,
         orden: newOrder
     };
     try {
       const createdMenu = await menuService.createMenuItem(dataToSend);
       toast.success(`Menú "${createdMenu.nombre}" creado!`);
-      const currentAreaId = selectedAreaId; setIsLoadingTree(true);
+      const currentAreaId = selectedAreaId;
+      if (!currentAreaId) { setIsSubmitting(false); return; }
+      setIsLoadingTree(true);
       const backendTree = await menuService.getMenuTreeByArea(currentAreaId);
       const transformedNodes = transformBackendDataToTreeNodes(backendTree);
       setTreeViewData(transformedNodes);
@@ -449,22 +546,99 @@ const MenuManagementPage: React.FC = () => {
   return (
       <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">        
 
-        <div className="mb-6 max-w-xs">
-          <label htmlFor="area-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Seleccionar Área</label>
-          {isLoadingAreas ? ( <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div> ) : areas.length > 0 ? (
-            <select id="area-select" value={selectedAreaId ?? ''} onChange={handleAreaChange} className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-              <option value="" disabled>-- Seleccione un área --</option>
-              {areas.map((area) => (<option key={area.area_id} value={area.area_id}>{area.nombre}</option>))}
-            </select>
-           ) : ( <p className="text-red-600 dark:text-red-400 text-sm mt-1">No se encontraron áreas.</p> )}
+        {/* ✅ NUEVO: Selectores de Módulo y Sección */}
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+          <div>
+            <label htmlFor="modulo-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Seleccionar Módulo
+            </label>
+            {isLoadingAreas ? (
+              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+            ) : modulos.length > 0 ? (
+              <select
+                id="modulo-select"
+                value={selectedModuloId ?? ''}
+                onChange={handleModuloChange}
+                className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              >
+                <option value="" disabled>-- Seleccione un módulo --</option>
+                {modulos.map((modulo) => (
+                  <option key={modulo.modulo_id} value={modulo.modulo_id}>
+                    {modulo.nombre}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-red-600 dark:text-red-400 text-sm mt-1">No se encontraron módulos.</p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="seccion-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Seleccionar Sección
+            </label>
+            {isLoadingTree ? (
+              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+            ) : selectedModuloId && secciones.length > 0 ? (
+              <select
+                id="seccion-select"
+                value={selectedSeccionId ?? ''}
+                onChange={handleSeccionChange}
+                className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              >
+                <option value="" disabled>-- Seleccione una sección --</option>
+                {secciones.map((seccion) => (
+                  <option key={seccion.seccion_id} value={seccion.seccion_id}>
+                    {seccion.nombre}
+                  </option>
+                ))}
+              </select>
+            ) : selectedModuloId ? (
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">No hay secciones disponibles.</p>
+            ) : (
+              <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">Seleccione un módulo primero.</p>
+            )}
+          </div>
         </div>
+
+        {/* ⚠️ DEPRECADO: Selector de Área (mantener temporalmente como fallback) */}
+        {areas.length > 0 && (
+          <div className="mb-6 max-w-xs">
+            <label htmlFor="area-select" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+              ⚠️ Seleccionar Área (Deprecado)
+            </label>
+            {isLoadingAreas ? (
+              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+            ) : (
+              <select
+                id="area-select"
+                value={selectedAreaId ?? ''}
+                onChange={handleAreaChange}
+                className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 opacity-60"
+              >
+                <option value="" disabled>-- Seleccione un área --</option>
+                {areas.map((area) => (
+                  <option key={area.area_id} value={area.area_id}>
+                    {area.nombre}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
 
         {error && ( <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 rounded">{error}</div> )}
 
-        {selectedAreaId !== null && (
+        {(selectedAreaId !== null || selectedSeccionId !== null) && (
           <>
             <div className="mb-4">
-              <button onClick={() => handleOpenCreateModal(null)} className="px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-md shadow-sm hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50" disabled={isLoadingTree}>Añadir Menú Principal al Área</button>
+              <button
+                onClick={() => handleOpenCreateModal(null)}
+                className="px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-md shadow-sm hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
+                disabled={isLoadingTree}
+              >
+                {selectedSeccionId ? 'Añadir Menú Principal a la Sección' : 'Añadir Menú Principal al Área'}
+              </button>
             </div>
 
             {isLoadingTree ? ( <div className="flex items-center justify-center h-60 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800"><p className="text-gray-500 dark:text-gray-400">Cargando estructura...</p></div>
@@ -498,7 +672,7 @@ const MenuManagementPage: React.FC = () => {
                               {hasChildren ? (isOpen ? '▼' : '▶') : <span className="inline-block w-[1em]"></span>}
                             </span>
                             <span className="mr-2 flex-shrink-0 inline-flex items-center justify-center w-5 h-5 text-brand-primary">
-                               {getIcon(node.data?.icono, {size: 18})}
+                               {getIcon(node.data?.icono, undefined, { size: 18 })}
                             </span>
                             <span className="text-sm text-gray-800 dark:text-gray-200 truncate" title={node.text}>{node.text}</span>
                             {!node.data?.es_activo && <span className="ml-2 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">(Inactivo)</span>}

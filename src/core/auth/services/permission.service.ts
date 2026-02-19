@@ -1,23 +1,32 @@
 /**
  * Servicio para gestión de permisos granulares
- * 
- * Calcula permisos del usuario desde sus roles usando la tabla rol_menu_permiso
+ *
+ * Calcula permisos del usuario desde sus roles usando la tabla rol_menu_permiso.
+ * Usa la API del tenant (misma base URL que login) vía getApiInstance(clienteInfo).
  */
-import api from '@/core/api/api';
-import type { 
-  BackendRolePermission, 
-  UserPermissions, 
-  MenuIdToModuleMap 
+import type { AxiosInstance } from 'axios';
+import defaultApi from '@/core/api/api';
+import { getApiInstance } from '@/core/api/getApiInstance';
+import type { ClienteInfo } from '@/features/auth/types/auth.types';
+import type {
+  BackendRolePermission,
+  UserPermissions,
+  MenuIdToModuleMap,
 } from '../types/permission.types';
 
 /**
  * Obtiene los permisos de un rol específico desde el backend
- * 
- * Si el endpoint no está disponible, retorna array vacío (no bloquea el login)
+ *
+ * @param rolId - ID del rol
+ * @param apiInstance - Instancia de Axios (tenant). Si no se pasa, se usa la por defecto.
  */
-const getRolePermissions = async (rolId: string): Promise<BackendRolePermission[]> => {
+const getRolePermissions = async (
+  rolId: string,
+  apiInstance?: AxiosInstance
+): Promise<BackendRolePermission[]> => {
+  const client = apiInstance ?? defaultApi;
   try {
-    const response = await api.get<BackendRolePermission[]>(`/roles/${rolId}/permisos/`);
+    const response = await client.get<BackendRolePermission[]>(`/roles/${rolId}/permisos/`);
     return response.data;
   } catch (error: any) {
     // Si el endpoint no existe (404) o hay error de validación (422), no bloquear
@@ -34,14 +43,15 @@ const getRolePermissions = async (rolId: string): Promise<BackendRolePermission[
 
 /**
  * Obtiene el mapeo de menu_id a nombre de módulo desde el backend
- * 
- * Si el endpoint no está disponible, retorna mapeo vacío (no bloquea el login)
+ *
+ * @param apiInstance - Instancia de Axios (tenant). Si no se pasa, se usa la por defecto.
  */
-const getMenuIdToModuleMap = async (): Promise<MenuIdToModuleMap> => {
+const getMenuIdToModuleMap = async (
+  apiInstance?: AxiosInstance
+): Promise<MenuIdToModuleMap> => {
   try {
-    // Intentar obtener desde el backend si existe endpoint
     const menuServiceModule = await import('@/features/admin/services/menu.service');
-    const menus = await menuServiceModule.menuService.getFullMenuTree();
+    const menus = await menuServiceModule.menuService.getFullMenuTree(apiInstance);
     
     // Si getFullMenuTree retorna array vacío (porque falló), retornar mapeo vacío
     if (!menus || menus.length === 0) {
@@ -109,23 +119,23 @@ const mergeRolePermissions = (
 
 /**
  * Calcula los permisos agregados del usuario desde sus roles
- * 
+ *
  * @param roleIds - Array de IDs de roles del usuario
- * @returns Permisos agregados del usuario organizados por módulo
+ * @param apiInstance - Instancia de Axios (tenant). Si no se pasa, se usa la por defecto.
  */
 export const calculateUserPermissions = async (
-  roleIds: string[]
+  roleIds: string[],
+  apiInstance?: AxiosInstance
 ): Promise<UserPermissions> => {
   if (!roleIds || roleIds.length === 0) {
     return {};
   }
-  
+
+  const client = apiInstance ?? defaultApi;
+
   try {
-    // Obtener mapeo de menu_id a módulo
-    const menuIdToModule = await getMenuIdToModuleMap();
-    
-    // Obtener permisos de cada rol
-    const rolePermissionsPromises = roleIds.map(rolId => getRolePermissions(rolId));
+    const menuIdToModule = await getMenuIdToModuleMap(client);
+    const rolePermissionsPromises = roleIds.map((rolId) => getRolePermissions(rolId, client));
     const rolePermissionsArrays = await Promise.all(rolePermissionsPromises);
     
     // Agregar permisos de todos los roles
@@ -203,24 +213,16 @@ export const calculateUserPermissions = async (
 };
 
 /**
- * Obtiene permisos del usuario actual desde el backend
- * 
- * Si el backend tiene endpoint GET /auth/me/permisos/, usar este método
- * Si no, usar calculateUserPermissions() con los roles del usuario
+ * Obtiene permisos del usuario actual desde el backend (misma API del tenant).
+ *
+ * @param roleIds - Array de IDs de roles del usuario
+ * @param clienteInfo - Info del cliente para usar la API del tenant (on-premise vs central). Si null, se usa la instancia por defecto.
  */
 export const getUserPermissions = async (
-  roleIds: string[]
+  roleIds: string[],
+  clienteInfo?: ClienteInfo | null
 ): Promise<UserPermissions> => {
-  // TODO: Intentar obtener desde endpoint directo si existe
-  // try {
-  //   const response = await api.get<UserPermissions>('/auth/me/permisos/');
-  //   return response.data;
-  // } catch (error) {
-  //   // Si no existe el endpoint, calcular desde roles
-  //   return calculateUserPermissions(roleIds);
-  // }
-  
-  // Por ahora, calcular desde roles
-  return calculateUserPermissions(roleIds);
+  const apiInstance = clienteInfo != null ? getApiInstance(clienteInfo) : defaultApi;
+  return calculateUserPermissions(roleIds, apiInstance);
 };
 

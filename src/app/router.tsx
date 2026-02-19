@@ -115,13 +115,6 @@ export const router = createBrowserRouter(
         },
       ],
     },
-  ],
-  {
-    // ✅ React Router v7 Future Flags - Elimina warnings de deprecación
-    future: {
-      v7_startTransition: true,
-      v7_relativeSplatPath: true,
-    },
-  }
+  ]
 );
 
