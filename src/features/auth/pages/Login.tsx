@@ -41,9 +41,8 @@ const Login: React.FC = () => { // Añadir tipo explícito React.FC
       // 1. Llamar al servicio de login
       const authResponse = await authService.login(formData);
 
-      // 2. Actualizar el estado global de autenticación usando setAuth del contexto.
-      //    setAuth guarda el token en cookie, actualiza el estado y devuelve UserData si tiene éxito.
-      const userData: UserData | null = setAuthFromLogin(authResponse);
+      // 2. Guardar token y obtener usuario desde /auth/me (nunca desde la respuesta de login)
+      const userData: UserData | null = await setAuthFromLogin(authResponse);
 
       // 3. Verificar si setAuth fue exitoso (userData no es null)
       if (userData) {

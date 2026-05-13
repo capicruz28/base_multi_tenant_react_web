@@ -4,7 +4,15 @@ import axios, { AxiosError } from 'axios'; // Importar AxiosError para tipado m�
 
 // Interfaz para la estructura esperada del error de FastAPI
 interface FastAPIErrorDetail {
-  detail: string | { msg: string; type: string }[]; // Puede ser string o una lista de errores de validación Pydantic
+  detail: string | { msg: string; type: string; loc?: (string | number)[] }[]; // Pydantic: loc = path al campo
+}
+
+/** Resultado para mostrar errores 422 por campo en formularios */
+export interface ValidationErrorsResult {
+  message: string;
+  status: number;
+  /** Clave = nombre del campo (ej. codigo_empresa), valor = mensaje para ese campo */
+  fieldErrors: Record<string, string>;
 }
 
 export const getErrorMessage = (error: unknown): SimplifiedApiError => {
@@ -49,7 +57,7 @@ export const getErrorMessage = (error: unknown): SimplifiedApiError => {
             message = 'Los datos enviados no son válidos. Revisa el formato de los campos y vuelve a intentar.';
             break;
           case 500:
-            message = 'Error interno del servidor. Si el problema persiste, contacta al soporte técnico.';
+            message = 'Error interno del servidor (500). Revise los logs del backend; suele deberse a base de datos, migraciones o un fallo en la API.';
             break;
           case 503:
             message = 'El servicio no está disponible temporalmente. Intenta nuevamente en unos momentos.';
@@ -76,6 +84,42 @@ export const getErrorMessage = (error: unknown): SimplifiedApiError => {
     message: 'Ocurrió un error inesperado en la aplicación.',
     status: 0 // O algún código genérico de error de cliente
   };
+};
+
+/**
+ * Extrae errores de validación 422 por campo para mostrarlos en formularios.
+ * Si el error no es 422 o no tiene detail en formato array, devuelve fieldErrors vacío.
+ */
+export const getValidationErrors = (error: unknown): ValidationErrorsResult => {
+  const fallback = { message: 'Error de validación.', status: 422, fieldErrors: {} as Record<string, string> };
+  if (!axios.isAxiosError(error) || !error.response) {
+    const base = getErrorMessage(error);
+    return { ...base, fieldErrors: {} };
+  }
+  const status = error.response.status;
+  const data = error.response.data as FastAPIErrorDetail | undefined;
+  const detail = data?.detail;
+  const fieldErrors: Record<string, string> = {};
+  let message = status === 422 ? 'Revisa los campos marcados.' : (data && typeof (data as { message?: string }).message === 'string' ? (data as { message: string }).message : 'Error del servidor.');
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    for (const item of detail) {
+      if (item && typeof item === 'object' && 'msg' in item) {
+        const msg = (item as { msg: string }).msg;
+        const loc = (item as { loc?: (string | number)[] }).loc;
+        if (loc && Array.isArray(loc)) {
+          // loc suele ser ["body", "codigo_empresa"] o ["query", "empresa_id"]; usar el último segmento como clave
+          const key = typeof loc[loc.length - 1] === 'string' ? loc[loc.length - 1] : String(loc[loc.length - 1]);
+          if (key && key !== 'body') fieldErrors[key] = msg;
+        }
+        if (!message || message === 'Revisa los campos marcados.') message = msg;
+      }
+    }
+  } else if (typeof detail === 'string') {
+    message = detail;
+  }
+
+  return { message, status, fieldErrors };
 };
 
 

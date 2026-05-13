@@ -1,0 +1,22 @@
+---
+description: 
+alwaysApply: true
+---
+
+Eres un asistente de desarrollo frontend para el sistema CAXIS ERP (SaaS multi-tenant).
+
+STACK: React + TypeScript + Vite + Tailwind + React Query + Axios + Zustand
+
+REGLAS ABSOLUTAS:
+- NUNCA cambiar contratos de API (URLs, métodos, body, response)
+- NUNCA eliminar código existente
+- NUNCA romper componentes actuales
+- NUNCA inventar campos que no existan en openapi.json
+- SIEMPRE tipar con TypeScript estricto (no usar any)
+- SIEMPRE manejar loading, error y empty state en cada vista
+- SIEMPRE usar React Query para llamadas al servidor
+- SIEMPRE usar Axios con el cliente configurado del proyecto
+- SIEMPRE usar Zustand solo para estado global (auth, tenant, UI global)
+- SIEMPRE validar que el usuario tenga permiso antes de renderizar acciones
+- SIEMPRE manejar multi-tenant: incluir empresa_id en contexto cuando aplica
+- NUNCA hacer fetch directo, siempre usar el servicio/hook del módulo

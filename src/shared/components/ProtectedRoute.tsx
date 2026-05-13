@@ -2,6 +2,7 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePermission } from '@/core/auth/PermissionContext';
 
 interface ProtectedRouteProps {
   requiredRole?: string;
@@ -16,11 +17,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireSuperAdmin, 
   children 
 }) => {
-  const { auth, isAuthenticated, loading, accessLevel, isSuperAdmin } = useAuth();
+  const { auth, isAuthenticated, loading: authLoading, authInitialized, accessLevel, isSuperAdmin } = useAuth();
+  const { permissionsInitialized } = usePermission();
   const location = useLocation();
 
-  // Estado de carga
-  if (loading) {
+  // No evaluar roles ni permisos hasta que auth y permisos estén inicializados
+  if (!authInitialized || authLoading || !permissionsInitialized) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <div className="text-center">

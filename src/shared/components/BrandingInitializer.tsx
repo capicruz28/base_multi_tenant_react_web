@@ -17,8 +17,8 @@ export const BrandingInitializer: React.FC = () => {
   const { subdomain, tenantId } = useTenant();
   const { loadBranding, loadBrandingBySubdomain } = useBrandingStore();
 
+  // Solo depender de primitivos (tenantId, subdomain) para evitar recargas infinitas
   useEffect(() => {
-    // Caso 1: Pre-login con subdominio
     if (!isAuthenticated && subdomain) {
       if (import.meta.env.DEV) {
         console.log('🎨 [BrandingInitializer] Cargando branding por subdominio (pre-login):', subdomain);
@@ -26,19 +26,13 @@ export const BrandingInitializer: React.FC = () => {
       loadBrandingBySubdomain(subdomain);
       return;
     }
-
-    // Caso 2: Post-login con tenantId
     if (isAuthenticated && tenantId) {
       if (import.meta.env.DEV) {
         console.log('🎨 [BrandingInitializer] Cargando branding por tenantId (post-login):', tenantId);
       }
       loadBranding(tenantId);
-      return;
     }
-
-    // Caso 3: Sin subdominio ni tenantId (fallback)
-    // No loguear este caso, es normal
-  }, [isAuthenticated, subdomain, tenantId, loadBranding, loadBrandingBySubdomain]);
+  }, [isAuthenticated, subdomain, tenantId]);
 
   return null; // Componente sin UI
 };

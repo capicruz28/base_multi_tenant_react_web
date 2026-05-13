@@ -2,12 +2,15 @@
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { BreadcrumbProvider } from "../../context/BreadcrumbContext";
+import { useNavMode } from "../../context/NavModeContext";
 import NewSidebar from "./NewSidebar";
+import TopNavbar from "./TopNavbar";
 import Header from "./Header";
 import LayoutWrapper from "../LayoutWrapper";
 
 const NewLayout: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const { navMode } = useNavMode();
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
@@ -19,18 +22,25 @@ const NewLayout: React.FC = () => {
   return (
     <BreadcrumbProvider>
       <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-        
-        {/* Sidebar (Fixed) */}
-        <NewSidebar isCollapsed={isSidebarCollapsed} toggleSidebar={toggleSidebar} />
+
+        {/* Sidebar (Fixed) — solo en modo sidebar */}
+        {navMode === 'sidebar' && (
+          <NewSidebar isCollapsed={isSidebarCollapsed} toggleSidebar={toggleSidebar} />
+        )}
 
         {/* Contenido principal (Header + Main) */}
         <div
-          className={`flex-1 flex flex-col ${
-            isSidebarCollapsed ? sidebarWidthCollapsed : sidebarWidthExpanded
-          } transition-all duration-300`}
+          className={`flex-1 flex flex-col transition-all duration-300 ${
+            navMode === 'sidebar'
+              ? (isSidebarCollapsed ? sidebarWidthCollapsed : sidebarWidthExpanded)
+              : ''
+          }`}
         >
           {/* Header con Breadcrumb */}
           <Header />
+
+          {/* TopNavbar — solo en modo navbar */}
+          {navMode === 'navbar' && <TopNavbar />}
 
           {/* Main Content */}
           <main className="flex-1 bg-gray-100 dark:bg-gray-900 min-h-screen">

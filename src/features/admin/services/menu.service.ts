@@ -1,5 +1,6 @@
 import type { AxiosInstance } from 'axios';
 import api from '@/core/api/api'; // Instancia por defecto (misma URL del tenant en cloud; en on-premise se puede inyectar la del cliente)
+import type { AuthMenuResponse } from '@/core/auth/types/auth-menu.types';
 import type {
   // Tipos para Sidebar (renombrados)
   SidebarMenuItem,
@@ -89,6 +90,19 @@ export const menuService = {
       console.error(`Error fetching user menu from ${endpoint}:`, error);
       throw error; // Lanzar error para que el componente lo maneje
     }
+  },
+
+  /**
+   * Obtiene el menú del usuario desde GET /auth/menu (autorización enterprise).
+   * Fuente única: estructura completa + permisos efectivos derivados desde RBAC.
+   */
+  getAuthMenu: async (): Promise<AuthMenuResponse> => {
+    const endpoint = '/auth/menu';
+    const response = await api.get<AuthMenuResponse>(endpoint);
+    if (import.meta.env.DEV) {
+      console.debug('[AUTH_MENU]', response);
+    }
+    return response.data;
   },
 
   /**

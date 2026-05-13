@@ -20,7 +20,8 @@ import type {
 import type { AuthResponse, UserData, ClienteInfo } from '../../features/auth/types/auth.types';
 import { useBrandingStore } from '../../features/tenant/stores/branding.store';
 import type { UserPermissions } from '../../core/auth/types/permission.types';
-import { getUserPermissions } from '../../core/auth/services/permission.service';
+import type { AuthMenuModulo, AuthMenuItem } from '../../core/auth/types/auth-menu.types';
+import { menuService } from '../../features/admin/services/menu.service';
 import { showServerErrorToast } from '../../core/api/axios-instances';
 
 // ============================================================================
@@ -39,18 +40,24 @@ type AuthState = {
 
 interface AuthContextType {
 	auth: AuthState;
-	setAuthFromLogin: (response: AuthResponse) => UserData | null;
+	setAuthFromLogin: (response: AuthResponse) => Promise<UserData | null>;
 	logout: () => Promise<void>;
 	isAuthenticated: boolean;
 	loading: boolean;
+	/** true cuando bootstrap (/auth/me) terminó (éxito o error). Evita race condition. */
+	authInitialized: boolean;
+	/** true cuando /auth/me terminó; el router no debe renderizar rutas hasta entonces. */
+	isBootstrapped: boolean;
 	hasRole: (...roles: string[]) => boolean;
 	// ✅ CORREGIDO: Campos alineados con el backend
 	accessLevel: number;
 	isSuperAdmin: boolean;
 	userType: string;
 	clienteInfo: ClienteInfo | null;
-	// ✅ NUEVO: Permisos granulares del usuario
+	// ✅ Permisos granulares del usuario (derivados desde /auth/menu)
 	permissions: UserPermissions | null;
+	// ✅ Menú del usuario (desde GET /auth/menu)
+	menuModulos: AuthMenuModulo[] | null;
 }
 
 // ============================================================================
@@ -60,16 +67,19 @@ const initialAuth: AuthState = { user: null, token: null };
 
 const AuthContext = createContext<AuthContextType>({
 	auth: initialAuth,
-	setAuthFromLogin: () => null,
+	setAuthFromLogin: async () => null,
 	logout: async () => {},
 	isAuthenticated: false,
 	loading: true,
+	authInitialized: false,
+	isBootstrapped: false,
 	hasRole: () => false,
 	accessLevel: 0,
 	isSuperAdmin: false,
 	userType: 'user',
 	clienteInfo: null,
 	permissions: null,
+	menuModulos: null,
 });
 
 // ============================================================================
@@ -78,15 +88,19 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 	const [auth, setAuth] = useState<AuthState>(initialAuth);
 	const [loading, setLoading] = useState(true);
+	const [authInitialized, setAuthInitialized] = useState(false);
+	const [isBootstrapped, setIsBootstrapped] = useState(false);
 	
 	// ✅ Estados para información de niveles de acceso
 	const [accessLevel, setAccessLevel] = useState<number>(0);
 	const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false);
 	const [userType, setUserType] = useState<string>('user');
 	const [clienteInfo, setClienteInfo] = useState<ClienteInfo | null>(null);
-	// ✅ NUEVO: Estado para permisos granulares
+	// ✅ Estado para permisos granulares (derivados desde /auth/menu)
 	const [permissions, setPermissions] = useState<UserPermissions | null>(null);
-	
+	// ✅ Estado para menú del usuario (desde GET /auth/menu)
+	const [menuModulos, setMenuModulos] = useState<AuthMenuModulo[] | null>(null);
+
 	// Refs para acceder al estado más reciente sin re-renders
 	const authRef = useRef(auth);
 	const loadingRef = useRef(loading);
@@ -106,6 +120,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		loadingRef.current = loading;
 	}, [loading]);
 
+	// Logs temporales: mount/unmount para diagnosticar reinicialización
+	useEffect(() => {
+		console.log('🟢 [AuthContext] MOUNT');
+		return () => {
+			console.log('🔴 [AuthContext] UNMOUNT');
+		};
+	}, []);
+
 	// ============================================================================
 	// HELPERS
 	// ============================================================================
@@ -120,58 +142,101 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 	}, []);
 
 	/**
-	 * ✅ NUEVO: Carga permisos granulares del usuario desde sus roles
+	 * Deriva permissions[module][action] desde response.modulos (OR de todos los menús/submenús).
+	 * Clave del módulo: modulo.codigo.toLowerCase().
 	 */
-	const loadUserPermissions = useCallback(async (userData: UserData | null) => {
-		if (!userData || !userData.roles || userData.roles.length === 0) {
+	const derivePermissionsFromModulos = useCallback((modulos: AuthMenuModulo[]): UserPermissions => {
+		const result: UserPermissions = {};
+		for (const modulo of modulos) {
+			const key = modulo.codigo.toLowerCase();
+			const agg = {
+				ver: false,
+				crear: false,
+				editar: false,
+				eliminar: false,
+				exportar: false,
+				imprimir: false,
+			};
+			const aggregateMenu = (menu: AuthMenuItem) => {
+				if (menu.permisos) {
+					agg.ver = agg.ver || menu.permisos.ver;
+					agg.crear = agg.crear || menu.permisos.crear;
+					agg.editar = agg.editar || menu.permisos.editar;
+					agg.eliminar = agg.eliminar || menu.permisos.eliminar;
+					agg.exportar = agg.exportar || (menu.permisos.exportar ?? false);
+					agg.imprimir = agg.imprimir || (menu.permisos.imprimir ?? false);
+				}
+				(menu.submenus || []).forEach(aggregateMenu);
+			};
+			for (const seccion of modulo.secciones || []) {
+				for (const menu of seccion.menus || []) {
+					aggregateMenu(menu);
+				}
+			}
+			result[key] = agg;
+		}
+		return result;
+	}, []);
+
+	/**
+	 * Carga menú y permisos desde GET /auth/menu (fuente única).
+	 */
+	const loadMenuAndPermissionsFromAuthMenu = useCallback(async (userData: UserData | null) => {
+		if (!userData) {
 			setPermissions(null);
+			setMenuModulos(null);
 			return;
 		}
 
-		// Super admin no necesita permisos (tiene todos)
-		if (userData.is_super_admin) {
-			setPermissions(null); // null indica que tiene todos los permisos
+		// platform_admin: tiene todos los permisos (null); menú se carga igual desde backend
+		if (userData.user_type === 'platform_admin') {
+			try {
+				const response = await menuService.getAuthMenu();
+				setMenuModulos(response.modulos || []);
+				setPermissions(null);
+			} catch (error) {
+				console.error('❌ [AuthContext] Error cargando menú (super admin):', error);
+				setMenuModulos([]);
+				setPermissions(null);
+			}
+			return;
+		}
+
+		// Usuario sin roles: sin menú ni permisos granulares
+		if (!userData.roles || userData.roles.length === 0) {
+			setMenuModulos(null);
+			setPermissions({});
 			return;
 		}
 
 		try {
-			// Solo log en desarrollo
 			if (import.meta.env.DEV) {
-				console.log('🔐 [AuthContext] Cargando permisos del usuario...');
+				console.log('🔐 [AuthContext] Cargando menú y permisos desde /auth/menu...');
 			}
-			// Convertir roles a array de strings (pueden venir como objetos o strings)
-			const roleIds = userData.roles.map((r: any) => {
-				if (typeof r === 'string') return r;
-				if (r && typeof r === 'object' && 'rol_id' in r) return r.rol_id;
-				return String(r);
-			}).filter(Boolean);
+			const response = await menuService.getAuthMenu();
+			const modulos = response.modulos || [];
+			setMenuModulos(modulos);
 
-			if (roleIds.length === 0) {
-				console.warn('⚠️ [AuthContext] Usuario sin roles asignados');
-				setPermissions({});
-				return;
-			}
-
-			const userPermissions = await getUserPermissions(roleIds, userData.cliente ?? undefined);
-			setPermissions(userPermissions);
-			const moduleCount = Object.keys(userPermissions).length;
-			if (moduleCount > 0) {
-				// Solo log en desarrollo
+			const derived = derivePermissionsFromModulos(modulos);
 			if (import.meta.env.DEV) {
-				console.log(`✅ [AuthContext] Permisos cargados: ${moduleCount} módulo(s)`);
+				console.debug('permissions derived', derived);
 			}
-			} else {
-				console.warn('⚠️ [AuthContext] No se pudieron cargar permisos granulares. El sistema usará permisos basados en roles (RBAC).');
+			setPermissions(derived);
+
+			const moduleCount = Object.keys(derived).length;
+			if (import.meta.env.DEV && moduleCount > 0) {
+				console.log(`✅ [AuthContext] Menú y permisos cargados: ${moduleCount} módulo(s)`);
 			}
 		} catch (error) {
-			console.error('❌ [AuthContext] Error cargando permisos:', error);
-			// En caso de error, establecer permisos vacíos (no null) para que el sistema funcione
+			console.error('❌ [AuthContext] Error cargando /auth/menu:', error);
+			setMenuModulos([]);
 			setPermissions({});
 		}
-	}, []);
+	}, [derivePermissionsFromModulos]);
 
 	/**
-	 * ✅ CORREGIDO: Actualiza estados de nivel de acceso desde datos de usuario
+	 * Actualiza estados de nivel de acceso desde datos de usuario.
+	 * Fuente: user_type de /auth/me ("platform_admin" | "tenant_admin" | …).
 	 */
 	const updateAccessLevels = useCallback((userData: UserData | null) => {
 		if (!userData) {
@@ -180,26 +245,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			setUserType('user');
 			setClienteInfo(null);
 			setPermissions(null);
-			// Resetear branding cuando no hay usuario
+			setMenuModulos(null);
 			useBrandingStore.getState().resetBranding(null);
 			return;
 		}
 
-		// ✅ CORRECCIÓN CRÍTICA: Leer directamente del usuario
-		const level = userData.access_level || 0;
-		const isSuper = userData.is_super_admin || false;
-		const type = determineUserType(level, isSuper);
-		
-		console.log('🔍 [AuthContext] Actualizando niveles de acceso:', {
-			level,
-			isSuper,
-			type,
-			hasCliente: !!userData.cliente
-		});
-		
-		setAccessLevel(level);
-		setIsSuperAdmin(isSuper);
+		// Prioridad: user_type del backend (/auth/me)
+		const type =
+			typeof userData.user_type === 'string' && userData.user_type.trim()
+				? userData.user_type
+				: determineUserType(userData.access_level || 0, !!userData.is_super_admin);
+
+		setAccessLevel(userData.access_level ?? 0);
+		setIsSuperAdmin(type === 'platform_admin');
 		setUserType(type);
+
+		if (import.meta.env.DEV) {
+			console.log('🔍 [AuthContext] user_type:', type, 'isSuperAdmin:', type === 'platform_admin', 'hasCliente:', !!userData.cliente);
+		}
 		
 		// Actualizar información del cliente si está disponible
 		if (userData.cliente) {
@@ -217,8 +280,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			setClienteInfo(null);
 		}
 		
-		// ✅ NUEVO: Cargar permisos granulares del usuario
-		loadUserPermissions(userData);
+		// ✅ Cargar menú y permisos desde GET /auth/menu (fuente única)
+		loadMenuAndPermissionsFromAuthMenu(userData);
 		
 		// ✅ IMPORTANTE: Cargar branding siempre que el usuario esté autenticado
 		// El endpoint /tenant/branding usa el contexto del tenant (subdominio) del request,
@@ -231,7 +294,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			// Solo resetear cuando no hay usuario
 			useBrandingStore.getState().resetBranding(null);
 		}
-	}, [determineUserType, loadUserPermissions]);
+	}, [determineUserType, loadMenuAndPermissionsFromAuthMenu]);
 
 	/**
 	 * Detecta si la URL es de autenticación (login/refresh)
@@ -311,6 +374,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			useBrandingStore.getState().clearAll(!hadAuthenticatedUser);
 		}
 	}, [processQueue]);
+
+	/**
+	 * Obtiene el usuario desde /auth/me y actualiza el estado.
+	 * El usuario SOLO proviene de /auth/me, nunca de la respuesta de login.
+	 */
+	const initializeAuth = useCallback(async (): Promise<UserData | null> => {
+		const me = await authService.me();
+		if (!me) {
+			await doLogout(false);
+			return null;
+		}
+		setAuth((prev) => ({ ...prev, user: me }));
+		authRef.current = { ...authRef.current, user: me };
+		updateAccessLevels(me);
+		setAuthInitialized(true);
+		setIsBootstrapped(true);
+		return me;
+	}, [updateAccessLevels, doLogout]);
 
 	// ============================================================================
 	// INTERCEPTORES
@@ -534,113 +615,69 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 	}, [isAuthEndpoint, processQueue, doLogout]);
 
 	// ============================================================================
-	// BOOTSTRAP - ✅ CORRECCIÓN CRÍTICA
+	// BOOTSTRAP - Usuario SOLO desde /auth/me
 	// ============================================================================
 	useEffect(() => {
 		if (isInitializedRef.current) {
 			return;
 		}
 		isInitializedRef.current = true;
-		
-		const initializeAuth = async () => {
+
+		async function runBootstrap() {
 			try {
 				console.log('🔍 [Bootstrap] Verificando sesión existente...');
-				
-					// ✅ CORRECCIÓN CRÍTICA: Obtener token primero
-					const newToken = await authService.refreshToken();
-					if (import.meta.env.DEV) {
-						console.log('✅ [Bootstrap] Token obtenido, actualizando ref...');
-					}
-					
-					// ✅ CORRECCIÓN CRÍTICA: Actualizar ref ANTES de llamar a /me/
-					authRef.current = { ...authRef.current, token: newToken };
-					
-					// ✅ CORRECCIÓN: Ahora el interceptor puede leer el token correctamente
-					if (import.meta.env.DEV) {
-						console.log('➡️ [Bootstrap] Obteniendo perfil de usuario...');
-					}
-				const { data: userData } = await api.get<UserData>('/auth/me/');
-				
-				if (userData) {
-					console.log('✅ [Bootstrap] Perfil obtenido:', {
-						usuario: userData.nombre_usuario,
-						accessLevel: userData.access_level,
-						isSuperAdmin: userData.is_super_admin,
-						tipo: determineUserType(userData.access_level || 0, userData.is_super_admin || false)
-					});
-					
-					const newAuth = { token: newToken, user: userData };
-					setAuth(newAuth);
-					authRef.current = newAuth;
-					
-					updateAccessLevels(userData);
-				} else {
-					if (import.meta.env.DEV) {
-						console.log('❌ [Bootstrap] No se pudo obtener perfil');
-					}
-					await doLogout(false);
+				const newToken = await authService.refreshToken();
+				if (import.meta.env.DEV) {
+					console.log('✅ [Bootstrap] Token obtenido');
+				}
+				// Solo guardar token; usuario vendrá de /auth/me
+				setAuth({ token: newToken, user: null });
+				authRef.current = { token: newToken, user: null };
+				const me = await initializeAuth();
+				if (me && import.meta.env.DEV) {
+					console.log('✅ [Bootstrap] Perfil obtenido:', { usuario: me.nombre_usuario, user_type: me.user_type });
 				}
 			} catch (error) {
 				const axiosError = error as AxiosError;
-				const errorMessage = error instanceof Error ? error.message : axiosError.message;
 				const statusCode = axiosError.response?.status;
-				
-				// ✅ CORRECCIÓN CRÍTICA: Distinguir entre errores 401 (token inválido) y otros errores
-				if (statusCode === 401) {
-					// 401 es normal si no hay sesión activa, solo log en desarrollo
-					if (import.meta.env.DEV) {
-						console.log('ℹ️ [Bootstrap] No hay sesión activa (401) - Normal si no hay cookie');
-					}
-					// ✅ IMPORTANTE: Limpiar la cookie del navegador también
-					document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-				} else {
-					console.log('ℹ️ [Bootstrap] Error en inicialización:', errorMessage);
+				if (statusCode === 401 && import.meta.env.DEV) {
+					console.log('ℹ️ [Bootstrap] No hay sesión activa (401)');
 				}
-				
+				document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 				await doLogout(false);
 			} finally {
 				setLoading(false);
+				setAuthInitialized(true);
+				setIsBootstrapped(true);
 				console.log('🏁 [Bootstrap] Inicialización finalizada');
 			}
-		};
+		}
 
-		initializeAuth();
-		
-	}, [doLogout, determineUserType, updateAccessLevels]);
+		runBootstrap();
+	}, [doLogout, initializeAuth]);
 
 	// ============================================================================
 	// FUNCIONES PÚBLICAS
 	// ============================================================================
 
 	/**
-	 * ✅ Establece la autenticación después del login
+	 * Establece la autenticación después del login.
+	 * Login SOLO guarda tokens; el usuario proviene de /auth/me.
 	 */
-	const setAuthFromLogin = useCallback((response: AuthResponse): UserData | null => {
-		if (!response?.access_token || !response?.user_data) {
-			console.error('❌ [Login] Respuesta inválida');
+	const setAuthFromLogin = useCallback(async (response: AuthResponse): Promise<UserData | null> => {
+		if (!response?.access_token) {
+			console.error('❌ [Login] Respuesta inválida: falta access_token');
 			setAuth(initialAuth);
 			authRef.current = initialAuth;
 			updateAccessLevels(null);
 			return null;
 		}
-		
-		// Solo log en desarrollo
-		if (import.meta.env.DEV) {
-			console.log('✅ [Login] Configurando autenticación:', {
-				usuario: response.user_data.nombre_usuario,
-				accessLevel: response.user_data.access_level,
-				isSuperAdmin: response.user_data.is_super_admin
-			});
-		}
-		
-		const newAuth = { token: response.access_token, user: response.user_data };
+		// Solo guardar token; NO usar user_data de la respuesta
+		const newAuth = { token: response.access_token, user: null };
 		setAuth(newAuth);
 		authRef.current = newAuth;
-		
-		updateAccessLevels(response.user_data);
-		
-		return response.user_data;
-	}, [updateAccessLevels]);
+		return initializeAuth();
+	}, [updateAccessLevels, initializeAuth]);
 
 	/**
 	 * Cierra la sesión del usuario
@@ -688,14 +725,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			logout,
 			isAuthenticated: !!auth.token && !!auth.user,
 			loading,
+			authInitialized,
+			isBootstrapped,
 			hasRole,
 			accessLevel,
 			isSuperAdmin,
 			userType,
 			clienteInfo,
 			permissions,
+			menuModulos,
 		}),
-		[auth, loading, setAuthFromLogin, logout, hasRole, accessLevel, isSuperAdmin, userType, clienteInfo, permissions]
+		[auth, loading, authInitialized, isBootstrapped, setAuthFromLogin, logout, hasRole, accessLevel, isSuperAdmin, userType, clienteInfo, permissions, menuModulos]
 	);
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

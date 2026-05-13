@@ -1,14 +1,20 @@
 // src/shared/components/layout/Header.tsx
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import GlobalSearch from './GlobalSearch';
 import { useAuth } from '../../context/AuthContext';
 import { useBreadcrumb } from '../../context/BreadcrumbContext';
-import { User, Mail, Settings, LogOut, ChevronDown, ChevronRight, Home, Shield, Building2, Crown } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
+import { useNavMode } from '../../context/NavModeContext';
+import { User, Mail, Settings, LogOut, ChevronDown, ChevronRight, Home, Shield, Building2, Crown, Sun, Moon, PanelLeft, PanelTop } from 'lucide-react';
 import useUserType from '../../../core/hooks/useUserType';
 
 const Header = () => {
-  const { auth, logout } = useAuth();
-  const { breadcrumbs } = useBreadcrumb();
+  const { auth, logout, menuModulos } = useAuth();
+  const { breadcrumbs, setBreadcrumbs } = useBreadcrumb();
+  const location = useLocation();
+  const { isDarkMode, toggleDarkMode } = useTheme();
+  const { navMode, toggleNavMode } = useNavMode();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -31,6 +37,32 @@ const Header = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Actualiza el breadcrumb según la ruta actual — funciona en todos los modos de navegación
+  // (en modo navbar el sidebar no se monta, por lo que este efecto es la única fuente de verdad)
+  useEffect(() => {
+    if (!menuModulos || menuModulos.length === 0) return;
+    const currentPath = location.pathname;
+
+    for (const modulo of menuModulos) {
+      for (const seccion of modulo.secciones ?? []) {
+        for (const menu of seccion.menus ?? []) {
+          if (!menu.ruta) continue;
+          const menuPath = menu.ruta.startsWith('/') ? menu.ruta : `/${menu.ruta}`;
+          if (currentPath === menuPath || currentPath.startsWith(menuPath + '/')) {
+            setBreadcrumbs([
+              { nombre: modulo.nombre, ruta: null },
+              { nombre: menu.nombre, ruta: menu.ruta },
+            ]);
+            return;
+          }
+        }
+      }
+    }
+
+    // Ruta no encontrada en ningún módulo — limpiar solo si no hay breadcrumbs previos útiles
+    setBreadcrumbs([]);
+  }, [location.pathname, menuModulos, setBreadcrumbs]);
 
   const getInitials = () => {
     if (auth.user?.nombre && auth.user?.apellido) {
@@ -77,10 +109,10 @@ const Header = () => {
 
   return (
     <header className="bg-white dark:bg-gray-800 shadow-sm h-16 flex-shrink-0 w-full border-b border-gray-200 dark:border-gray-700"> 
-      <div className="h-full px-4 flex justify-between items-center">
-        
-        {/* Breadcrumb Section */}
-        <div className="flex items-center space-x-2 flex-1 min-w-0">
+      <div className="h-full px-4 flex items-center relative">
+
+        {/* Izquierda: Breadcrumb */}
+        <div className="flex items-center space-x-2 flex-1 min-w-0 mr-2">
           {breadcrumbs.length > 0 ? (
             <nav className="flex items-center space-x-2 text-sm overflow-x-auto">
               {/* Home Icon */}
@@ -134,15 +166,35 @@ const Header = () => {
           )}
         </div>
 
-        {/* ✅ NUEVO: Badge de tipo de usuario (solo en desktop) */}
-        {!isMenuOpen && (
-          <div className="hidden md:flex items-center mr-4">
-            <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold ${userBadge.color}`}>
-              <BadgeIcon className={`w-3 h-3 ${userBadge.iconColor}`} />
-              <span className="truncate max-w-32">{userBadge.text}</span>
-            </div>
-          </div>
-        )}
+
+        {/* Centro: Buscador global (absolutamente centrado) */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex-shrink-0 hidden sm:block">
+          <GlobalSearch />
+        </div>
+
+        {/* Derecha: botones + avatar */}
+        <div className="flex items-center gap-1 flex-shrink-0 ml-auto">
+          <button
+            onClick={toggleDarkMode}
+            className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            title={isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          >
+            {isDarkMode
+              ? <Sun className="w-5 h-5 text-yellow-500" />
+              : <Moon className="w-5 h-5" />
+            }
+          </button>
+          <button
+            onClick={toggleNavMode}
+            className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            title={navMode === 'sidebar' ? 'Cambiar a vista navbar' : 'Cambiar a vista sidebar'}
+          >
+            {navMode === 'sidebar'
+              ? <PanelTop className="w-5 h-5" />
+              : <PanelLeft className="w-5 h-5" />
+            }
+          </button>
+        </div>
 
         {/* User Menu Section */}
         <div className="relative ml-4 flex-shrink-0" ref={menuRef}>

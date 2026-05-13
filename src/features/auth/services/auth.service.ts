@@ -99,9 +99,17 @@ const getCurrentUserProfile = async (): Promise<UserData | null> => {
 			};
 		}>('/auth/me/');
 		
-		// ✅ NUEVO: Normalizar campos de nivel de acceso
+		// ✅ Normalizar claves de IDs (compat backend)
+		// Algunos backends devuelven user_id/id en lugar de usuario_id.
+		const raw: any = response.data as any;
+		const usuario_id = raw.usuario_id ?? raw.user_id ?? raw.id ?? raw.userId;
+		const cliente_id = raw.cliente_id ?? raw.client_id ?? raw.tenant_id ?? raw.tenantId;
+
+		// ✅ Normalizar campos de nivel de acceso
 		const userData: UserData = {
 			...response.data,
+			usuario_id: usuario_id,
+			cliente_id: cliente_id ?? raw.cliente_id,
 			access_level: response.data.access_level || 0,
 			is_super_admin: response.data.is_super_admin || false,
 			user_type: response.data.user_type || 'user',
@@ -191,6 +199,7 @@ const refreshToken = async (): Promise<string> => {
 // Exportar el servicio de autenticación
 export const authService = {
 	login,
+	me: getCurrentUserProfile,
 	getCurrentUserProfile,
 	logout,
 	refreshToken,

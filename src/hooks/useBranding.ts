@@ -21,16 +21,18 @@ export const useBranding = (autoLoad: boolean = true) => {
   const loadBranding = useBrandingStore((state) => state.loadBranding);
   const resetBrandingStore = useBrandingStore((state) => state.resetBranding);
 
-  // Cargar branding automáticamente cuando el usuario se autentica
+  // Cargar branding automáticamente cuando el usuario se autentica.
+  // Solo depender de cliente_id (primitivo) para evitar recargas infinitas.
   useEffect(() => {
-    if (autoLoad && isAuthenticated && clienteInfo?.cliente_id) {
-      loadBranding(clienteInfo.cliente_id);
-    } else if (!isAuthenticated && autoLoad) {
-      // Resetear branding cuando el usuario cierra sesión (solo si autoLoad está activo)
+    if (!autoLoad) return;
+    const tenantId = clienteInfo?.cliente_id;
+    if (isAuthenticated && tenantId) {
+      loadBranding(tenantId);
+    } else if (!isAuthenticated) {
       resetBrandingStore(null);
       resetBranding();
     }
-  }, [isAuthenticated, clienteInfo?.cliente_id, autoLoad, loadBranding, resetBrandingStore]);
+  }, [isAuthenticated, clienteInfo?.cliente_id, autoLoad]);
 
   // Aplicar branding cuando cambia
   useEffect(() => {

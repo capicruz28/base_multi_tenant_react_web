@@ -48,30 +48,20 @@ export const tenantAdminNavItems: SidebarMenuItem[] = [
     area_nombre: null,
     orden: 2,
   },
-  {
-    menu_id: 'area_management',
-    nombre: 'Gestión de Áreas',
-    ruta: '/admin/areas',
-    icono: 'FolderKanban',
-    children: [],
-    es_activo: true,
-    padre_menu_id: null,
-    area_id: null,
-    area_nombre: null,
-    orden: 3,
-  },
-  {
-    menu_id: 'menu_management',
-    nombre: 'Gestión de Menús',
-    ruta: '/admin/menus',
-    icono: 'ListTree',
-    children: [],
-    es_activo: true,
-    padre_menu_id: null,
-    area_id: null,
-    area_nombre: null,
-    orden: 4,
-  },
+  // Deprecado: Gestión de Áreas y Gestión de Menús ocultas del sidebar (admin tenant).
+  // La estructura la define SuperAdmin; el tenant solo asigna permisos por rol.
+  // {
+  //   menu_id: 'area_management',
+  //   nombre: 'Gestión de Áreas',
+  //   ruta: '/admin/areas',
+  //   ...
+  // },
+  // {
+  //   menu_id: 'menu_management',
+  //   nombre: 'Gestión de Menús',
+  //   ruta: '/admin/menus',
+  //   ...
+  // },
   {
     menu_id: 'session_management',
     nombre: 'Sesiones Activas',
@@ -82,7 +72,7 @@ export const tenantAdminNavItems: SidebarMenuItem[] = [
     padre_menu_id: null,
     area_id: null,
     area_nombre: null,
-    orden: 5,
+    orden: 3,
   },
 ];
 

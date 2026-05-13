@@ -9,7 +9,8 @@
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 📋 Mi Empresa
-   → Ver y editar datos de la empresa (RUC, razón social, logo, moneda)
+   → Ver y editar datos de la empresa (RUC, razón social, logo)
+   → Configurar moneda base y activar/desactivar multi-moneda
 
 🏢 Sucursales
    → Gestionar sucursales con dirección, teléfono, responsable
@@ -46,6 +47,9 @@
 📊 Consulta de Stock
    → Ver stock actual, reservado y disponible por almacén
    → Alertas de stock mínimo y máximo
+
+📚 Kardex
+   → Ver movimientos detallados por producto y almacén (entradas, salidas, saldo y costo)
 
 📋 Tipos de Movimiento
    → Definir tipos: compra, venta, ajuste, transferencia, etc.
@@ -120,7 +124,7 @@
    → Genera movimiento de inventario automático
 
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ 06. MÓDULO LOG — LOGÍSTICA & DISTRIBUCIÓN                         ┃
+┃ 06. MÓDULO LOG — LOGÍSTICA & DISTRIBUCIÓN                       ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 🚚 Transportistas

@@ -44,7 +44,7 @@ export const ERP_MODULES: ERPModuleConfig[] = [
   { codigo: 'SLS', routePrefix: 'sls', permissionModule: 'sls', descripcion: 'Ventas' },
   { codigo: 'CRM', routePrefix: 'crm', permissionModule: 'crm', descripcion: 'Gestión de clientes' },
   { codigo: 'PRC', routePrefix: 'prc', permissionModule: 'prc', descripcion: 'Precios y promociones' },
-  { codigo: 'INV_BILL', routePrefix: 'inv-bill', permissionModule: 'inv-bill', descripcion: 'Facturación electrónica' },
+  { codigo: 'INV_BILL', routePrefix: 'facturacion', permissionModule: 'inv-bill', descripcion: 'Facturación electrónica' },
   { codigo: 'POS', routePrefix: 'pos', permissionModule: 'pos', descripcion: 'Punto de venta' },
   { codigo: 'HCM', routePrefix: 'hcm', permissionModule: 'hcm', descripcion: 'Planillas y RRHH' },
   { codigo: 'FIN', routePrefix: 'fin', permissionModule: 'fin', descripcion: 'Contabilidad' },

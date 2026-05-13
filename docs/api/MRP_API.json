@@ -1,0 +1,3199 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Service API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/mrp/plan-maestro": {
+      "get": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Plan Maestro",
+          "MRP - Plan Maestro"
+        ],
+        "summary": "Get Planes Maestro",
+        "operationId": "get_planes_maestro_api_v1_mrp_plan_maestro_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "empresa_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Empresa Id"
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Estado"
+            }
+          },
+          {
+            "name": "buscar",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Buscar"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlanMaestroRead"
+                  },
+                  "title": "Response Get Planes Maestro Api V1 Mrp Plan Maestro Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Plan Maestro",
+          "MRP - Plan Maestro"
+        ],
+        "summary": "Post Plan Maestro",
+        "operationId": "post_plan_maestro_api_v1_mrp_plan_maestro_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanMaestroCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanMaestroRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/plan-maestro/{plan_maestro_id}": {
+      "get": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Plan Maestro",
+          "MRP - Plan Maestro"
+        ],
+        "summary": "Get Plan Maestro",
+        "operationId": "get_plan_maestro_api_v1_mrp_plan_maestro__plan_maestro_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plan_maestro_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plan Maestro Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanMaestroRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Plan Maestro",
+          "MRP - Plan Maestro"
+        ],
+        "summary": "Put Plan Maestro",
+        "operationId": "put_plan_maestro_api_v1_mrp_plan_maestro__plan_maestro_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plan_maestro_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plan Maestro Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanMaestroUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanMaestroRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/plan-maestro/{plan_maestro_id}/calcular": {
+      "post": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Plan Maestro",
+          "MRP - Plan Maestro"
+        ],
+        "summary": "Post Plan Maestro Calcular",
+        "operationId": "post_plan_maestro_calcular_api_v1_mrp_plan_maestro__plan_maestro_id__calcular_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plan_maestro_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plan Maestro Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanMaestroRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/plan-maestro/{plan_maestro_id}/aprobar": {
+      "post": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Plan Maestro",
+          "MRP - Plan Maestro"
+        ],
+        "summary": "Post Plan Maestro Aprobar",
+        "operationId": "post_plan_maestro_aprobar_api_v1_mrp_plan_maestro__plan_maestro_id__aprobar_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plan_maestro_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plan Maestro Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanMaestroRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/plan-maestro/{plan_maestro_id}/ejecutar": {
+      "post": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Plan Maestro",
+          "MRP - Plan Maestro"
+        ],
+        "summary": "Post Plan Maestro Ejecutar",
+        "operationId": "post_plan_maestro_ejecutar_api_v1_mrp_plan_maestro__plan_maestro_id__ejecutar_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plan_maestro_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plan Maestro Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanMaestroRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/plan-maestro/{plan_maestro_id}/cerrar": {
+      "post": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Plan Maestro",
+          "MRP - Plan Maestro"
+        ],
+        "summary": "Post Plan Maestro Cerrar",
+        "operationId": "post_plan_maestro_cerrar_api_v1_mrp_plan_maestro__plan_maestro_id__cerrar_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plan_maestro_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plan Maestro Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanMaestroRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/plan-maestro/{plan_maestro_id}/anular": {
+      "post": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Plan Maestro",
+          "MRP - Plan Maestro"
+        ],
+        "summary": "Post Plan Maestro Anular",
+        "operationId": "post_plan_maestro_anular_api_v1_mrp_plan_maestro__plan_maestro_id__anular_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plan_maestro_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plan Maestro Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanMaestroRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/necesidades-brutas": {
+      "get": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Necesidades Brutas",
+          "MRP - Necesidades Brutas"
+        ],
+        "summary": "Get Necesidades Brutas",
+        "operationId": "get_necesidades_brutas_api_v1_mrp_necesidades_brutas_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plan_maestro_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Plan Maestro Id"
+            }
+          },
+          {
+            "name": "producto_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Producto Id"
+            }
+          },
+          {
+            "name": "origen",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origen"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NecesidadBrutaRead"
+                  },
+                  "title": "Response Get Necesidades Brutas Api V1 Mrp Necesidades Brutas Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Necesidades Brutas",
+          "MRP - Necesidades Brutas"
+        ],
+        "summary": "Post Necesidad Bruta",
+        "operationId": "post_necesidad_bruta_api_v1_mrp_necesidades_brutas_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NecesidadBrutaCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NecesidadBrutaRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/necesidades-brutas/{necesidad_id}": {
+      "get": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Necesidades Brutas",
+          "MRP - Necesidades Brutas"
+        ],
+        "summary": "Get Necesidad Bruta",
+        "operationId": "get_necesidad_bruta_api_v1_mrp_necesidades_brutas__necesidad_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "necesidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Necesidad Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NecesidadBrutaRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Necesidades Brutas",
+          "MRP - Necesidades Brutas"
+        ],
+        "summary": "Put Necesidad Bruta",
+        "operationId": "put_necesidad_bruta_api_v1_mrp_necesidades_brutas__necesidad_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "necesidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Necesidad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NecesidadBrutaUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NecesidadBrutaRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/explosion-materiales": {
+      "get": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Explosión Materiales",
+          "MRP - Explosión Materiales"
+        ],
+        "summary": "Get Explosiones Materiales",
+        "operationId": "get_explosiones_materiales_api_v1_mrp_explosion_materiales_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plan_maestro_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Plan Maestro Id"
+            }
+          },
+          {
+            "name": "producto_componente_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Producto Componente Id"
+            }
+          },
+          {
+            "name": "nivel_bom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Nivel Bom"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExplosionMaterialesRead"
+                  },
+                  "title": "Response Get Explosiones Materiales Api V1 Mrp Explosion Materiales Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Explosión Materiales",
+          "MRP - Explosión Materiales"
+        ],
+        "summary": "Post Explosion Materiales",
+        "operationId": "post_explosion_materiales_api_v1_mrp_explosion_materiales_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExplosionMaterialesCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplosionMaterialesRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/explosion-materiales/{explosion_id}": {
+      "get": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Explosión Materiales",
+          "MRP - Explosión Materiales"
+        ],
+        "summary": "Get Explosion Materiales",
+        "operationId": "get_explosion_materiales_api_v1_mrp_explosion_materiales__explosion_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "explosion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Explosion Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplosionMaterialesRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Explosión Materiales",
+          "MRP - Explosión Materiales"
+        ],
+        "summary": "Put Explosion Materiales",
+        "operationId": "put_explosion_materiales_api_v1_mrp_explosion_materiales__explosion_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "explosion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Explosion Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExplosionMaterialesUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplosionMaterialesRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/ordenes-sugeridas": {
+      "get": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Órdenes Sugeridas",
+          "MRP - Órdenes Sugeridas"
+        ],
+        "summary": "Get Ordenes Sugeridas",
+        "operationId": "get_ordenes_sugeridas_api_v1_mrp_ordenes_sugeridas_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plan_maestro_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Plan Maestro Id"
+            }
+          },
+          {
+            "name": "producto_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Producto Id"
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Estado"
+            }
+          },
+          {
+            "name": "tipo_orden",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tipo Orden"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrdenSugeridaRead"
+                  },
+                  "title": "Response Get Ordenes Sugeridas Api V1 Mrp Ordenes Sugeridas Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Órdenes Sugeridas",
+          "MRP - Órdenes Sugeridas"
+        ],
+        "summary": "Post Orden Sugerida",
+        "operationId": "post_orden_sugerida_api_v1_mrp_ordenes_sugeridas_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrdenSugeridaCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrdenSugeridaRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/ordenes-sugeridas/{orden_sugerida_id}": {
+      "get": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Órdenes Sugeridas",
+          "MRP - Órdenes Sugeridas"
+        ],
+        "summary": "Get Orden Sugerida",
+        "operationId": "get_orden_sugerida_api_v1_mrp_ordenes_sugeridas__orden_sugerida_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orden_sugerida_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Orden Sugerida Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrdenSugeridaRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Órdenes Sugeridas",
+          "MRP - Órdenes Sugeridas"
+        ],
+        "summary": "Put Orden Sugerida",
+        "operationId": "put_orden_sugerida_api_v1_mrp_ordenes_sugeridas__orden_sugerida_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orden_sugerida_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Orden Sugerida Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrdenSugeridaUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrdenSugeridaRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/ordenes-sugeridas/{orden_sugerida_id}/aprobar": {
+      "post": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Órdenes Sugeridas",
+          "MRP - Órdenes Sugeridas"
+        ],
+        "summary": "Post Orden Sugerida Aprobar",
+        "operationId": "post_orden_sugerida_aprobar_api_v1_mrp_ordenes_sugeridas__orden_sugerida_id__aprobar_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orden_sugerida_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Orden Sugerida Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrdenSugeridaRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/ordenes-sugeridas/{orden_sugerida_id}/rechazar": {
+      "post": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Órdenes Sugeridas",
+          "MRP - Órdenes Sugeridas"
+        ],
+        "summary": "Post Orden Sugerida Rechazar",
+        "operationId": "post_orden_sugerida_rechazar_api_v1_mrp_ordenes_sugeridas__orden_sugerida_id__rechazar_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orden_sugerida_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Orden Sugerida Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrdenSugeridaRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mrp/ordenes-sugeridas/{orden_sugerida_id}/convertir": {
+      "post": {
+        "tags": [
+          "MRP - Planeamiento de Materiales",
+          "MRP - Órdenes Sugeridas",
+          "MRP - Órdenes Sugeridas"
+        ],
+        "summary": "Post Orden Sugerida Convertir",
+        "operationId": "post_orden_sugerida_convertir_api_v1_mrp_ordenes_sugeridas__orden_sugerida_id__convertir_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "orden_sugerida_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Orden Sugerida Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertirOrdenSugeridaBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrdenSugeridaRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ConvertirOrdenSugeridaBody": {
+        "properties": {
+          "documento_generado_tipo": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Documento Generado Tipo"
+          },
+          "documento_generado_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Documento Generado Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "documento_generado_tipo",
+          "documento_generado_id"
+        ],
+        "title": "ConvertirOrdenSugeridaBody"
+      },
+      "ExplosionMaterialesCreate": {
+        "properties": {
+          "plan_maestro_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plan Maestro Id"
+          },
+          "producto_padre_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Producto Padre Id"
+          },
+          "necesidad_padre_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Necesidad Padre Id"
+          },
+          "producto_componente_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Producto Componente Id"
+          },
+          "bom_detalle_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bom Detalle Id"
+          },
+          "nivel_bom": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Bom",
+            "default": 1
+          },
+          "cantidad_necesaria": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Cantidad Necesaria"
+          },
+          "unidad_medida_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unidad Medida Id"
+          },
+          "fecha_requerida": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Requerida"
+          },
+          "stock_actual": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Actual",
+            "default": 0
+          },
+          "stock_reservado": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Reservado",
+            "default": 0
+          },
+          "stock_transito": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Transito",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan_maestro_id",
+          "producto_padre_id",
+          "producto_componente_id",
+          "cantidad_necesaria",
+          "unidad_medida_id",
+          "fecha_requerida"
+        ],
+        "title": "ExplosionMaterialesCreate"
+      },
+      "ExplosionMaterialesRead": {
+        "properties": {
+          "explosion_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Explosion Id"
+          },
+          "cliente_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cliente Id"
+          },
+          "plan_maestro_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plan Maestro Id"
+          },
+          "producto_padre_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Producto Padre Id"
+          },
+          "necesidad_padre_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Necesidad Padre Id"
+          },
+          "producto_componente_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Producto Componente Id"
+          },
+          "bom_detalle_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bom Detalle Id"
+          },
+          "nivel_bom": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Bom"
+          },
+          "cantidad_necesaria": {
+            "type": "string",
+            "title": "Cantidad Necesaria"
+          },
+          "unidad_medida_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unidad Medida Id"
+          },
+          "fecha_requerida": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Requerida"
+          },
+          "stock_actual": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Actual"
+          },
+          "stock_reservado": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Reservado"
+          },
+          "stock_transito": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Transito"
+          },
+          "stock_disponible": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Disponible"
+          },
+          "cantidad_a_ordenar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad A Ordenar"
+          },
+          "fecha_calculo": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha Calculo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "explosion_id",
+          "cliente_id",
+          "plan_maestro_id",
+          "producto_padre_id",
+          "necesidad_padre_id",
+          "producto_componente_id",
+          "bom_detalle_id",
+          "nivel_bom",
+          "cantidad_necesaria",
+          "unidad_medida_id",
+          "fecha_requerida",
+          "stock_actual",
+          "stock_reservado",
+          "stock_transito",
+          "fecha_calculo"
+        ],
+        "title": "ExplosionMaterialesRead"
+      },
+      "ExplosionMaterialesUpdate": {
+        "properties": {
+          "plan_maestro_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Maestro Id"
+          },
+          "producto_padre_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Producto Padre Id"
+          },
+          "necesidad_padre_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Necesidad Padre Id"
+          },
+          "producto_componente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Producto Componente Id"
+          },
+          "bom_detalle_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bom Detalle Id"
+          },
+          "nivel_bom": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Bom"
+          },
+          "cantidad_necesaria": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Necesaria"
+          },
+          "unidad_medida_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Medida Id"
+          },
+          "fecha_requerida": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Requerida"
+          },
+          "stock_actual": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Actual"
+          },
+          "stock_reservado": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Reservado"
+          },
+          "stock_transito": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock Transito"
+          }
+        },
+        "type": "object",
+        "title": "ExplosionMaterialesUpdate"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "NecesidadBrutaCreate": {
+        "properties": {
+          "plan_maestro_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plan Maestro Id"
+          },
+          "producto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Producto Id"
+          },
+          "fecha_requerida": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Requerida"
+          },
+          "cantidad_requerida": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Cantidad Requerida"
+          },
+          "unidad_medida_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unidad Medida Id"
+          },
+          "origen": {
+            "type": "string",
+            "maxLength": 30,
+            "title": "Origen"
+          },
+          "documento_origen_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Origen Id"
+          },
+          "documento_origen_numero": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Origen Numero"
+          },
+          "prioridad": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prioridad",
+            "default": 3
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan_maestro_id",
+          "producto_id",
+          "fecha_requerida",
+          "cantidad_requerida",
+          "unidad_medida_id",
+          "origen"
+        ],
+        "title": "NecesidadBrutaCreate"
+      },
+      "NecesidadBrutaRead": {
+        "properties": {
+          "necesidad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Necesidad Id"
+          },
+          "cliente_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cliente Id"
+          },
+          "plan_maestro_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plan Maestro Id"
+          },
+          "producto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Producto Id"
+          },
+          "fecha_requerida": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Requerida"
+          },
+          "cantidad_requerida": {
+            "type": "string",
+            "title": "Cantidad Requerida"
+          },
+          "unidad_medida_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unidad Medida Id"
+          },
+          "origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen"
+          },
+          "documento_origen_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Origen Id"
+          },
+          "documento_origen_numero": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Origen Numero"
+          },
+          "prioridad": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prioridad"
+          },
+          "fecha_creacion": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha Creacion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "necesidad_id",
+          "cliente_id",
+          "plan_maestro_id",
+          "producto_id",
+          "fecha_requerida",
+          "cantidad_requerida",
+          "unidad_medida_id",
+          "origen",
+          "documento_origen_id",
+          "documento_origen_numero",
+          "prioridad",
+          "fecha_creacion"
+        ],
+        "title": "NecesidadBrutaRead"
+      },
+      "NecesidadBrutaUpdate": {
+        "properties": {
+          "plan_maestro_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Maestro Id"
+          },
+          "producto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Producto Id"
+          },
+          "fecha_requerida": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Requerida"
+          },
+          "cantidad_requerida": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Requerida"
+          },
+          "unidad_medida_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Medida Id"
+          },
+          "origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen"
+          },
+          "documento_origen_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Origen Id"
+          },
+          "documento_origen_numero": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Origen Numero"
+          },
+          "prioridad": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prioridad"
+          }
+        },
+        "type": "object",
+        "title": "NecesidadBrutaUpdate"
+      },
+      "OrdenSugeridaCreate": {
+        "properties": {
+          "plan_maestro_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plan Maestro Id"
+          },
+          "producto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Producto Id"
+          },
+          "tipo_orden": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Tipo Orden"
+          },
+          "cantidad_sugerida": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Cantidad Sugerida"
+          },
+          "unidad_medida_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unidad Medida Id"
+          },
+          "fecha_requerida": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Requerida"
+          },
+          "fecha_orden_sugerida": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Orden Sugerida"
+          },
+          "explosion_materiales_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explosion Materiales Id"
+          },
+          "proveedor_sugerido_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proveedor Sugerido Id"
+          },
+          "lead_time_dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Dias"
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado",
+            "default": "sugerida"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan_maestro_id",
+          "producto_id",
+          "tipo_orden",
+          "cantidad_sugerida",
+          "unidad_medida_id",
+          "fecha_requerida",
+          "fecha_orden_sugerida"
+        ],
+        "title": "OrdenSugeridaCreate"
+      },
+      "OrdenSugeridaRead": {
+        "properties": {
+          "orden_sugerida_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Orden Sugerida Id"
+          },
+          "cliente_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cliente Id"
+          },
+          "plan_maestro_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plan Maestro Id"
+          },
+          "producto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Producto Id"
+          },
+          "tipo_orden": {
+            "type": "string",
+            "title": "Tipo Orden"
+          },
+          "cantidad_sugerida": {
+            "type": "string",
+            "title": "Cantidad Sugerida"
+          },
+          "unidad_medida_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unidad Medida Id"
+          },
+          "fecha_requerida": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Requerida"
+          },
+          "fecha_orden_sugerida": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Orden Sugerida"
+          },
+          "explosion_materiales_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explosion Materiales Id"
+          },
+          "proveedor_sugerido_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proveedor Sugerido Id"
+          },
+          "lead_time_dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Dias"
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado"
+          },
+          "documento_generado_tipo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Generado Tipo"
+          },
+          "documento_generado_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Generado Id"
+          },
+          "fecha_conversion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Conversion"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          },
+          "fecha_creacion": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha Creacion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "orden_sugerida_id",
+          "cliente_id",
+          "plan_maestro_id",
+          "producto_id",
+          "tipo_orden",
+          "cantidad_sugerida",
+          "unidad_medida_id",
+          "fecha_requerida",
+          "fecha_orden_sugerida",
+          "explosion_materiales_id",
+          "proveedor_sugerido_id",
+          "lead_time_dias",
+          "estado",
+          "documento_generado_tipo",
+          "documento_generado_id",
+          "fecha_conversion",
+          "observaciones",
+          "fecha_creacion"
+        ],
+        "title": "OrdenSugeridaRead"
+      },
+      "OrdenSugeridaUpdate": {
+        "properties": {
+          "plan_maestro_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Maestro Id"
+          },
+          "producto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Producto Id"
+          },
+          "tipo_orden": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Orden"
+          },
+          "cantidad_sugerida": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Sugerida"
+          },
+          "unidad_medida_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Medida Id"
+          },
+          "fecha_requerida": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Requerida"
+          },
+          "fecha_orden_sugerida": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Orden Sugerida"
+          },
+          "explosion_materiales_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explosion Materiales Id"
+          },
+          "proveedor_sugerido_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proveedor Sugerido Id"
+          },
+          "lead_time_dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Dias"
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado"
+          },
+          "documento_generado_tipo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Generado Tipo"
+          },
+          "documento_generado_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Generado Id"
+          },
+          "fecha_conversion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Conversion"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          }
+        },
+        "type": "object",
+        "title": "OrdenSugeridaUpdate"
+      },
+      "PlanMaestroCreate": {
+        "properties": {
+          "empresa_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Empresa Id"
+          },
+          "codigo_plan": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Codigo Plan"
+          },
+          "nombre": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Nombre"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "fecha_inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Inicio"
+          },
+          "fecha_fin": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Fin"
+          },
+          "tipo_periodo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Periodo",
+            "default": "semanal"
+          },
+          "horizonte_planificacion_dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Horizonte Planificacion Dias",
+            "default": 90
+          },
+          "punto_reorden_dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Punto Reorden Dias",
+            "default": 15
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado",
+            "default": "borrador"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          }
+        },
+        "type": "object",
+        "required": [
+          "empresa_id",
+          "codigo_plan",
+          "nombre",
+          "fecha_inicio",
+          "fecha_fin"
+        ],
+        "title": "PlanMaestroCreate"
+      },
+      "PlanMaestroRead": {
+        "properties": {
+          "plan_maestro_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plan Maestro Id"
+          },
+          "cliente_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cliente Id"
+          },
+          "empresa_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Empresa Id"
+          },
+          "codigo_plan": {
+            "type": "string",
+            "title": "Codigo Plan"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "fecha_inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Inicio"
+          },
+          "fecha_fin": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Fin"
+          },
+          "tipo_periodo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Periodo"
+          },
+          "horizonte_planificacion_dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Horizonte Planificacion Dias"
+          },
+          "punto_reorden_dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Punto Reorden Dias"
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado"
+          },
+          "fecha_calculo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Calculo"
+          },
+          "fecha_aprobacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Aprobacion"
+          },
+          "total_productos_planificados": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Productos Planificados"
+          },
+          "total_requisiciones_generadas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Requisiciones Generadas"
+          },
+          "total_ordenes_sugeridas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Ordenes Sugeridas"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          },
+          "fecha_creacion": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha Creacion"
+          },
+          "usuario_creacion_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Creacion Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan_maestro_id",
+          "cliente_id",
+          "empresa_id",
+          "codigo_plan",
+          "nombre",
+          "descripcion",
+          "fecha_inicio",
+          "fecha_fin",
+          "tipo_periodo",
+          "horizonte_planificacion_dias",
+          "punto_reorden_dias",
+          "estado",
+          "fecha_calculo",
+          "fecha_aprobacion",
+          "total_productos_planificados",
+          "total_requisiciones_generadas",
+          "total_ordenes_sugeridas",
+          "observaciones",
+          "fecha_creacion",
+          "usuario_creacion_id"
+        ],
+        "title": "PlanMaestroRead"
+      },
+      "PlanMaestroUpdate": {
+        "properties": {
+          "codigo_plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Plan"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio"
+          },
+          "fecha_fin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Fin"
+          },
+          "tipo_periodo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Periodo"
+          },
+          "horizonte_planificacion_dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Horizonte Planificacion Dias"
+          },
+          "punto_reorden_dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Punto Reorden Dias"
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado"
+          },
+          "fecha_calculo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Calculo"
+          },
+          "fecha_aprobacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Aprobacion"
+          },
+          "total_productos_planificados": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Productos Planificados"
+          },
+          "total_requisiciones_generadas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Requisiciones Generadas"
+          },
+          "total_ordenes_sugeridas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Ordenes Sugeridas"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          }
+        },
+        "type": "object",
+        "title": "PlanMaestroUpdate"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -26,18 +26,17 @@ export const useBranding = (autoLoad: boolean = true) => {
     resetBranding: resetBrandingStore,
   } = useBrandingStoreWithTenant();
 
-  // Cargar branding automáticamente cuando el usuario se autentica
+  // Cargar branding automáticamente cuando el usuario se autentica.
+  // Solo depender de primitivos (tenantId, subdomain) para evitar recargas infinitas.
   useEffect(() => {
-    if (autoLoad && isAuthenticated && tenantId) {
+    if (!autoLoad) return;
+    if (isAuthenticated && tenantId) {
       loadBranding();
-    } else if (!isAuthenticated && autoLoad && !subdomain) {
-      // ✅ CORRECCIÓN: Solo resetear branding cuando el usuario cierra sesión
-      // PERO NO si hay un subdominio (modo pre-login), ya que el branding por subdominio
-      // debe persistir después del refresh
+    } else if (!isAuthenticated && !subdomain) {
       resetBrandingStore();
       resetBranding();
     }
-  }, [isAuthenticated, tenantId, subdomain, autoLoad, loadBranding, resetBrandingStore]);
+  }, [isAuthenticated, tenantId, subdomain, autoLoad]);
 
   // Aplicar branding cuando cambia
   useEffect(() => {

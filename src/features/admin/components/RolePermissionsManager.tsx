@@ -2,7 +2,7 @@
 import axios from 'axios';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
-import { Loader, AlertCircle } from 'lucide-react';
+import { Loader, AlertCircle, ChevronDown } from 'lucide-react';
 
 // --- Importar componentes de shadcn/ui ---
 import {
@@ -20,18 +20,19 @@ import { Checkbox } from "@/shared/components/ui/checkbox";
 // --- Importar servicios REALES ---
 import { menuService } from '../services/menu.service';
 import { permissionService } from '../services/permission.service';
-import { clienteModuloService } from '@/features/modulos/services/cliente-modulo.service';
-import { moduloV2Service } from '@/features/modulos/services/modulo-v2.service';
-import { seccionService } from '@/features/modulos/services/seccion.service';
+import { getPermisosCatalogo, getPermisosNegocioByRol, updatePermisosNegocioByRol } from '../services/permisos-negocio.service';
 
 // --- Importar Auth Context ---
 import { useAuth } from '@/shared/context/AuthContext';
 
 // --- Importar tipos REALES ---
-// Usamos SidebarMenuItem para el estado y la UI interna
-// Usamos BackendManageMenuItem para el tipo de datos que esperamos de la API
-import type { SidebarMenuItem, BackendManageMenuItem } from '../types/menu.types';
+import type { AuthMenuModulo, AuthMenuItem } from '@/core/auth/types/auth-menu.types';
+import type {
+  SidebarMenuItem,
+  BackendManageMenuItem,
+} from '../types/menu.types';
 import type { PermissionState } from '../types/permission.types';
+import type { PermisoCatalogoItem } from '../types/permisos-negocio.types';
 
 // --- Importar utilidades de iconos ---
 import { getIcon } from '@/shared/lib/icon-utils';
@@ -94,6 +95,47 @@ const transformApiMenuItem = (item: BackendManageMenuItem): SidebarMenuItem => {
     return transformedNode;
 };
 
+/** Convierte AuthMenuItem (desde /auth/menu) en SidebarMenuItem. */
+function authMenuItemToSidebarItem(
+  menu: AuthMenuItem,
+  seccionId: string,
+  seccionNombre: string,
+  parentId: string | null
+): SidebarMenuItem {
+  return {
+    menu_id: menu.menu_id,
+    nombre: menu.nombre,
+    icono: menu.icono ?? null,
+    ruta: menu.ruta ?? null,
+    orden: menu.orden ?? null,
+    level: 2,
+    es_activo: menu.permisos?.ver ?? true,
+    padre_menu_id: parentId,
+    area_id: seccionId,
+    area_nombre: seccionNombre,
+    children: (menu.submenus ?? []).map((child) =>
+      authMenuItemToSidebarItem(child, seccionId, seccionNombre, menu.menu_id)
+    ),
+  };
+}
+
+/** Convierte AuthMenuModulo[] (respuesta de getAuthMenu) en HierarchicalStructure[]. */
+function authModulosToHierarchical(modulos: AuthMenuModulo[]): HierarchicalStructure[] {
+  return modulos.map((mod) => ({
+    modulo_id: mod.modulo_id,
+    modulo_nombre: mod.nombre,
+    modulo_icono: mod.icono ?? null,
+    modulo_color: mod.color ?? null,
+    secciones: (mod.secciones || []).map((sec) => ({
+      seccion_id: sec.seccion_id,
+      seccion_nombre: sec.nombre,
+      seccion_icono: sec.icono ?? null,
+      menus: (sec.menus || []).map((menu) =>
+        authMenuItemToSidebarItem(menu, sec.seccion_id, sec.nombre, null)
+      ),
+    })),
+  }));
+}
 
 const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
   isOpen,
@@ -116,130 +158,19 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  /**
-   * ✅ ACTUALIZADO: Construir estructura jerárquica completa desde módulos activos del cliente
-   * Mantiene la estructura: Módulo → Sección → Menú → Submenú
-   */
-  const buildHierarchicalMenuFromClienteModulos = useCallback(async (clienteId: string): Promise<HierarchicalStructure[]> => {
-    try {
-      // 1. Obtener módulos activos del cliente
-      const clienteModulos = await clienteModuloService.getClienteModulosByClienteId(clienteId);
-      
-      if (clienteModulos.length === 0) {
-        if (import.meta.env.DEV) {
-          console.log(`ℹ️ Cliente ${clienteId} no tiene módulos activos`);
-        }
-        return [];
-      }
+  // --- Permisos de negocio (RBAC) - DOC_FRONTEND_ADMIN_PERMISOS_RBAC.md ---
+  const [advancedMenuExpanded, setAdvancedMenuExpanded] = useState<boolean>(false);
+  const [catalogo, setCatalogo] = useState<PermisoCatalogoItem[]>([]);
+  const [selectedPermisoIds, setSelectedPermisoIds] = useState<string[]>([]);
+  const [loadingNegocio, setLoadingNegocio] = useState<boolean>(false);
+  const [savingNegocio, setSavingNegocio] = useState<boolean>(false);
+  const [errorNegocio, setErrorNegocio] = useState<string | null>(null);
+  const [negocioLoaded, setNegocioLoaded] = useState<boolean>(false);
 
-      // 2. Obtener información completa de cada módulo activo
-      const moduloIds = clienteModulos.map(cm => cm.modulo_id);
-      const hierarchicalData: HierarchicalStructure[] = [];
-
-      await Promise.all(
-        moduloIds.map(async (moduloId) => {
-          try {
-            // Obtener detalles del módulo
-            const moduloResponse = await moduloV2Service.getModuloById(moduloId);
-            const moduloData = moduloResponse.data;
-            
-            // Obtener secciones del módulo
-            const seccionesData = await seccionService.getSecciones({
-              modulo_id: moduloId,
-              es_activa: true
-            });
-            
-            // Construir secciones con sus menús
-            const seccionesConMenus: Array<{
-              seccion_id: string;
-              seccion_nombre: string;
-              seccion_icono: string | null;
-              menus: SidebarMenuItem[];
-            }> = [];
-
-            for (const seccion of seccionesData.items) {
-              try {
-                // Obtener menús de la sección
-                const menusData = await menuService.getMenusByModulo(moduloId, seccion.seccion_id);
-                
-                // Transformar BackendManageMenuItem[] a SidebarMenuItem[]
-                const transformMenuToSidebarItem = (menu: BackendManageMenuItem, parentId: string | null = null): SidebarMenuItem => {
-                  const sidebarItem: SidebarMenuItem = {
-                    menu_id: menu.menu_id,
-                    nombre: menu.nombre,
-                    icono: menu.icono || null,
-                    ruta: menu.ruta || null,
-                    orden: menu.orden || null,
-                    level: menu.level || 1,
-                    es_activo: menu.es_activo,
-                    padre_menu_id: parentId,
-                    area_id: seccion.seccion_id,
-                    area_nombre: seccion.nombre,
-                    children: [],
-                  };
-
-                  // Transformar hijos recursivamente
-                  if (menu.children && Array.isArray(menu.children) && menu.children.length > 0) {
-                    sidebarItem.children = menu.children.map(child => transformMenuToSidebarItem(child, menu.menu_id));
-                  }
-
-                  return sidebarItem;
-                };
-                
-                const menuItems = menusData.map(menu => transformMenuToSidebarItem(menu, null));
-                
-                if (menuItems.length > 0) {
-                  seccionesConMenus.push({
-                    seccion_id: seccion.seccion_id,
-                    seccion_nombre: seccion.nombre,
-                    seccion_icono: seccion.icono,
-                    menus: menuItems,
-                  });
-                }
-              } catch (err) {
-                console.error(`Error obteniendo menús de sección ${seccion.seccion_id}:`, err);
-              }
-            }
-            
-            // Solo agregar módulo si tiene secciones con menús
-            if (seccionesConMenus.length > 0) {
-              hierarchicalData.push({
-                modulo_id: moduloData.modulo_id,
-                modulo_nombre: moduloData.nombre,
-                modulo_icono: moduloData.icono,
-                modulo_color: moduloData.color || null,
-                secciones: seccionesConMenus,
-              });
-            }
-          } catch (err) {
-            console.error(`Error obteniendo detalles del módulo ${moduloId}:`, err);
-          }
-        })
-      );
-      
-      if (import.meta.env.DEV) {
-        console.log(`✅ Estructura jerárquica construida para cliente ${clienteId}:`, {
-          totalModulos: hierarchicalData.length,
-          modulos: hierarchicalData.map(m => ({
-            nombre: m.modulo_nombre,
-            secciones: m.secciones.length,
-            menus: m.secciones.reduce((acc, s) => acc + s.menus.length, 0)
-          }))
-        });
-      }
-      
-      return hierarchicalData;
-    } catch (error) {
-      console.error('❌ Error construyendo menú jerárquico desde módulos de cliente:', error);
-      throw error;
-    }
-  }, []);
-
-  // --- Cargar datos (ACTUALIZADO: Usar módulos activos del cliente) ---
+  // --- Cargar datos: GET /auth/menu para estructura + permisos del rol para la pestaña avanzada ---
   const loadData = useCallback(async () => {
     if (!rolId) return;
-    
-    // ✅ Validar que tenemos cliente_id desde cualquier fuente
+
     if (!clienteId) {
       const errorMsg = 'No se pudo obtener el ID del cliente. Por favor, inicie sesión nuevamente.';
       setError(errorMsg);
@@ -256,9 +187,8 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
     try {
       console.log(`Cargando datos para rol ID: ${rolId}, cliente: ${clienteId}`);
 
-      // ✅ ACTUALIZADO: Construir menú desde módulos activos del cliente
       const [hierarchicalData, permissionsData] = await Promise.all([
-        buildHierarchicalMenuFromClienteModulos(clienteId),
+        menuService.getAuthMenu().then((res) => authModulosToHierarchical(res.modulos || [])),
         permissionService.getRolePermissions(rolId).catch((err) => {
           // Si falla obtener permisos, loggear el error pero continuar con permisos vacíos
           console.error('❌ [RolePermissionsManager] Error cargando permisos del rol:', err);
@@ -282,7 +212,7 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
       
       // También mantener menuTree plano para compatibilidad con el código existente
       const flatMenuItems: SidebarMenuItem[] = [];
-      hierarchicalData.forEach(modulo => {
+      (hierarchicalData || []).forEach(modulo => {
         modulo.secciones.forEach(seccion => {
           flatMenuItems.push(...seccion.menus);
         });
@@ -313,21 +243,110 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [rolId, clienteId, buildHierarchicalMenuFromClienteModulos]);
+  }, [rolId, clienteId]);
 
   // --- Efecto para cargar datos (sin cambios) ---
   useEffect(() => {
     if (isOpen && rolId) {
       loadData();
     } else {
-    setMenuTree([]);
-    setHierarchicalStructure([]);
-    setPermissions({});
-    setError(null);
-    setIsLoading(false);
-    setIsSaving(false);
+      setMenuTree([]);
+      setHierarchicalStructure([]);
+      setPermissions({});
+      setError(null);
+      setIsLoading(false);
+      setIsSaving(false);
+      setAdvancedMenuExpanded(false);
+      setCatalogo([]);
+      setSelectedPermisoIds([]);
+      setErrorNegocio(null);
+      setNegocioLoaded(false);
     }
   }, [isOpen, rolId, loadData]);
+
+  // --- Cargar datos de permisos de negocio al abrir el modal ---
+  const loadNegocioData = useCallback(async () => {
+    if (!rolId) return;
+    setLoadingNegocio(true);
+    setErrorNegocio(null);
+    try {
+      const [catalogoResult, roleResult] = await Promise.allSettled([
+        getPermisosCatalogo(),
+        getPermisosNegocioByRol(rolId),
+      ]);
+      const catalogoData = catalogoResult.status === 'fulfilled' ? catalogoResult.value : [];
+      const roleData = roleResult.status === 'fulfilled' ? roleResult.value : [];
+      setCatalogo(Array.isArray(catalogoData) ? catalogoData : []);
+
+      if (roleResult.status === 'rejected') {
+        const err = roleResult.reason;
+        if (axios.isAxiosError(err) && err.response?.status === 403) {
+          setErrorNegocio('No tiene permiso para ver o editar los permisos de negocio de este rol. El backend requiere el permiso admin.rol.leer (y admin.rol.actualizar para guardar).');
+          setSelectedPermisoIds([]);
+        } else {
+          const msg = err instanceof Error ? err.message : 'Error al cargar los permisos asignados al rol.';
+          setErrorNegocio(msg);
+          toast.error(msg);
+          setSelectedPermisoIds([]);
+        }
+      } else {
+        const permisosList = Array.isArray(roleData) ? roleData : [];
+        const assignedIds = permisosList.map((p: Record<string, unknown>) =>
+          String(p.permiso_id ?? p.permisoId ?? p.id ?? '')
+        ).filter(Boolean);
+        setSelectedPermisoIds(assignedIds);
+        if (import.meta.env.DEV && assignedIds.length > 0) {
+          console.log('[Permisos negocio] IDs asignados al rol (checkboxes marcados):', assignedIds);
+        }
+      }
+
+      if ((!Array.isArray(catalogoData) || catalogoData.length === 0) && roleResult.status !== 'rejected') {
+        setErrorNegocio('El catálogo de permisos no está disponible (404). Verifique que el backend exponga GET /api/v1/permisos-catalogo/.');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al cargar permisos de negocio.';
+      setErrorNegocio(msg);
+      toast.error(msg);
+    } finally {
+      setLoadingNegocio(false);
+      setNegocioLoaded(true);
+    }
+  }, [rolId]);
+
+  useEffect(() => {
+    if (isOpen && rolId && !negocioLoaded && !loadingNegocio) {
+      loadNegocioData();
+    }
+  }, [isOpen, rolId, negocioLoaded, loadingNegocio, loadNegocioData]);
+
+  const togglePermisoNegocio = (permisoId: string) => {
+    const id = String(permisoId);
+    setSelectedPermisoIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const getPermisoId = (p: { permiso_id?: string; permisoId?: string; id?: string }) =>
+    String((p as Record<string, unknown>).permiso_id ?? (p as Record<string, unknown>).permisoId ?? (p as Record<string, unknown>).id ?? '');
+
+  const isPermisoNegocioChecked = (permisoId: string) =>
+    selectedPermisoIds.includes(String(permisoId));
+
+  const handleSavePermisosNegocio = async () => {
+    setSavingNegocio(true);
+    setErrorNegocio(null);
+    try {
+      await updatePermisosNegocioByRol(rolId, { permiso_ids: selectedPermisoIds });
+      toast.success(`Permisos de negocio para el rol "${rolName}" actualizados.`);
+      onPermissionsUpdate?.();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al guardar permisos de negocio.';
+      setErrorNegocio(msg);
+      toast.error(msg);
+    } finally {
+      setSavingNegocio(false);
+    }
+  };
 
   // --- Handler para cambiar SOLO el permiso 'ver' (sin cambios) ---
   const handleViewPermissionChange = (menuId: string, checked: boolean) => {
@@ -453,92 +472,166 @@ const RolePermissionsManager: React.FC<RolePermissionsManagerProps> = ({
 
   // --- Renderizado del Componente (sin cambios estructurales) ---
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && !isSaving && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isSaving && !savingNegocio && onClose()}>
       <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col dark:bg-gray-800">
         <DialogHeader>
-          <DialogTitle className="text-gray-900 dark:text-white">Gestionar Visibilidad para Rol: <span className="font-bold">{rolName}</span></DialogTitle>
+          <DialogTitle className="text-gray-900 dark:text-white">Gestionar permisos para rol: <span className="font-bold">{rolName}</span></DialogTitle>
           <DialogDescription className="dark:text-gray-400">
-            Selecciona los menús que este rol podrá visualizar. Estructura: Módulo → Sección → Menú → Submenú.
+            El menú y los accesos se configuran automáticamente según los permisos. Aquí defines los permisos de negocio del rol; la configuración avanzada de menú es opcional.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-grow overflow-y-auto pr-2 py-4 space-y-4">
-          {/* Indicadores de carga y error */}
-          {isLoading && (
-            <div className="flex justify-center items-center h-40">
-              <Loader className="animate-spin h-8 w-8 text-brand-primary" />
-              <p className="ml-3 text-gray-500 dark:text-gray-400">Cargando estructura y permisos...</p>
-            </div>
-          )}
-          {!isLoading && error && !isSaving && (
-             <div className="flex justify-center items-center h-40 text-center text-red-600 dark:text-red-400">
-                <AlertCircle className="h-6 w-6 mr-2"/> {error}
-             </div>
-          )}
-          {/* Mensajes si no hay datos */}
-          {!isLoading && !error && hierarchicalStructure.length === 0 && (
-             <div className="flex justify-center items-center h-40 text-gray-500 dark:text-gray-400">
-                No se encontró la estructura del menú o no hay módulos activos con menús definidos.
-             </div>
-          )}
-          {/* ✅ NUEVO: Renderizado jerárquico completo (Módulo → Sección → Menú → Submenú) */}
-          {!isLoading && !error && hierarchicalStructure.length > 0 && (
-            <div className="space-y-6">
-              {hierarchicalStructure.map((modulo) => (
-                <div key={modulo.modulo_id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
-                  {/* Encabezado del Módulo */}
-                  <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-300 dark:border-gray-600">
-                    <div className="flex-shrink-0" style={{ color: modulo.modulo_color || '#1976D2' }}>
-                      {getIcon(modulo.modulo_icono, Package, { size: 24 })}
-                    </div>
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                      {modulo.modulo_nombre}
-                    </h2>
-                  </div>
-                  
-                  {/* Secciones del Módulo */}
-                  <div className="space-y-4 pl-2">
-                    {modulo.secciones.map((seccion) => (
-                      <div key={seccion.seccion_id} className="border-l-2 border-gray-300 dark:border-gray-600 pl-4">
-                        {/* Encabezado de la Sección */}
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="flex-shrink-0 text-gray-600 dark:text-gray-400">
-                            {getIcon(seccion.seccion_icono, Folder, { size: 20 })}
-                          </div>
-                          <h3 className="text-md font-semibold text-gray-700 dark:text-gray-300">
-                            {seccion.seccion_nombre}
-                          </h3>
-                        </div>
-                        
-                        {/* Menús de la Sección */}
-                        <div className="space-y-1 pl-2">
-                          {seccion.menus.map((menu) => renderMenuNode(menu, 0))}
-                        </div>
+          {/* Sección principal: Permisos de negocio */}
+          <section aria-labelledby="permisos-negocio-heading">
+            <h2 id="permisos-negocio-heading" className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              Permisos de negocio
+            </h2>
+            {loadingNegocio && (
+              <div className="flex justify-center items-center h-40">
+                <Loader className="animate-spin h-8 w-8 text-brand-primary" />
+                <p className="ml-3 text-gray-500 dark:text-gray-400">Cargando catálogo y permisos del rol...</p>
+              </div>
+            )}
+            {!loadingNegocio && errorNegocio && (
+              <div className="flex justify-center items-center h-40 text-center text-red-600 dark:text-red-400">
+                <AlertCircle className="h-6 w-6 mr-2"/> {errorNegocio}
+              </div>
+            )}
+            {!loadingNegocio && !errorNegocio && catalogo.length === 0 && negocioLoaded && (
+              <div className="flex justify-center items-center h-40 text-gray-500 dark:text-gray-400">
+                No hay permisos en el catálogo.
+              </div>
+            )}
+            {!loadingNegocio && !errorNegocio && catalogo.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  Marque los permisos que este rol debe tener. Definen qué acciones puede ejecutar en el sistema (API).
+                </p>
+                <div className="max-h-[50vh] overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-900/50 space-y-2">
+                  {catalogo.map((perm) => {
+                    const pid = getPermisoId(perm);
+                    return (
+                      <div key={pid || perm.codigo} className="flex items-start gap-3 py-1.5">
+                        <Checkbox
+                          id={`negocio-${pid}`}
+                          checked={!!pid && isPermisoNegocioChecked(pid)}
+                          onCheckedChange={() => pid && togglePermisoNegocio(pid)}
+                          disabled={savingNegocio}
+                          aria-label={perm.nombre ?? perm.codigo}
+                          className="mt-0.5 dark:border-gray-500 dark:data-[state=checked]:bg-brand-primary dark:data-[state=checked]:border-brand-primary"
+                        />
+                        <label htmlFor={`negocio-${pid}`} className="text-sm text-gray-800 dark:text-gray-200 cursor-pointer flex-1">
+                          <span className="font-medium">{perm.nombre ?? perm.codigo}</span>
+                          {perm.codigo && perm.nombre !== perm.codigo && (
+                            <span className="text-gray-500 dark:text-gray-400 ml-1">({perm.codigo})</span>
+                          )}
+                        </label>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            )}
+          </section>
+
+          {/* Acordeón: Configuración avanzada de menú */}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setAdvancedMenuExpanded(!advancedMenuExpanded)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800/50 text-left transition-colors"
+              aria-expanded={advancedMenuExpanded}
+            >
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Configuración avanzada de menú
+              </span>
+              <ChevronDown className={`w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform ${advancedMenuExpanded ? 'rotate-180' : ''}`} />
+            </button>
+            {advancedMenuExpanded && (
+              <div className="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  Opcional. Controla qué ítems de menú ve este rol y qué acciones tiene en cada pantalla (ver, crear, editar, eliminar).
+                </p>
+                {isLoading && (
+                  <div className="flex justify-center items-center h-40">
+                    <Loader className="animate-spin h-8 w-8 text-brand-primary" />
+                    <p className="ml-3 text-gray-500 dark:text-gray-400">Cargando estructura y permisos...</p>
+                  </div>
+                )}
+                {!isLoading && error && !isSaving && (
+                  <div className="flex justify-center items-center h-40 text-center text-red-600 dark:text-red-400">
+                    <AlertCircle className="h-6 w-6 mr-2"/> {error}
+                  </div>
+                )}
+                {!isLoading && !error && hierarchicalStructure.length === 0 && (
+                  <div className="flex justify-center items-center h-40 text-gray-500 dark:text-gray-400">
+                    No se encontró la estructura del menú o no hay módulos activos con menús definidos.
+                  </div>
+                )}
+                {!isLoading && !error && hierarchicalStructure.length > 0 && (
+                  <>
+                    <div className="space-y-6">
+                      {hierarchicalStructure.map((modulo) => (
+                        <div key={modulo.modulo_id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
+                          <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-300 dark:border-gray-600">
+                            <div className="flex-shrink-0" style={{ color: modulo.modulo_color || '#1976D2' }}>
+                              {getIcon(modulo.modulo_icono, Package, { size: 24 })}
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{modulo.modulo_nombre}</h3>
+                          </div>
+                          <div className="space-y-4 pl-2">
+                            {modulo.secciones.map((seccion) => (
+                              <div key={seccion.seccion_id} className="border-l-2 border-gray-300 dark:border-gray-600 pl-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="flex-shrink-0 text-gray-600 dark:text-gray-400">
+                                    {getIcon(seccion.seccion_icono, Folder, { size: 20 })}
+                                  </div>
+                                  <h4 className="text-md font-semibold text-gray-700 dark:text-gray-300">{seccion.seccion_nombre}</h4>
+                                </div>
+                                <div className="space-y-1 pl-2">
+                                  {seccion.menus.map((menu) => renderMenuNode(menu, 0))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <Button
+                        type="button"
+                        onClick={handleSaveChanges}
+                        disabled={isLoading || isSaving || hierarchicalStructure.length === 0}
+                        className="bg-brand-primary hover:bg-brand-primary-hover text-white disabled:opacity-50"
+                      >
+                        {isSaving && <Loader className="animate-spin h-4 w-4 mr-2" />}
+                        {isSaving ? 'Guardando...' : 'Guardar permisos de menú'}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Footer con Botones (sin cambios) */}
+        {/* Footer: Cancelar + Guardar permisos de negocio */}
         <DialogFooter className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
-           {error && isSaving && <p className="text-sm text-red-600 dark:text-red-400 mr-auto">{error}</p>}
+          {errorNegocio && savingNegocio && <p className="text-sm text-red-600 dark:text-red-400 mr-auto">{errorNegocio}</p>}
           <DialogClose asChild>
-            <Button variant="outline" onClick={onClose} disabled={isSaving} className="dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700">
+            <Button variant="outline" onClick={onClose} disabled={isSaving || savingNegocio} className="dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700">
               Cancelar
             </Button>
           </DialogClose>
           <Button
             type="button"
-            onClick={handleSaveChanges}
-            disabled={isLoading || isSaving || hierarchicalStructure.length === 0}
+            onClick={handleSavePermisosNegocio}
+            disabled={loadingNegocio || savingNegocio}
             className="bg-brand-primary hover:bg-brand-primary-hover text-white disabled:opacity-50"
           >
-            {isSaving && <Loader className="animate-spin h-4 w-4 mr-2" />}
-            {isSaving ? 'Guardando...' : 'Guardar Visibilidad'} {/* Texto del botón actualizado */}
+            {savingNegocio && <Loader className="animate-spin h-4 w-4 mr-2" />}
+            {savingNegocio ? 'Guardando...' : 'Guardar permisos de negocio'}
           </Button>
         </DialogFooter>
       </DialogContent>

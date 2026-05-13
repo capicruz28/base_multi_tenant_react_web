@@ -13,8 +13,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import { moduloV2Service } from '@/features/modulos/services/modulo-v2.service';
-import { seccionService } from '@/features/modulos/services/seccion.service';
 import { menuService } from '@/features/admin/services/menu.service';
+import type { AuthMenuModulo, AuthMenuItem } from '@/core/auth/types/auth-menu.types';
 import type { ModuloV2 } from '@/features/modulos/types/modulo-v2.types';
 import type { Seccion } from '@/features/modulos/types/seccion.types';
 import type { BackendManageMenuItem } from '@/features/admin/types/menu.types';
@@ -32,6 +32,46 @@ interface HierarchicalNode {
   es_activo?: boolean;
   children: HierarchicalNode[];
   data?: ModuloV2 | Seccion | BackendManageMenuItem;
+}
+
+/** Convierte AuthMenuItem (desde /auth/menu) en HierarchicalNode (recursivo por submenus). */
+function authMenuItemToNode(menu: AuthMenuItem): HierarchicalNode {
+  return {
+    id: menu.menu_id,
+    type: 'menu',
+    nombre: menu.nombre,
+    icono: menu.icono ?? null,
+    ruta: menu.ruta ?? null,
+    es_activo: menu.is_visible && menu.is_enabled,
+    children: (menu.submenus ?? []).map(authMenuItemToNode),
+    data: menu as unknown as BackendManageMenuItem,
+  };
+}
+
+/** Convierte AuthMenuModulo[] (respuesta de getAuthMenu) en HierarchicalNode[]. */
+function authModulosToHierarchicalNodes(
+  modulos: AuthMenuModulo[],
+  filterModuloId?: string
+): HierarchicalNode[] {
+  const list = filterModuloId ? modulos.filter((m) => m.modulo_id === filterModuloId) : modulos;
+  return list.map((mod) => ({
+    id: mod.modulo_id,
+    type: 'modulo' as const,
+    nombre: mod.nombre,
+    icono: mod.icono ?? null,
+    color: mod.color ?? null,
+    es_activo: true,
+    children: (mod.secciones || []).map((sec) => ({
+      id: sec.seccion_id,
+      type: 'seccion' as const,
+      nombre: sec.nombre,
+      icono: sec.icono ?? null,
+      es_activo: true,
+      children: (sec.menus || []).map(authMenuItemToNode),
+      data: sec as unknown as Seccion,
+    })),
+    data: mod as unknown as ModuloV2,
+  }));
 }
 
 const HierarchicalViewPage: React.FC = () => {
@@ -58,7 +98,7 @@ const HierarchicalViewPage: React.FC = () => {
     }
   }, []);
 
-  // Cargar estructura jerárquica completa
+  // Cargar estructura jerárquica desde GET /auth/menu
   const fetchHierarchicalData = useCallback(async () => {
     if (!isAuthenticated || authLoading) {
       return;
@@ -68,107 +108,19 @@ const HierarchicalViewPage: React.FC = () => {
     setError(null);
 
     try {
-      const modulosData = await moduloV2Service.getModulos({ es_activo: true });
-      const hierarchicalNodes: HierarchicalNode[] = [];
-
-      // ✅ Validación defensiva
-      const modulosItems = Array.isArray(modulosData.items) ? modulosData.items : [];
-      for (const modulo of modulosItems) {
-        // Filtrar por módulo si está seleccionado
-        if (selectedModuloId && modulo.modulo_id !== selectedModuloId) {
-          continue;
-        }
-
-        const moduloNode: HierarchicalNode = {
-          id: modulo.modulo_id,
-          type: 'modulo',
-          nombre: modulo.nombre,
-          icono: modulo.icono,
-          color: modulo.color,
-          es_activo: modulo.es_activo,
-          children: [],
-          data: modulo
-        };
-
-        // Cargar secciones del módulo
-        try {
-          const seccionesData = await seccionService.getSecciones({
-            modulo_id: modulo.modulo_id,
-            es_activa: true
-          });
-
-          // ✅ Validación defensiva
-          const seccionesItems = Array.isArray(seccionesData.items) ? seccionesData.items : [];
-          for (const seccion of seccionesItems) {
-            const seccionNode: HierarchicalNode = {
-              id: seccion.seccion_id,
-              type: 'seccion',
-              nombre: seccion.nombre,
-              icono: seccion.icono,
-              es_activo: seccion.es_activa,
-              children: [],
-              data: seccion
-            };
-
-            // Cargar menús de la sección usando el endpoint correcto
-            try {
-              // ✅ ACTUALIZADO: Usar getMenusByModulo con filtro de sección
-              const menusData = await menuService.getMenusByModulo(modulo.modulo_id, seccion.seccion_id);
-              
-              // ✅ Validación defensiva
-              const menusArray = Array.isArray(menusData) ? menusData : [];
-              
-              const transformMenuToNode = (menu: BackendManageMenuItem): HierarchicalNode => {
-                const menuNode: HierarchicalNode = {
-                  id: menu.menu_id,
-                  type: 'menu',
-                  nombre: menu.nombre,
-                  icono: menu.icono,
-                  ruta: menu.ruta,
-                  es_activo: menu.es_activo,
-                  children: [],
-                  data: menu
-                };
-
-                if (menu.children && Array.isArray(menu.children) && menu.children.length > 0) {
-                  menuNode.children = menu.children.map(transformMenuToNode);
-                }
-
-                return menuNode;
-              };
-
-              seccionNode.children = menusArray.map(transformMenuToNode);
-            } catch (err: any) {
-              // Si el endpoint retorna 404/500, simplemente no mostrar menús para esta sección
-              if (err?.response?.status === 404 || err?.response?.status === 500) {
-                if (import.meta.env.DEV) {
-                  console.warn(`⚠️ No se pudieron cargar menús para sección ${seccion.seccion_id} del módulo ${modulo.modulo_id}:`, err?.response?.status);
-                }
-                seccionNode.children = [];
-              } else {
-                console.error(`Error cargando menús de sección ${seccion.seccion_id}:`, err);
-              }
-            }
-
-            moduloNode.children.push(seccionNode);
-          }
-        } catch (err) {
-          console.error(`Error cargando secciones de módulo ${modulo.modulo_id}:`, err);
-        }
-
-        hierarchicalNodes.push(moduloNode);
-      }
+      const response = await menuService.getAuthMenu();
+      const hierarchicalNodes = authModulosToHierarchicalNodes(
+        response.modulos || [],
+        selectedModuloId || undefined
+      );
 
       setHierarchicalData(hierarchicalNodes);
-      
-      // Expandir todos los nodos por defecto
+
       const allNodeIds = new Set<string>();
       const collectIds = (nodes: HierarchicalNode[]) => {
-        nodes.forEach(node => {
+        nodes.forEach((node) => {
           allNodeIds.add(node.id);
-          if (node.children.length > 0) {
-            collectIds(node.children);
-          }
+          if (node.children.length > 0) collectIds(node.children);
         });
       };
       collectIds(hierarchicalNodes);

@@ -1,9 +1,15 @@
 import { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/shared/context/ThemeContext';
+import { NavModeProvider } from '@/shared/context/NavModeContext';
 import { AuthProvider } from '@/shared/context/AuthContext';
+import { AuthGate } from '@/core/auth/AuthGate';
+import { PermissionProvider } from '@/core/auth/PermissionContext';
+import { useAuth } from '@/shared/context/AuthContext';
+import { usePermission } from '@/core/auth/PermissionContext';
 import { TenantProvider } from '@/features/tenant/components/TenantContext';
 import { BrandingInitializer } from '@/shared/components/BrandingInitializer';
+import LoadingSpinner from '@/shared/components/LoadingSpinner';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
@@ -22,17 +28,40 @@ const queryClient = new QueryClient({
   },
 });
 
+function AppReadyGate({ children }: { children: ReactNode }) {
+  const { loading: authLoading } = useAuth();
+  const { loading: permissionLoading } = usePermission();
+
+  const appReady = !authLoading && !permissionLoading;
+
+  if (!appReady) {
+    return <LoadingSpinner fullScreen message="Inicializando sesión..." />;
+  }
+
+  return <>{children}</>;
+}
+
+// Orden exacto para evitar reinicialización: Auth → Tenant → Permission.
+// Sin keys en estos providers para que no se desmonten al cambiar estado.
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <TenantProvider>
-            <BrandingInitializer />
-            <DndProvider backend={HTML5Backend}>
-              {children}
-            </DndProvider>
-          </TenantProvider>
+          <AuthGate>
+            <TenantProvider>
+              <PermissionProvider>
+                <AppReadyGate>
+                  <BrandingInitializer />
+                  <DndProvider backend={HTML5Backend}>
+                    <NavModeProvider>
+                      {children}
+                    </NavModeProvider>
+                  </DndProvider>
+                </AppReadyGate>
+              </PermissionProvider>
+            </TenantProvider>
+          </AuthGate>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

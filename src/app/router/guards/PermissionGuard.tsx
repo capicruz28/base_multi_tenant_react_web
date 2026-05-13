@@ -2,7 +2,7 @@
  * PermissionGuard - Guard para proteger rutas con permisos granulares (LBAC)
  * 
  * Verifica que el usuario tenga el permiso específico antes de renderizar la ruta.
- * Basado en la tabla rol_menu_permiso de la BD.
+ * Usa permissions del AuthContext (derivados desde GET /auth/menu).
  * 
  * @example
  * ```tsx
@@ -18,6 +18,7 @@
  */
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '@/shared/context/AuthContext';
 import { usePermissions } from '@/core/auth/hooks/usePermissions';
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 import type { PermissionAction } from '@/core/auth/types/permission.types';
@@ -53,6 +54,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   children,
   redirectTo = '/unauthorized',
 }) => {
+  const { accessLevel } = useAuth();
   const { can, loading, isSuperAdmin } = usePermissions();
   const location = useLocation();
 
@@ -61,8 +63,8 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
     return <LoadingSpinner fullScreen message="Verificando permisos..." />;
   }
 
-  // Super admin siempre tiene acceso
-  if (isSuperAdmin) {
+  // Super admin y admin tenant tienen acceso completo (el menú /me/ ya filtra por módulos contratados)
+  if (isSuperAdmin || accessLevel >= 4) {
     return <>{children || <Outlet />}</>;
   }
 

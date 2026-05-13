@@ -10,6 +10,11 @@ const SectionManagementPage = lazy(() => import('./modulos/pages/SectionManageme
 const MenuManagementPageSuperAdmin = lazy(() => import('./modulos/pages/MenuManagementPageSuperAdmin'));
 const RoleTemplateManagementPage = lazy(() => import('./modulos/pages/RoleTemplateManagementPage'));
 const HierarchicalViewPage = lazy(() => import('./modulos/pages/HierarchicalViewPage'));
+const PaisesPage = lazy(() => import('./catalogos/pages/PaisesPage'));
+const DepartamentosPage = lazy(() => import('./catalogos/pages/DepartamentosPage'));
+const ProvinciasPage = lazy(() => import('./catalogos/pages/ProvinciasPage'));
+const DistritosPage = lazy(() => import('./catalogos/pages/DistritosPage'));
+const MonedasPage = lazy(() => import('./catalogos/pages/MonedasPage'));
 
 export const superAdminRoutes: RouteObject = {
   path: 'super-admin',
@@ -76,6 +81,46 @@ export const superAdminRoutes: RouteObject = {
       element: (
         <Suspense fallback={<LoadingSpinner message="Cargando vista jerárquica..." />}>
           <HierarchicalViewPage />
+        </Suspense>
+      ),
+    },
+    {
+      path: 'catalogos/paises',
+      element: (
+        <Suspense fallback={<LoadingSpinner message="Cargando Países..." />}>
+          <PaisesPage />
+        </Suspense>
+      ),
+    },
+    {
+      path: 'catalogos/departamentos',
+      element: (
+        <Suspense fallback={<LoadingSpinner message="Cargando Departamentos..." />}>
+          <DepartamentosPage />
+        </Suspense>
+      ),
+    },
+    {
+      path: 'catalogos/provincias',
+      element: (
+        <Suspense fallback={<LoadingSpinner message="Cargando Provincias..." />}>
+          <ProvinciasPage />
+        </Suspense>
+      ),
+    },
+    {
+      path: 'catalogos/distritos',
+      element: (
+        <Suspense fallback={<LoadingSpinner message="Cargando Distritos..." />}>
+          <DistritosPage />
+        </Suspense>
+      ),
+    },
+    {
+      path: 'catalogos/monedas',
+      element: (
+        <Suspense fallback={<LoadingSpinner message="Cargando Monedas..." />}>
+          <MonedasPage />
         </Suspense>
       ),
     },

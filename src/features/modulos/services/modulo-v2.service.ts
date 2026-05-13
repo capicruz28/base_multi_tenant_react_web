@@ -33,7 +33,10 @@ export const moduloV2Service = {
         if (filters.codigo) params.append('codigo', filters.codigo);
         if (filters.nombre) params.append('nombre', filters.nombre);
         if (filters.categoria) params.append('categoria', filters.categoria);
-        if (filters.es_activo !== undefined) params.append('es_activo', filters.es_activo.toString());
+        // ✅ CORREGIDO: El backend espera 'solo_activos' en lugar de 'es_activo'
+        if (filters.es_activo !== undefined) {
+          params.append('solo_activos', filters.es_activo.toString());
+        }
         if (filters.skip !== undefined) params.append('skip', filters.skip.toString());
         if (filters.limit !== undefined) params.append('limit', filters.limit.toString());
       }

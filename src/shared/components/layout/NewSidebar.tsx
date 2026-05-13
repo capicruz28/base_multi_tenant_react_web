@@ -9,20 +9,13 @@ import { Popover } from 'react-tiny-popover';
 import * as LucideIcons from 'lucide-react';
 import { useBranding } from '../../../features/tenant/hooks/useBranding';
 
-import { menuService } from '@/features/admin/services/menu.service';
-import { clienteModuloService } from '@/features/modulos/services/cliente-modulo.service';
-import { seccionService } from '@/features/modulos/services/seccion.service';
-import { moduloV2Service } from '@/features/modulos/services/modulo-v2.service'; 
-import type { 
-  SidebarMenuItem, 
-  SidebarProps, 
+import type {
+  SidebarMenuItem,
+  SidebarProps,
   PopoverContentProps,
-  ModuloConSecciones,
-  MenuConPermisos,
-  BackendManageMenuItem,
-} from '@/features/admin/types/menu.types'; 
-// ✅ MODIFICADO: Cambiar importación para usar el selector dinámico
-import { getMenuItemsByUserType } from './MenuSelector';
+} from '@/features/admin/types/menu.types';
+import type { AuthMenuModulo, AuthMenuItem } from '@/core/auth/types/auth-menu.types';
+import { useAdminMenuItems } from './MenuSelector';
 
 // --- CLASES Y UTILIDADES COMUNES ---
 const baseIconClasses = "w-5 h-5 text-current opacity-100 inline-block"; 
@@ -101,21 +94,17 @@ const PopoverContent: React.FC<PopoverContentProps> = React.memo(({
                                 }
                             }}
                             className={`
-                                flex items-start p-2.5 rounded-md transition-colors duration-150 group
+                                flex items-center px-3 py-2 rounded-md transition-colors duration-150 group relative
                                 ${hasValidRoute ? 'cursor-pointer' : 'cursor-default'}
                                 ${isChildActive 
-                                    ? 'bg-brand-primary/10 dark:bg-gray-700 text-brand-primary dark:text-brand-primary font-medium' 
+                                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium before:content-[""] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-[60%] before:w-[3px] before:bg-blue-600 dark:before:bg-blue-500 before:rounded-r-sm' 
                                     : hasValidRoute 
-                                    ? 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                    : 'text-gray-500 dark:text-gray-400'
+                                    ? 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                    : 'text-gray-400 dark:text-gray-500'
                                 }
                             `}
                             title={child.nombre}
                         >
-                            <span className={`
-                                w-1.5 h-1.5 rounded-full mr-3 flex-shrink-0 mt-1.5
-                                ${isChildActive ? 'bg-brand-primary' : 'bg-gray-400 dark:bg-gray-500'}
-                            `}></span>
                             <span className="text-sm leading-relaxed min-w-0 flex-1 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                                 {child.nombre}
                             </span>
@@ -143,28 +132,122 @@ const PopoverContent: React.FC<PopoverContentProps> = React.memo(({
     );
 });
 
+/** Códigos de módulos de administración: no se muestran como módulos de producto (solo en AdminSection). */
+const ADMIN_MODULE_CODES = new Set<string>(['SYS_ADMIN', 'ADMIN_SYSTEM', 'ADMINISTRACION']);
+
+/** Convierte AuthMenuModulo[] (desde /auth/menu vía AuthContext) en SidebarMenuItem[]. Filtra por is_visible && is_enabled únicamente. */
+function transformAuthMenuToSidebarItems(modulos: AuthMenuModulo[]): SidebarMenuItem[] {
+    const items: SidebarMenuItem[] = [];
+    for (const modulo of modulos) {
+        const moduloItem: SidebarMenuItem = {
+            menu_id: `modulo-${modulo.modulo_id}`,
+            nombre: modulo.nombre,
+            icono: modulo.icono,
+            ruta: null,
+            orden: modulo.orden,
+            level: 0,
+            es_activo: true,
+            padre_menu_id: null,
+            area_id: modulo.modulo_id,
+            area_nombre: modulo.nombre,
+            children: [],
+        };
+        for (const seccion of modulo.secciones || []) {
+            const seccionItem: SidebarMenuItem = {
+                menu_id: `seccion-${seccion.seccion_id}`,
+                nombre: seccion.nombre,
+                icono: seccion.icono,
+                ruta: null,
+                orden: seccion.orden,
+                level: 1,
+                es_activo: true,
+                padre_menu_id: moduloItem.menu_id,
+                area_id: modulo.modulo_id,
+                area_nombre: modulo.nombre,
+                children: [],
+            };
+            for (const menu of seccion.menus || []) {
+                if (!menu.is_visible || !menu.is_enabled) continue;
+                const menuItem: SidebarMenuItem = {
+                    menu_id: menu.menu_id,
+                    nombre: menu.nombre,
+                    icono: menu.icono,
+                    ruta: menu.ruta,
+                    orden: menu.orden,
+                    level: 2,
+                    es_activo: true,
+                    padre_menu_id: seccionItem.menu_id,
+                    area_id: modulo.modulo_id,
+                    area_nombre: modulo.nombre,
+                    children: (menu.submenus || [])
+                        .filter((sub: AuthMenuItem) => sub.is_visible && sub.is_enabled)
+                        .map((sub: AuthMenuItem) => ({
+                            menu_id: sub.menu_id,
+                            nombre: sub.nombre,
+                            icono: sub.icono,
+                            ruta: sub.ruta,
+                            orden: sub.orden,
+                            level: 3,
+                            es_activo: true,
+                            padre_menu_id: menu.menu_id,
+                            area_id: modulo.modulo_id,
+                            area_nombre: modulo.nombre,
+                            children: [],
+                        })),
+                };
+                seccionItem.children.push(menuItem);
+            }
+            if (seccionItem.children.length > 0) {
+                moduloItem.children.push(seccionItem);
+            }
+        }
+        if (moduloItem.children.length > 0) {
+            items.push(moduloItem);
+        }
+    }
+    const sortByOrder = (list: SidebarMenuItem[]): SidebarMenuItem[] =>
+        [...list]
+            .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
+            .map((item) => ({ ...item, children: sortByOrder(item.children || []) }));
+    return sortByOrder(items);
+}
+
 const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
-    const { isDarkMode, toggleDarkMode } = useTheme();
-    const { logout, isSuperAdmin, accessLevel, auth, clienteInfo } = useAuth(); // ✅ AGREGAR clienteInfo para obtener cliente_id
+    const { isDarkMode } = useTheme();
+    const { auth, menuModulos, userType } = useAuth();
+    const { items: adminMenuItems } = useAdminMenuItems();
     const { setBreadcrumbs } = useBreadcrumb();
     const navigate = useNavigate();
     const location = useLocation();
     const currentPath = location.pathname;
-    const { branding } = useBranding(); // ✅ NUEVO: Obtener branding
-    
-    // ✅ NUEVO: Estado para estructura jerárquica
-    const [, setModulosMenu] = useState<ModuloConSecciones[]>([]);
-    // ⚠️ MANTENER temporalmente para compatibilidad con código antiguo
-    const [menuItems, setMenuItems] = useState<SidebarMenuItem[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const { branding } = useBranding();
+
+    // Menú de producto desde GET /auth/menu (excluye SYS_ADMIN, ADMIN_SYSTEM, ADMINISTRACION)
+    const menuItems = useMemo(
+        () =>
+            menuModulos
+                ? transformAuthMenuToSidebarItems(
+                      menuModulos.filter((m) => !ADMIN_MODULE_CODES.has(m.codigo ?? ''))
+                  )
+                : [],
+        [menuModulos]
+    );
+    const normalizedMenu = menuItems;
+
+    if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.log('MENU FROM AUTH (modulos):', menuModulos);
+        // eslint-disable-next-line no-console
+        console.log('MENU RENDER FINAL:', normalizedMenu);
+    }
+    const menuLoading = !!auth.user && menuModulos === null;
 
     // ✅ ACTUALIZADO: Inicializar vacío para que todo esté colapsado por defecto
     const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
     const [popoverItem, setPopoverItem] = useState<SidebarMenuItem | null>(null);
-    const [nestedPopover, setNestedPopover] = useState<string | null>(null); 
-
+    const [nestedPopover, setNestedPopover] = useState<string | null>(null);
+    
     // ✅ ACTUALIZADO: Función para buscar breadcrumb incluyendo módulos y secciones
     const findBreadcrumbPath = useCallback((
         items: SidebarMenuItem[], 
@@ -173,8 +256,12 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
     ): Array<{nombre: string, ruta?: string | null}> | null => {
         for (const item of items) {
             const itemPath = item.ruta ? (item.ruta.startsWith('/') ? item.ruta : `/${item.ruta}`) : '#';
-            // ✅ ACTUALIZADO: Incluir módulos y secciones (sin ruta) en el breadcrumb
-            const newBreadcrumb = [...currentBreadcrumb, { nombre: item.nombre, ruta: item.ruta || null }];
+            // Saltar el nivel de sección (menu_id empieza con 'seccion-') para que el
+            // breadcrumb muestre Módulo → Ítem de menú, sin el nodo intermedio "Principal".
+            const isSection = item.menu_id.startsWith('seccion-');
+            const newBreadcrumb = isSection
+                ? currentBreadcrumb
+                : [...currentBreadcrumb, { nombre: item.nombre, ruta: item.ruta || null }];
             
             // Si el item tiene ruta y coincide exactamente con el path actual
             if (item.ruta && itemPath === targetPath) {
@@ -202,9 +289,8 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         // 1. Buscar breadcrumb en la estructura jerárquica de módulos (funciona para todos los usuarios)
         let breadcrumb = findBreadcrumbPath(menuItems, currentPath);
         
-        // 2. Si no se encuentra y es admin, buscar en el menú estático de administración
-        if (!breadcrumb && (isSuperAdmin || accessLevel >= 4)) {
-            const adminMenuItems = getMenuItemsByUserType(isSuperAdmin, accessLevel >= 4);
+        // 2. Si no se encuentra y hay menú de administración, intentar resolver ahí
+        if (!breadcrumb && adminMenuItems.length > 0) {
             const adminItem = adminMenuItems.find(item => {
                 if (item.isSeparator) return false;
                 const itemPath = item.ruta ? (item.ruta.startsWith('/') ? item.ruta : `/${item.ruta}`) : '#';
@@ -212,8 +298,11 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
             });
             
             if (adminItem) {
+                const adminTitle = (adminItem.ruta ?? '').startsWith('/super-admin')
+                    ? 'Administración Global'
+                    : 'Administración General';
                 breadcrumb = [
-                    { nombre: isSuperAdmin ? 'Administración Global' : 'Administración', ruta: null }, 
+                    { nombre: adminTitle, ruta: null },
                     { nombre: adminItem.nombre, ruta: adminItem.ruta || null }
                 ];
             }
@@ -225,7 +314,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         } else {
             setBreadcrumbs([]);
         }
-    }, [currentPath, menuItems, isSuperAdmin, accessLevel, findBreadcrumbPath, setBreadcrumbs]);
+    }, [currentPath, menuItems, adminMenuItems, findBreadcrumbPath, setBreadcrumbs]);
 
     const handleNavigate = useCallback((path: string) => {
         const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -266,326 +355,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         });
     }, []);
 
-    /**
-     * ✅ NUEVO: Construir estructura jerárquica desde módulos activos del cliente
-     * Flujo: Cliente → Módulos Activos → Secciones → Menús → Submenús
-     */
-    const buildHierarchicalMenuFromClienteModulos = useCallback(async (clienteId: string): Promise<ModuloConSecciones[]> => {
-        try {
-            // 1. Obtener módulos activos del cliente
-            const clienteModulos = await clienteModuloService.getClienteModulosByClienteId(clienteId);
-            
-            if (clienteModulos.length === 0) {
-                if (import.meta.env.DEV) {
-                    console.log(`ℹ️ Cliente ${clienteId} no tiene módulos activos`);
-                }
-                return [];
-            }
-
-            // 2. Obtener información completa de cada módulo activo
-            const moduloIds = clienteModulos.map(cm => cm.modulo_id);
-            const modulosCompletos = await Promise.all(
-                moduloIds.map(async (moduloId) => {
-                    try {
-                        // Obtener detalles del módulo
-                        const moduloResponse = await moduloV2Service.getModuloById(moduloId);
-                        const moduloData = moduloResponse.data; // ✅ Extraer data de la respuesta
-                        
-                        // Obtener secciones del módulo (limit alto para sidebar: no paginar en memoria)
-                        const seccionesData = await seccionService.getSecciones({
-                            modulo_id: moduloId,
-                            es_activa: true,
-                            limit: 200,
-                            skip: 0
-                        });
-                        
-                        // Construir secciones con sus menús
-                        const seccionesConMenus = await Promise.all(
-                            seccionesData.items.map(async (seccion) => {
-                                try {
-                                    // Obtener menús de la sección
-                                    const menusData = await menuService.getMenusByModulo(moduloId, seccion.seccion_id);
-                                    
-                                    // Transformar BackendManageMenuItem[] a MenuConPermisos[]
-                                    const transformMenuToMenuConPermisos = (menu: BackendManageMenuItem): MenuConPermisos => {
-                                        return {
-                                            menu_id: menu.menu_id,
-                                            codigo: menu.menu_id, // Usar menu_id como código temporal
-                                            nombre: menu.nombre,
-                                            icono: menu.icono || '',
-                                            ruta: menu.ruta || '',
-                                            nivel: menu.level || 1,
-                                            tipo_menu: 'pantalla',
-                                            orden: menu.orden || 0,
-                                            permisos: {
-                                                ver: menu.es_activo,
-                                                crear: false,
-                                                editar: false,
-                                                eliminar: false,
-                                                exportar: false,
-                                                imprimir: false,
-                                                aprobar: false,
-                                            },
-                                            submenus: menu.children?.map(transformMenuToMenuConPermisos) || [],
-                                        };
-                                    };
-                                    
-                                    const menus = menusData.map(transformMenuToMenuConPermisos);
-                                    
-                                    return {
-                                        seccion_id: seccion.seccion_id,
-                                        codigo: seccion.codigo,
-                                        nombre: seccion.nombre,
-                                        icono: seccion.icono,
-                                        orden: seccion.orden,
-                                        menus: menus,
-                                    };
-                                } catch (err) {
-                                    console.error(`Error obteniendo menús de sección ${seccion.seccion_id}:`, err);
-                                    return {
-                                        seccion_id: seccion.seccion_id,
-                                        codigo: seccion.codigo,
-                                        nombre: seccion.nombre,
-                                        icono: seccion.icono,
-                                        orden: seccion.orden,
-                                        menus: [],
-                                    };
-                                }
-                            })
-                        );
-                        
-                        return {
-                            modulo_id: moduloData.modulo_id,
-                            codigo: moduloData.codigo,
-                            nombre: moduloData.nombre,
-                            icono: moduloData.icono,
-                            color: moduloData.color || '#1976D2',
-                            categoria: moduloData.categoria || '',
-                            orden: moduloData.orden,
-                            secciones: seccionesConMenus.filter(s => s.menus.length > 0), // Solo secciones con menús
-                        };
-                    } catch (err) {
-                        console.error(`Error obteniendo detalles del módulo ${moduloId}:`, err);
-                        return null;
-                    }
-                })
-            );
-            
-            // Filtrar módulos nulos y ordenar por orden
-            const modulosValidos = modulosCompletos
-                .filter((m): m is ModuloConSecciones => m !== null && m.secciones.length > 0)
-                .sort((a, b) => (a.orden || 0) - (b.orden || 0));
-            
-            if (import.meta.env.DEV) {
-                console.log(`✅ Estructura jerárquica construida para cliente ${clienteId}:`, {
-                    totalModulos: modulosValidos.length,
-                    modulos: modulosValidos.map(m => ({
-                        nombre: m.nombre,
-                        secciones: m.secciones.length,
-                        menus: m.secciones.reduce((acc, s) => acc + s.menus.length, 0)
-                    }))
-                });
-            }
-            
-            return modulosValidos;
-        } catch (error) {
-            console.error(`Error construyendo menú jerárquico para cliente ${clienteId}:`, error);
-            throw error;
-        }
-    }, []);
-
-    // ✅ ACTUALIZADO: Fetch data usando el endpoint correcto según el tipo de usuario
-    useEffect(() => {
-        const fetchData = async () => {
-            // Solo cargar menú si el usuario está autenticado
-            if (!auth.user?.usuario_id) {
-                setLoading(false);
-                return;
-            }
-
-            const clienteId = clienteInfo?.cliente_id || auth.user?.cliente_id;
-            const usuarioId = auth.user.usuario_id;
-
-            setLoading(true);
-            setError(null);
-            try {
-                let modulos: ModuloConSecciones[] = [];
-
-                // ✅ NUEVO: Determinar qué endpoint usar según el tipo de usuario
-                // Usuario normal (no superadmin ni tenant admin) usa endpoint con roles y permisos
-                const isNormalUser = !isSuperAdmin && accessLevel < 4;
-                
-                if (isNormalUser) {
-                    // ✅ Usuario normal: usar endpoint que filtra por roles y permisos
-                    if (import.meta.env.DEV) {
-                        console.log('👤 [NewSidebar] Usuario normal detectado, usando endpoint con roles y permisos');
-                    }
-                    modulos = await menuService.getUserMenu(usuarioId, clienteId || undefined);
-                } else {
-                    // ✅ SuperAdmin o Tenant Admin: construir desde módulos activos del cliente
-                    if (!clienteId) {
-                        if (import.meta.env.DEV) {
-                            console.warn('⚠️ [NewSidebar] SuperAdmin/TenantAdmin sin cliente_id, no se puede construir menú');
-                        }
-                        setLoading(false);
-                        return;
-                    }
-                    
-                    if (import.meta.env.DEV) {
-                        console.log('👑 [NewSidebar] SuperAdmin/TenantAdmin detectado, construyendo desde módulos activos');
-                    }
-                    modulos = await buildHierarchicalMenuFromClienteModulos(clienteId);
-                }
-
-                setModulosMenu(modulos);
-                
-                // ✅ Transformar a estructura jerárquica completa para el sidebar
-                const transformedItems = transformModulosToSidebarItems(modulos);
-                setMenuItems(transformedItems);
-            } catch (err: any) {
-                console.error('❌ Error fetching sidebar data:', err);
-                
-                // ✅ FALLBACK: Si falla, intentar método antiguo
-                const isServerError = err?.response?.status === 500 || err?.response?.status >= 500;
-                if (isServerError) {
-                    if (import.meta.env.DEV) {
-                        console.warn('⚠️ [NewSidebar] Endpoint principal falló, usando método antiguo como fallback');
-                    }
-                    
-                    try {
-                        // Fallback al método antiguo
-                        const oldMenuItems = await menuService.getSidebarMenu();
-                        setMenuItems(oldMenuItems);
-                        setModulosMenu([]);
-                        setError(null);
-                    } catch (fallbackError) {
-                        console.error('❌ Error en fallback también:', fallbackError);
-                        setError(`No se pudieron cargar los datos del menú. El servidor puede estar experimentando problemas.`);
-                        setModulosMenu([]);
-                        setMenuItems([]);
-                    }
-                } else {
-                    setError(`No se pudieron cargar los datos del menú. Intente recargar.`);
-                    setModulosMenu([]);
-                    setMenuItems([]);
-                }
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, [clienteInfo?.cliente_id, auth.user?.cliente_id, auth.user?.usuario_id, isSuperAdmin, accessLevel, buildHierarchicalMenuFromClienteModulos]);
-
-    /**
-     * ✅ NUEVO: Función de transformación que preserva la estructura jerárquica completa
-     * Convierte ModuloConSecciones[] a SidebarMenuItem[] con estructura: Módulo → Sección → Menú → Submenú
-     * Todo estará colapsado por defecto
-     */
-    const transformModulosToSidebarItems = useCallback((modulos: ModuloConSecciones[]): SidebarMenuItem[] => {
-        const items: SidebarMenuItem[] = [];
-        
-        modulos.forEach(modulo => {
-            // Crear item de módulo (sin ruta, solo para expandir/colapsar)
-            const moduloItem: SidebarMenuItem = {
-                menu_id: `modulo-${modulo.modulo_id}`, // ID único para módulo
-                nombre: modulo.nombre,
-                icono: modulo.icono,
-                ruta: null, // Módulo no tiene ruta, solo expande/colapsa
-                orden: modulo.orden,
-                level: 0, // Nivel 0 = módulo
-                es_activo: true,
-                padre_menu_id: null,
-                area_id: modulo.modulo_id,
-                area_nombre: modulo.nombre,
-                children: [], // Se llenará con secciones
-            };
-            
-            // Procesar secciones del módulo
-            modulo.secciones.forEach(seccion => {
-                // Crear item de sección (sin ruta, solo para expandir/colapsar)
-                const seccionItem: SidebarMenuItem = {
-                    menu_id: `seccion-${seccion.seccion_id}`, // ID único para sección
-                    nombre: seccion.nombre,
-                    icono: seccion.icono,
-                    ruta: null, // Sección no tiene ruta, solo expande/colapsa
-                    orden: seccion.orden,
-                    level: 1, // Nivel 1 = sección
-                    es_activo: true,
-                    padre_menu_id: moduloItem.menu_id,
-                    area_id: modulo.modulo_id,
-                    area_nombre: modulo.nombre,
-                    children: [], // Se llenará con menús
-                };
-                
-                // Procesar menús de la sección
-                seccion.menus.forEach(menu => {
-                    // Solo incluir menús con permiso "ver"
-                    if (!menu.permisos.ver) return;
-                    
-                    // Crear item de menú (con ruta)
-                    const menuItem: SidebarMenuItem = {
-                        menu_id: menu.menu_id,
-                        nombre: menu.nombre,
-                        icono: menu.icono,
-                        ruta: menu.ruta,
-                        orden: menu.orden,
-                        level: 2, // Nivel 2 = menú
-                        es_activo: true,
-                        padre_menu_id: seccionItem.menu_id,
-                        area_id: modulo.modulo_id,
-                        area_nombre: modulo.nombre,
-                        children: [], // Se llenará con submenús
-                    };
-                    
-                    // Procesar submenús
-                    if (menu.submenus && menu.submenus.length > 0) {
-                        menuItem.children = menu.submenus
-                            .filter(submenu => submenu.permisos.ver) // Solo submenús con permiso ver
-                            .map(submenu => ({
-                                menu_id: submenu.menu_id,
-                                nombre: submenu.nombre,
-                                icono: submenu.icono,
-                                ruta: submenu.ruta,
-                                orden: submenu.orden,
-                                level: 3, // Nivel 3 = submenú
-                                es_activo: true,
-                                padre_menu_id: menuItem.menu_id,
-                                area_id: modulo.modulo_id,
-                                area_nombre: modulo.nombre,
-                                children: [], // Los submenús no tienen hijos por ahora
-                            }));
-                    }
-                    
-                    seccionItem.children.push(menuItem);
-                });
-                
-                // Solo agregar sección si tiene menús visibles
-                if (seccionItem.children.length > 0) {
-                    moduloItem.children.push(seccionItem);
-                }
-            });
-            
-            // Solo agregar módulo si tiene secciones con menús visibles
-            if (moduloItem.children.length > 0) {
-                items.push(moduloItem);
-            }
-        });
-        
-        // Ordenar por orden
-        const sortByOrder = (items: SidebarMenuItem[]): SidebarMenuItem[] => {
-            return items
-                .sort((a, b) => (a.orden || 0) - (b.orden || 0))
-                .map(item => ({
-                    ...item,
-                    children: item.children ? sortByOrder(item.children) : []
-                }));
-        };
-        
-        return sortByOrder(items);
-    }, []);
-
-    // ✅ ACTUALIZADO: Expandir automáticamente solo los padres del path actual
+    // Expandir automáticamente solo los padres del path actual
     // Esto permite que el usuario vea dónde está sin expandir todo
     useEffect(() => {
         const findAndExpandParents = (
@@ -616,13 +386,12 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
             return found;
         };
 
-        // ✅ ACTUALIZADO: Solo expandir los padres del path actual, no todo
         const newExpanded = new Set<string>();
         if (menuItems.length > 0 && currentPath && currentPath !== '/') {
             findAndExpandParents(menuItems, currentPath, newExpanded);
         }
         setExpandedItems(newExpanded);
-        
+
     }, [menuItems, currentPath, getItemIdentifier]);
 
     const collapsedWidthClass = 'w-[72px]';
@@ -635,12 +404,12 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         const isActive = exactMatch ? currentPath === normalizedPath : currentPath.startsWith(normalizedPath);
         
         return `
-            flex items-center p-2.5 rounded-lg relative
+            flex items-center px-3 py-2 rounded-lg relative
             ${isCollapsed ? 'justify-center' : 'w-full'}
             ${transitionClass}
             ${isActive
-                ? 'bg-brand-primary/10 dark:bg-gray-700 text-brand-primary font-medium before:content-[""] before:absolute before:left-0 before:top-0 before:h-full before:w-1 before:bg-brand-primary before:rounded-lg'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium before:content-[""] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-[60%] before:w-[3px] before:bg-blue-600 dark:before:bg-blue-500 before:rounded-r-sm'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
             }
         `;
     }, [currentPath, isCollapsed, transitionClass]);
@@ -706,9 +475,9 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                             className={`
                                 flex items-center justify-center p-2 rounded-lg flex-shrink-0 w-8
                                 ${transitionClass}
-                                ${isExpanded || isChildActive
-                                    ? 'bg-gray-100 dark:bg-gray-700 text-brand-primary dark:text-brand-primary'
-                                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                ${isChildActive
+                                    ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400'
+                                    : 'text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'
                                 }
                             `}
                             title={isExpanded ? 'Colapsar' : 'Expandir'}
@@ -728,11 +497,11 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                 <button
                     onClick={() => toggleExpanded(itemIdentifier)}
                     className={`
-                        flex items-center p-2.5 rounded-lg w-full text-left
+                        flex items-center px-3 py-2 rounded-lg w-full text-left relative
                         ${transitionClass} ${indentClass}
-                        ${isExpanded || isChildActive
-                            ? 'bg-gray-100 dark:bg-gray-700 font-semibold text-brand-primary dark:text-brand-primary' 
-                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ${isChildActive
+                            ? 'bg-blue-50 dark:bg-blue-900/20 font-medium text-blue-600 dark:text-blue-400 before:content-[""] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-[60%] before:w-[3px] before:bg-blue-600 dark:before:bg-blue-500 before:rounded-r-sm' 
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                         }
                     `}
                     title={item.nombre}
@@ -747,6 +516,17 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
 
 
     const renderMenuItem = useCallback((item: SidebarMenuItem, level: number = 0) => {
+        // Skip section nodes (level 1, menu_id "seccion-*"): render their children
+        // directly at this level so the "Principal" intermediate row is never shown.
+        if (String(item.menu_id).startsWith('seccion-')) {
+            if (!item.children || item.children.length === 0) return null;
+            return (
+                <React.Fragment key={String(item.menu_id)}>
+                    {item.children.map(child => renderMenuItem(child, level))}
+                </React.Fragment>
+            );
+        }
+
         const itemIdentifier = getItemIdentifier(item);
         const hasChildren = item.children && item.children.length > 0;
         const rawPath = item.ruta || '#';
@@ -755,11 +535,17 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         const isExpanded = expandedItems.has(itemIdentifier);
         
         const isChildActive = hasChildren && item.children?.some(child => {
-            if (!child.ruta) return false;
-            const childPath = child.ruta.startsWith('/') ? child.ruta : `/${child.ruta}`;
-            return currentPath.startsWith(childPath);
+            if (child.ruta) {
+                const childPath = child.ruta.startsWith('/') ? child.ruta : `/${child.ruta}`;
+                if (currentPath === childPath || currentPath.startsWith(childPath + '/')) return true;
+            }
+            return child.children?.some(grandchild => {
+                if (!grandchild.ruta) return false;
+                const grandchildPath = grandchild.ruta.startsWith('/') ? grandchild.ruta : `/${grandchild.ruta}`;
+                return currentPath === grandchildPath || currentPath.startsWith(grandchildPath + '/');
+            }) ?? false;
         });
-        const isDirectlyActive = hasValidRoute && currentPath.startsWith(itemPath);
+        const isDirectlyActive = hasValidRoute && (currentPath === itemPath || currentPath.startsWith(itemPath + '/'));
         const isActive = isDirectlyActive || isChildActive; 
 
         // ✅ MEJORADO: Indentación basada en el nivel jerárquico (reducida para mejor UX)
@@ -771,6 +557,14 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
 
         // 1. Colapsado con hijos (Popover)
         if (isCollapsed && hasChildren) {
+            // Flatten section children so the popover skips the "Principal" row
+            const flatChildren = item.children?.flatMap(child =>
+                String(child.menu_id).startsWith('seccion-')
+                    ? (child.children || [])
+                    : [child]
+            ) ?? [];
+            const popoverItem_ = flatChildren.length > 0 ? { ...item, children: flatChildren } : item;
+
              return (
                 <div key={itemIdentifier}>
                   <Popover
@@ -781,7 +575,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                     containerStyle={{ zIndex: '50' }}
                     content={() => (
                       <PopoverContent
-                        item={item}
+                        item={popoverItem_}
                         nestedPopover={nestedPopover} 
                         setNestedPopover={setNestedPopover}
                         handleNavigate={handleNavigate}
@@ -793,7 +587,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                     <button
                       className={`
                         ${getLinkClasses(itemPath)}
-                        ${isActive ? 'bg-brand-primary/10 dark:bg-gray-700 text-brand-primary dark:text-brand-primary' : ''}
+                        ${isActive ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium' : ''}
                       `}
                       title={item.nombre}
                       onMouseEnter={() => handleMouseEnter(item)}
@@ -879,15 +673,12 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         renderLinkContent
     ]);
 
-    // ✅ ACTUALIZADO: Renderizar estructura jerárquica completa (Módulo → Sección → Menú → Submenú)
+    // ✅ FASE 1: Renderizar estructura jerárquica completa con filtrado de búsqueda
     // Todo estará colapsado por defecto, solo se expandirá automáticamente el path actual
     const renderDynamicMenu = useMemo(() => {
-        // Usar menuItems que ya tiene la estructura jerárquica transformada
-        // (Módulo → Sección → Menú → Submenú)
         if (menuItems.length === 0) {
             return null;
         }
-
         return (
             <div className="space-y-1">
                 {menuItems.map(item => renderMenuItem(item, 0))}
@@ -895,78 +686,83 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         );
     }, [menuItems, renderMenuItem]);
 
-    // Renderizado estático del menú de administración (MODIFICADO)
-    const renderAdminStaticMenu = useMemo(() => {
-    // ✅ CORREGIDO: Pasar los parámetros correctos
-    const adminMenuItems = getMenuItemsByUserType(
-        isSuperAdmin, 
-        accessLevel >= 4 // tenant admin
+    // ✅ RBAC Wave 3: separar ítems por access_level (global vs tenant).
+    // Filtro solo por ruta: los separadores tienen ruta del primer menú de su sección,
+    // así "Administración del Tenant" (ruta /admin/...) no entra en global.
+    const globalAdminItems = useMemo(
+        () => adminMenuItems.filter((item) => (item.ruta ?? '').startsWith('/super-admin')),
+        [adminMenuItems]
     );
-    
-    // ✅ CORREGIDO: Si no hay items de administración para este usuario, no renderizar nada
-    if (adminMenuItems.length === 0) {
-        return null;
-    }
+    const tenantAdminItems = useMemo(
+        () => adminMenuItems.filter((item) => (item.ruta ?? '').startsWith('/admin')),
+        [adminMenuItems]
+    );
 
-    return (
-        <div className="mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
-            {!isCollapsed && (
-                <div className="mb-2 pl-2">
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-brand-primary dark:text-brand-primary flex items-center gap-2">
-                        <LucideIcons.Shield className="w-4 h-4" />
-                        {isSuperAdmin ? 'Administración Global' : 'Administración'}
-                    </h2>
-                </div>
-            )}
-            
-            {isCollapsed && (
-                <div className="mb-3 px-1">
-                    <div className="p-2 flex items-center justify-center text-brand-primary dark:text-brand-primary">
-                        <LucideIcons.Shield className="w-5 h-5" />
+    const renderAdminBlock = useCallback(
+        (title: string, items: typeof adminMenuItems) => {
+            if (items.length === 0) return null;
+            return (
+                <div className="mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
+                    {!isCollapsed && (
+                        <div className="mb-2 pl-2">
+                            <h2 className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                                {title}
+                            </h2>
+                        </div>
+                    )}
+                    {isCollapsed && (
+                        <div className="mb-3 px-1">
+                            <div className="p-2 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                                <LucideIcons.Shield className="w-4 h-4" />
+                            </div>
+                        </div>
+                    )}
+                    <div className="space-y-1">
+                        {items.map((item) => {
+                            if (item.isSeparator) {
+                                if (isCollapsed) return null;
+                                return (
+                                    <h3
+                                        key={item.menu_id}
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1 pl-2 mt-3"
+                                    >
+                                        {item.nombre}
+                                    </h3>
+                                );
+                            }
+                            const IconComponent = getIcon(item.icono, LucideIcons.LayoutDashboard);
+                            return (
+                                <NavLink
+                                    key={item.menu_id}
+                                    to={item.ruta || '#'}
+                                    className={getLinkClasses(item.ruta || '#', true)}
+                                    title={item.nombre}
+                                    end={true}
+                                >
+                                    {IconComponent}
+                                    {!isCollapsed && (
+                                        <span className="ml-3 text-sm flex-1 truncate leading-relaxed" title={item.nombre}>
+                                            {item.nombre}
+                                        </span>
+                                    )}
+                                </NavLink>
+                            );
+                        })}
                     </div>
                 </div>
-            )}
-            
-            <div className="space-y-1">
-                {adminMenuItems.map((item) => {
-                    if (item.isSeparator) { 
-                        if (isCollapsed) return null; 
-                        return (
-                            <h3 
-                                key={item.menu_id}
-                                className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2 pl-2 mt-4"
-                            >
-                                {item.nombre}
-                            </h3>
-                        );
-                    }
-                    
-                    const IconComponent = getIcon(item.icono, LucideIcons.LayoutDashboard);
-
-                    return (
-                        <NavLink
-                            key={item.menu_id}
-                            to={item.ruta || '#'}
-                            className={getLinkClasses(item.ruta || '#', true)}
-                            title={item.nombre}
-                            end={true}
-                        >
-                            {IconComponent}
-                            {!isCollapsed && (
-                                <span 
-                                    className="ml-3 text-sm flex-1 truncate leading-relaxed" 
-                                    title={item.nombre}
-                                >
-                                    {item.nombre}
-                                </span>
-                            )}
-                        </NavLink>
-                    );
-                })}
-            </div>
-        </div>
+            );
+        },
+        [isCollapsed, getLinkClasses]
     );
-}, [isCollapsed, getLinkClasses, isSuperAdmin, accessLevel]);
+
+    const renderAdminGlobalMenu = useMemo(
+        () => (userType === 'platform_admin' ? renderAdminBlock('Administración Global', globalAdminItems) : null),
+        [userType, renderAdminBlock, globalAdminItems]
+    );
+    const renderAdminTenantMenu = useMemo(
+        () => (userType === 'tenant_admin' ? renderAdminBlock('Administración General', tenantAdminItems) : null),
+        [userType, renderAdminBlock, tenantAdminItems]
+    );
 
     return (
         <div 
@@ -978,6 +774,13 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
             `}
             onMouseLeave={handleMouseLeave} 
         >
+            {/* Scrollbar delgada — webkit + dark mode */}
+            <style>{`
+              .sidebar-thin-scroll::-webkit-scrollbar { width: 4px; }
+              .sidebar-thin-scroll::-webkit-scrollbar-track { background: transparent; }
+              .sidebar-thin-scroll::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.15); border-radius: 4px; }
+              .dark .sidebar-thin-scroll::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,0.15); }
+            `}</style>
             
             <div className={`
                 flex items-center h-16 flex-shrink-0 border-b border-gray-200 dark:border-gray-800
@@ -1030,96 +833,56 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                 </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2 scrollbar-thumb-rounded scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600">
-                {loading && (
+
+            <div
+                className="flex-1 overflow-y-auto p-2 sidebar-thin-scroll"
+                style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: isDarkMode
+                        ? 'rgba(255,255,255,0.15) transparent'
+                        : 'rgba(0,0,0,0.15) transparent',
+                }}
+            >
+                {menuLoading && (
                     <div className={`p-4 flex flex-col items-center justify-center text-center ${widthClass}`}>
                         <LucideIcons.Loader2 className="w-6 h-6 animate-spin text-brand-primary" />
                         <span className="mt-2 text-sm text-gray-500 dark:text-gray-400">Cargando...</span>
                     </div>
                 )}
 
-                {error && (
-                    <div className={`p-4 flex flex-col items-center text-center ${widthClass}`}>
-                        <LucideIcons.AlertCircle className="w-6 h-6 text-red-500" />
-                        <span className="mt-2 text-sm text-red-500">{error}</span>
-                    </div>
-                )}
-
-                {!loading && !error && (
+                {!menuLoading && (
                     <nav className="px-2 pb-4">
-                        {(isSuperAdmin || accessLevel >= 4) && renderAdminStaticMenu}
-                        
+                        {/* SECCIÓN 1: ProductModulesSection — solo módulos de producto (GET /auth/menu sin admin) */}
                         {menuItems.length > 0 && (
-                            <div className="space-y-1"> 
-                                {!isCollapsed && (isSuperAdmin || accessLevel >= 4) && (
-                                    <div className="pl-2 mb-4"> {/* CAMBIO APLICADO: De mb-1 a mb-2 */}
-                                        <h2 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                                            <LucideIcons.Boxes className="w-4 h-4" />
+                            <div className="space-y-1 mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
+                                {!isCollapsed && (
+                                    <div className="pl-2 mb-3">
+                                        <h2 className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
                                             Módulos
                                         </h2>
                                     </div>
                                 )}
-
-                                {isCollapsed && (isSuperAdmin || accessLevel >= 4) && (
-                                     <div className="px-1 mb-1"> 
-                                        <div className="p-2 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                                            <LucideIcons.Boxes className="w-5 h-5" />
+                                {isCollapsed && (
+                                    <div className="px-1 mb-1">
+                                        <div className="p-2 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                                            <LucideIcons.Boxes className="w-4 h-4" />
                                         </div>
                                     </div>
                                 )}
-                                
                                 {renderDynamicMenu}
                             </div>
                         )}
+
+                        {/* SECCIÓN 2: AdminSection — por user_type (/auth/me); hasPermission dentro de cada menú */}
+                        {userType === 'platform_admin' ? (
+                            renderAdminGlobalMenu
+                        ) : userType === 'tenant_admin' ? (
+                            renderAdminTenantMenu
+                        ) : null}
                     </nav>
                 )}
             </div>
 
-            <div
-                className={`
-                    border-t border-gray-200 dark:border-gray-800 flex-shrink-0
-                    h-auto flex flex-col justify-center p-2
-                `}
-            >
-                <div className="flex flex-col space-y-1"> 
-                    <button
-                        onClick={toggleDarkMode}
-                        className={`
-                            flex items-center p-2 rounded-lg 
-                            ${transitionClass}
-                            hover:bg-gray-100 dark:hover:bg-gray-700
-                            text-gray-600 dark:text-gray-300
-                            ${isCollapsed ? 'justify-center' : 'w-full'}
-                        `}
-                        title={isCollapsed ? (isDarkMode ? 'Claro' : 'Oscuro') : (isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro')}
-                    >
-                        {isDarkMode ? (
-                            <LucideIcons.Sun className="w-5 h-5 text-yellow-500" />
-                        ) : (
-                            <LucideIcons.Moon className="w-5 h-5" />
-                        )}
-                        {!isCollapsed && (
-                            <span className="ml-3 text-sm">{isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>
-                        )}
-                    </button>
-                    <button
-                        onClick={() => logout()}
-                        className={`
-                            flex items-center p-2 rounded-lg 
-                            ${transitionClass}
-                            hover:bg-red-50 dark:hover:bg-red-900/20
-                            text-red-600 dark:text-red-400
-                            ${isCollapsed ? 'justify-center' : 'w-full'}
-                        `}
-                        title={isCollapsed ? 'Salir' : 'Cerrar sesión'}
-                    >
-                        <LucideIcons.LogOut className="w-5 h-5" />
-                        {!isCollapsed && (
-                            <span className="ml-3 text-sm">Cerrar Sesión</span>
-                        )}
-                    </button>
-                </div>
-            </div>
         </div>
     );
 };

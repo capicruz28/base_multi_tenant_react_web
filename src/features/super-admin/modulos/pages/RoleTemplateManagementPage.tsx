@@ -251,85 +251,73 @@ const RoleTemplateManagementPage: React.FC = () => {
       */}
       {/* Barra de herramientas */}
       <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex flex-col gap-4">
-          {/* Filtros */}
-          <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+          {/* Búsqueda y Filtros */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-start sm:items-center">
             {/* Selector de Módulo */}
-            <div className="flex-1">
-              <label htmlFor="modulo-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filtrar por Módulo
-              </label>
-              <select
-                id="modulo-filter"
-                value={selectedModuloId}
-                onChange={handleModuloChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">Todos los módulos</option>
-                {modulos && modulos.length > 0 && modulos.map((modulo) => (
-                  <option key={modulo.modulo_id} value={modulo.modulo_id}>
-                    {modulo.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              id="modulo-filter"
+              value={selectedModuloId}
+              onChange={handleModuloChange}
+              className="w-full sm:w-48 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+              title="Filtrar por Módulo"
+            >
+              <option value="">Todos los módulos</option>
+              {modulos && modulos.length > 0 && modulos.map((modulo) => (
+                <option key={modulo.modulo_id} value={modulo.modulo_id}>
+                  {modulo.nombre}
+                </option>
+              ))}
+            </select>
 
             {/* Búsqueda */}
-            <div className="flex-1">
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Buscar
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  id="search"
-                  placeholder="Buscar plantillas..."
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                  className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
-                />
-              </div>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                id="search"
+                placeholder="Buscar plantillas..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+              />
             </div>
+
+            {/* Checkbox Solo activas */}
+            <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
+              <input
+                type="checkbox"
+                checked={showOnlyActive}
+                onChange={(e) => {
+                  setShowOnlyActive(e.target.checked);
+                  setCurrentPage(1);
+                }}
+                className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">Solo activas</span>
+            </label>
           </div>
 
-          {/* Filtros adicionales y acciones */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-end">
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={showOnlyActive}
-                  onChange={(e) => {
-                    setShowOnlyActive(e.target.checked);
-                    setCurrentPage(1);
-                  }}
-                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
-                />
-                Solo activas
-              </label>
-            </div>
+          {/* Acciones */}
+          <div className="flex gap-2 items-center">
+            <button
+              onClick={fetchPlantillas}
+              disabled={loading}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Actualizar"
+            >
+              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
 
-            <div className="flex gap-2">
-              <button
-                onClick={fetchPlantillas}
-                disabled={loading}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                title="Actualizar"
-              >
-                <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-              </button>
-
-              <button
-                onClick={() => setIsCreateModalOpen(true)}
-                disabled={!selectedModuloId}
-                className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title={!selectedModuloId ? 'Selecciona un módulo primero' : 'Crear nueva plantilla'}
-              >
-                <Plus className="h-4 w-4" />
-                Nueva Plantilla
-              </button>
-            </div>
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              disabled={!selectedModuloId}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={!selectedModuloId ? 'Selecciona un módulo primero' : 'Crear nueva plantilla'}
+            >
+              <Plus className="h-4 w-4" />
+              Nueva Plantilla
+            </button>
           </div>
         </div>
       </div>
