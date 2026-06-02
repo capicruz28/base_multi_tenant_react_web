@@ -1,28 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { X, Building, Loader, Palette, Calendar, Server } from 'lucide-react';
 import { Cliente, ClienteUpdate } from '../types/cliente.types';
-import { InstallationType, AuthenticationMode } from '@/core/constants';
+import { InstallationType, AuthenticationMode, SubscriptionPlan, SubscriptionStatus } from '@/core/constants';
 import { useUpdateCliente } from '@/core/hooks/useClienteMutations';
+import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
+import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
+import type { ClienteFormNormalized } from '../utils/form-dirty/cliente-form-dirty';
+import {
+  buildEditClienteFormSnapshot,
+  isEditClienteDirty,
+} from '../utils/form-dirty/cliente-form-dirty';
+import { useClienteModalDiscard } from '../hooks/useClienteModalDiscard';
 
 interface EditClientModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   cliente: Cliente;
+  onDiscardPendingChange?: (pending: OrgDiscardPending) => void;
 }
 
 const EditClientModal: React.FC<EditClientModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  cliente
+  cliente,
+  onDiscardPendingChange,
 }) => {
-  // ✅ CORREGIDO: Usar mutación de React Query para actualizar cliente
   const updateMutation = useUpdateCliente();
   const loading = updateMutation.isPending;
   
   const [activeSection, setActiveSection] = useState<'basic' | 'config' | 'branding' | 'subscription'>('basic');
+  const [editFormSnapshot, setEditFormSnapshot] = useState<ClienteFormNormalized | null>(null);
   
   const [formData, setFormData] = useState<ClienteUpdate>({
     codigo_cliente: cliente.codigo_cliente,
@@ -53,7 +63,27 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Actualizar formulario cuando cambie el cliente
+  const isDirty = useMemo(
+    () => isEditClienteDirty(formData, editFormSnapshot),
+    [formData, editFormSnapshot],
+  );
+
+  const {
+    discardPending,
+    shellVisible,
+    handleRequestClose,
+    handleDiscardCancel,
+    handleDiscardConfirm,
+    handleBackdropClick,
+  } = useClienteModalDiscard({
+    isOpen,
+    isDirty,
+    isSubmitting: loading,
+    mode: 'edit',
+    onClose,
+    onDiscardPendingChange,
+  });
+
   useEffect(() => {
     if (isOpen && cliente) {
       setFormData({
@@ -82,6 +112,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
         api_key_sincronizacion: cliente.api_key_sincronizacion,
         sincronizacion_habilitada: cliente.sincronizacion_habilitada
       });
+      setEditFormSnapshot(buildEditClienteFormSnapshot(cliente));
       setErrors({});
       setActiveSection('basic');
     }
@@ -216,32 +247,44 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <>
+    {shellVisible && (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      onClick={handleBackdropClick}
+      role="presentation"
+    >
+      <div
+        className="bg-surface rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-client-modal-title"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-border-base">
           <div className="flex items-center gap-3">
             <Building className="h-6 w-6 text-brand-primary" />
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2 id="edit-client-modal-title" className="text-xl font-semibold text-text-base">
                 Editar Cliente
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-text-soft">
                 {cliente.nombre_comercial || cliente.razon_social}
               </p>
             </div>
           </div>
           <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            type="button"
+            onClick={handleRequestClose}
+            className="p-2 hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors"
             disabled={loading}
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-text-soft" />
           </button>
         </div>
 
         {/* Navegación de secciones */}
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+        <div className="px-6 py-4 border-b border-border-base bg-subtle">
           <div className="flex gap-2 overflow-x-auto">
             {sections.map((section) => {
               const Icon = section.icon;
@@ -253,7 +296,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                     activeSection === section.id
                       ? 'bg-brand-primary text-white'
-                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      : 'bg-surface text-text-soft hover:bg-overlay dark:hover:bg-overlay'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -271,12 +314,12 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
             {activeSection === 'basic' && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  <h3 className="text-lg font-medium text-text-base mb-4">
                     Información Básica
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="codigo_cliente" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="codigo_cliente" className="block text-sm font-medium text-text-soft mb-1">
                         Código de Cliente *
                       </label>
                       <input
@@ -285,18 +328,18 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="codigo_cliente"
                         value={formData.codigo_cliente || ''}
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                          errors.codigo_cliente ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                          errors.codigo_cliente ? 'border-error' : 'border-border-base'
                         }`}
                         disabled={loading}
                       />
                       {errors.codigo_cliente && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.codigo_cliente}</p>
+                        <p className="mt-1 text-sm text-error">{errors.codigo_cliente}</p>
                       )}
                     </div>
 
                     <div>
-                      <label htmlFor="subdominio" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="subdominio" className="block text-sm font-medium text-text-soft mb-1">
                         Subdominio *
                       </label>
                       <input
@@ -305,18 +348,18 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="subdominio"
                         value={formData.subdominio || ''}
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                          errors.subdominio ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                          errors.subdominio ? 'border-error' : 'border-border-base'
                         }`}
                         disabled={loading}
                       />
                       {errors.subdominio && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.subdominio}</p>
+                        <p className="mt-1 text-sm text-error">{errors.subdominio}</p>
                       )}
                     </div>
 
                     <div className="md:col-span-2">
-                      <label htmlFor="razon_social" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="razon_social" className="block text-sm font-medium text-text-soft mb-1">
                         Razón Social *
                       </label>
                       <input
@@ -325,18 +368,18 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="razon_social"
                         value={formData.razon_social || ''}
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                          errors.razon_social ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                          errors.razon_social ? 'border-error' : 'border-border-base'
                         }`}
                         disabled={loading}
                       />
                       {errors.razon_social && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.razon_social}</p>
+                        <p className="mt-1 text-sm text-error">{errors.razon_social}</p>
                       )}
                     </div>
 
                     <div>
-                      <label htmlFor="nombre_comercial" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="nombre_comercial" className="block text-sm font-medium text-text-soft mb-1">
                         Nombre Comercial
                       </label>
                       <input
@@ -345,13 +388,13 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="nombre_comercial"
                         value={formData.nombre_comercial || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                        className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         disabled={loading}
                       />
                     </div>
 
                     <div>
-                      <label htmlFor="ruc" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="ruc" className="block text-sm font-medium text-text-soft mb-1">
                         RUC
                       </label>
                       <input
@@ -360,14 +403,14 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="ruc"
                         value={formData.ruc || ''}
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                          errors.ruc ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                          errors.ruc ? 'border-error' : 'border-border-base'
                         }`}
                         maxLength={15}
                         disabled={loading}
                       />
                       {errors.ruc && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.ruc}</p>
+                        <p className="mt-1 text-sm text-error">{errors.ruc}</p>
                       )}
                     </div>
                   </div>
@@ -375,12 +418,12 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
 
                 {/* Información de Contacto */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  <h3 className="text-lg font-medium text-text-base mb-4">
                     Información de Contacto
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label htmlFor="contacto_nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="contacto_nombre" className="block text-sm font-medium text-text-soft mb-1">
                         Nombre de Contacto
                       </label>
                       <input
@@ -389,13 +432,13 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="contacto_nombre"
                         value={formData.contacto_nombre || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                        className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         disabled={loading}
                       />
                     </div>
 
                     <div>
-                      <label htmlFor="contacto_email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="contacto_email" className="block text-sm font-medium text-text-soft mb-1">
                         Email de Contacto *
                       </label>
                       <input
@@ -404,18 +447,18 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="contacto_email"
                         value={formData.contacto_email || ''}
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                          errors.contacto_email ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                          errors.contacto_email ? 'border-error' : 'border-border-base'
                         }`}
                         disabled={loading}
                       />
                       {errors.contacto_email && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.contacto_email}</p>
+                        <p className="mt-1 text-sm text-error">{errors.contacto_email}</p>
                       )}
                     </div>
 
                     <div>
-                      <label htmlFor="contacto_telefono" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="contacto_telefono" className="block text-sm font-medium text-text-soft mb-1">
                         Teléfono
                       </label>
                       <input
@@ -424,7 +467,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="contacto_telefono"
                         value={formData.contacto_telefono || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                        className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         disabled={loading}
                       />
                     </div>
@@ -440,10 +483,10 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                       name="es_demo"
                       checked={formData.es_demo || false}
                       onChange={handleInputChange}
-                      className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                      className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded"
                       disabled={loading}
                     />
-                    <label htmlFor="es_demo" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                    <label htmlFor="es_demo" className="ml-2 block text-sm text-text-base">
                       Marcar como cliente de demostración
                     </label>
                   </div>
@@ -455,12 +498,12 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
             {activeSection === 'config' && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  <h3 className="text-lg font-medium text-text-base mb-4">
                     Configuración de Instalación
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="tipo_instalacion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="tipo_instalacion" className="block text-sm font-medium text-text-soft mb-1">
                         Tipo de Instalación
                       </label>
                       <select
@@ -468,7 +511,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="tipo_instalacion"
                         value={formData.tipo_instalacion || InstallationType.SHARED}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                        className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         disabled={loading}
                       >
                         <option value={InstallationType.SHARED}>Compartida</option>
@@ -479,7 +522,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                     </div>
 
                     <div>
-                      <label htmlFor="modo_autenticacion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="modo_autenticacion" className="block text-sm font-medium text-text-soft mb-1">
                         Modo de Autenticación
                       </label>
                       <select
@@ -487,7 +530,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="modo_autenticacion"
                         value={formData.modo_autenticacion || AuthenticationMode.LOCAL}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                        className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         disabled={loading}
                       >
                         <option value={AuthenticationMode.LOCAL}>Local</option>
@@ -498,7 +541,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
 
                     {(formData.tipo_instalacion === InstallationType.ONPREMISE || formData.tipo_instalacion === InstallationType.HYBRID) && (
                       <div className="md:col-span-2">
-                        <label htmlFor="servidor_api_local" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label htmlFor="servidor_api_local" className="block text-sm font-medium text-text-soft mb-1">
                           Servidor API Local *
                         </label>
                         <input
@@ -507,14 +550,14 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                           name="servidor_api_local"
                           value={formData.servidor_api_local || ''}
                           onChange={handleInputChange}
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                            errors.servidor_api_local ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                            errors.servidor_api_local ? 'border-error' : 'border-border-base'
                           }`}
                           placeholder="https://api.cliente.local"
                           disabled={loading}
                         />
                         {errors.servidor_api_local && (
-                          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.servidor_api_local}</p>
+                          <p className="mt-1 text-sm text-error">{errors.servidor_api_local}</p>
                         )}
                       </div>
                     )}
@@ -523,7 +566,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
 
                 {/* Configuración de Sincronización */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  <h3 className="text-lg font-medium text-text-base mb-4">
                     Sincronización Multi-Instalación
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -535,21 +578,21 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                           name="sincronizacion_habilitada"
                           checked={formData.sincronizacion_habilitada || false}
                           onChange={handleInputChange}
-                          className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                          className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded"
                           disabled={loading}
                         />
-                        <label htmlFor="sincronizacion_habilitada" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                        <label htmlFor="sincronizacion_habilitada" className="ml-2 block text-sm text-text-base">
                           Habilitar sincronización bidireccional con servidor central
                         </label>
                       </div>
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 ml-6">
+                      <p className="mt-1 text-xs text-text-soft ml-6">
                         Permite sincronización automática de datos con servidor central (multi-instalación)
                       </p>
                     </div>
 
                     {formData.sincronizacion_habilitada && (
                       <div className="md:col-span-2">
-                        <label htmlFor="api_key_sincronizacion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label htmlFor="api_key_sincronizacion" className="block text-sm font-medium text-text-soft mb-1">
                           API Key de Sincronización
                         </label>
                         <input
@@ -558,12 +601,12 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                           name="api_key_sincronizacion"
                           value={formData.api_key_sincronizacion || ''}
                           onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground font-mono text-sm"
+                          className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base font-mono text-sm"
                           placeholder="Ingrese la API key para sincronización"
                           disabled={loading}
                           maxLength={255}
                         />
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        <p className="mt-1 text-xs text-text-soft">
                           API Key para autenticación con el servidor central (opcional)
                         </p>
                       </div>
@@ -571,17 +614,17 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
 
                     {cliente.ultima_sincronizacion && (
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label className="block text-sm font-medium text-text-soft mb-1">
                           Última Sincronización
                         </label>
                         <input
                           type="text"
                           value={new Date(cliente.ultima_sincronizacion).toLocaleString()}
-                          className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                          className="w-full px-3 py-2 border border-border-base rounded-lg bg-subtle text-text-soft"
                           disabled
                           readOnly
                         />
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        <p className="mt-1 text-xs text-text-soft">
                           Última vez que se sincronizó con el servidor central (solo lectura)
                         </p>
                       </div>
@@ -595,12 +638,12 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
             {activeSection === 'branding' && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  <h3 className="text-lg font-medium text-text-base mb-4">
                     Personalización Visual
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="logo_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="logo_url" className="block text-sm font-medium text-text-soft mb-1">
                         URL del Logo
                       </label>
                       <input
@@ -609,7 +652,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="logo_url"
                         value={formData.logo_url || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                        className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         placeholder="https://cdn.tuapp.com/logos/acme.png"
                         disabled={loading}
                         maxLength={500}
@@ -617,7 +660,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                     </div>
 
                     <div>
-                      <label htmlFor="favicon_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="favicon_url" className="block text-sm font-medium text-text-soft mb-1">
                         URL del Favicon
                       </label>
                       <input
@@ -626,7 +669,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="favicon_url"
                         value={formData.favicon_url || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                        className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         placeholder="https://cdn.tuapp.com/favicons/acme.ico"
                         disabled={loading}
                         maxLength={500}
@@ -634,7 +677,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                     </div>
 
                     <div>
-                      <label htmlFor="color_primario" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="color_primario" className="block text-sm font-medium text-text-soft mb-1">
                         Color Primario
                       </label>
                       <div className="flex gap-2">
@@ -644,7 +687,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                           name="color_primario"
                           value={formData.color_primario || '#1976D2'}
                           onChange={handleInputChange}
-                          className="h-10 w-20 border border-brand-input-border dark:border-brand-input-border rounded-lg cursor-pointer"
+                          className="h-10 w-20 border border-border-base rounded-lg cursor-pointer"
                           disabled={loading}
                         />
                         <input
@@ -656,8 +699,8 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                               handleInputChange(e);
                             }
                           }}
-                          className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                            errors.color_primario ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                          className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                            errors.color_primario ? 'border-error' : 'border-border-base'
                           }`}
                           placeholder="#1976D2"
                           disabled={loading}
@@ -665,12 +708,12 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         />
                       </div>
                       {errors.color_primario && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.color_primario}</p>
+                        <p className="mt-1 text-sm text-error">{errors.color_primario}</p>
                       )}
                     </div>
 
                     <div>
-                      <label htmlFor="color_secundario" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="color_secundario" className="block text-sm font-medium text-text-soft mb-1">
                         Color Secundario
                       </label>
                       <div className="flex gap-2">
@@ -680,7 +723,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                           name="color_secundario"
                           value={formData.color_secundario || '#424242'}
                           onChange={handleInputChange}
-                          className="h-10 w-20 border border-brand-input-border dark:border-brand-input-border rounded-lg cursor-pointer"
+                          className="h-10 w-20 border border-border-base rounded-lg cursor-pointer"
                           disabled={loading}
                         />
                         <input
@@ -692,8 +735,8 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                               handleInputChange(e);
                             }
                           }}
-                          className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                            errors.color_secundario ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                          className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                            errors.color_secundario ? 'border-error' : 'border-border-base'
                           }`}
                           placeholder="#424242"
                           disabled={loading}
@@ -701,12 +744,12 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         />
                       </div>
                       {errors.color_secundario && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.color_secundario}</p>
+                        <p className="mt-1 text-sm text-error">{errors.color_secundario}</p>
                       )}
                     </div>
 
                     <div className="md:col-span-2">
-                      <label htmlFor="tema_personalizado" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="tema_personalizado" className="block text-sm font-medium text-text-soft mb-1">
                         Tema Personalizado (JSON)
                       </label>
                       <textarea
@@ -714,15 +757,15 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="tema_personalizado"
                         value={formData.tema_personalizado || ''}
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground font-mono text-sm ${
-                          errors.tema_personalizado ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base font-mono text-sm ${
+                          errors.tema_personalizado ? 'border-error' : 'border-border-base'
                         }`}
                         placeholder='{"font": "Roboto", "borderRadius": "8px"}'
                         disabled={loading}
                         rows={4}
                       />
                       {errors.tema_personalizado && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.tema_personalizado}</p>
+                        <p className="mt-1 text-sm text-error">{errors.tema_personalizado}</p>
                       )}
                     </div>
                   </div>
@@ -734,51 +777,51 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
             {activeSection === 'subscription' && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  <h3 className="text-lg font-medium text-text-base mb-4">
                     Plan y Estado de Suscripción
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="plan_suscripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="plan_suscripcion" className="block text-sm font-medium text-text-soft mb-1">
                         Plan de Suscripción
                       </label>
                       <select
                         id="plan_suscripcion"
                         name="plan_suscripcion"
-                        value={formData.plan_suscripcion || 'trial'}
+                        value={formData.plan_suscripcion || SubscriptionPlan.TRIAL}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                        className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         disabled={loading}
                       >
-                        <option value="trial">Trial</option>
-                        <option value="basico">Básico</option>
-                        <option value="profesional">Profesional</option>
-                        <option value="enterprise">Enterprise</option>
+                        <option value={SubscriptionPlan.TRIAL}>Trial</option>
+                        <option value={SubscriptionPlan.BASIC}>Básico</option>
+                        <option value={SubscriptionPlan.PROFESSIONAL}>Profesional</option>
+                        <option value={SubscriptionPlan.ENTERPRISE}>Enterprise</option>
                       </select>
                     </div>
 
                     <div>
-                      <label htmlFor="estado_suscripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="estado_suscripcion" className="block text-sm font-medium text-text-soft mb-1">
                         Estado de Suscripción
                       </label>
                       <select
                         id="estado_suscripcion"
                         name="estado_suscripcion"
-                        value={formData.estado_suscripcion || 'trial'}
+                        value={formData.estado_suscripcion || SubscriptionStatus.TRIAL}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                        className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         disabled={loading}
                       >
-                        <option value="trial">Trial</option>
-                        <option value="activo">Activo</option>
-                        <option value="suspendido">Suspendido</option>
-                        <option value="cancelado">Cancelado</option>
-                        <option value="moroso">Moroso</option>
+                        <option value={SubscriptionStatus.TRIAL}>Trial</option>
+                        <option value={SubscriptionStatus.ACTIVE}>Activo</option>
+                        <option value={SubscriptionStatus.SUSPENDED}>Suspendido</option>
+                        <option value={SubscriptionStatus.CANCELLED}>Cancelado</option>
+                        <option value={SubscriptionStatus.OVERDUE}>Moroso</option>
                       </select>
                     </div>
 
                     <div>
-                      <label htmlFor="fecha_inicio_suscripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="fecha_inicio_suscripcion" className="block text-sm font-medium text-text-soft mb-1">
                         Fecha de Inicio de Suscripción
                       </label>
                       <input
@@ -787,13 +830,13 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="fecha_inicio_suscripcion"
                         value={formData.fecha_inicio_suscripcion || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                        className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         disabled={loading}
                       />
                     </div>
 
                     <div>
-                      <label htmlFor="fecha_fin_trial" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="fecha_fin_trial" className="block text-sm font-medium text-text-soft mb-1">
                         Fecha de Fin de Trial
                       </label>
                       <input
@@ -802,7 +845,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                         name="fecha_fin_trial"
                         value={formData.fecha_fin_trial || ''}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                        className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         disabled={loading}
                       />
                     </div>
@@ -811,7 +854,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
 
                 {/* Estado del Cliente */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  <h3 className="text-lg font-medium text-text-base mb-4">
                     Estado del Cliente
                   </h3>
                   <div className="flex items-center">
@@ -821,10 +864,10 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                       name="es_activo"
                       checked={formData.es_activo || false}
                       onChange={handleInputChange}
-                      className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                      className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded"
                       disabled={loading}
                     />
-                    <label htmlFor="es_activo" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                    <label htmlFor="es_activo" className="ml-2 block text-sm text-text-base">
                       Cliente activo
                     </label>
                   </div>
@@ -834,7 +877,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="flex justify-between items-center p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+          <div className="flex justify-between items-center p-6 border-t border-border-base bg-subtle">
             <div className="flex gap-2">
               {sections.map((section, index) => (
                 <button
@@ -846,7 +889,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                       setActiveSection(prevSection);
                     }
                   }}
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  className="text-sm text-text-soft hover:text-text-base"
                   disabled={index === 0}
                 >
                   {index > 0 && '← Anterior'}
@@ -856,9 +899,9 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleRequestClose}
                 disabled={loading}
-                className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-secondary disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -871,7 +914,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                       setActiveSection(sections[currentIndex + 1].id);
                     }
                   }}
-                  className="px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
+                  className="px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-primary"
                 >
                   Siguiente →
                 </button>
@@ -880,7 +923,7 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-primary disabled:opacity-50"
                 >
                   {loading && <Loader className="h-4 w-4 animate-spin" />}
                   {loading ? 'Guardando...' : 'Guardar Cambios'}
@@ -891,6 +934,14 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
         </form>
       </div>
     </div>
+    )}
+    <OrgDiscardConfirmDialog
+      discardPending={discardPending}
+      entityLabel="el cliente"
+      onClose={handleDiscardCancel}
+      onConfirm={handleDiscardConfirm}
+    />
+    </>
   );
 };
 

@@ -22,6 +22,7 @@ import {
 } from '@/core/hooks/useClienteMutations';
 import CreateClientModal from '../components/CreateClientModal';
 import EditClientModal from '../components/EditClientModal';
+import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
 
 // Componentes que crearemos después
 // import CreateClientModal from '../../../components/super-admin/CreateClientModal';
@@ -44,6 +45,9 @@ const ClientManagementPage: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
+  const [clienteDiscardPending, setClienteDiscardPending] = useState<OrgDiscardPending>(null);
+
+  const pageActionsLocked = clienteDiscardPending !== null;
 
   // ✅ MIGRADO A REACT QUERY: Usar hook useClientes
   const { 
@@ -90,22 +94,35 @@ const ClientManagementPage: React.FC = () => {
 
   // ✅ MIGRADO: Los toasts ahora se manejan en las mutaciones
   const handleCreateSuccess = () => {
+    setClienteDiscardPending(null);
     setIsCreateModalOpen(false);
-    // React Query invalidará automáticamente las queries
   };
 
   const handleEditSuccess = () => {
+    setClienteDiscardPending(null);
     setIsEditModalOpen(false);
     setSelectedCliente(null);
-    // React Query invalidará automáticamente las queries
+  };
+
+  const handleCreateModalClose = () => {
+    setClienteDiscardPending(null);
+    setIsCreateModalOpen(false);
+  };
+
+  const handleEditModalClose = () => {
+    setClienteDiscardPending(null);
+    setIsEditModalOpen(false);
+    setSelectedCliente(null);
   };
 
   // ✅ MIGRADO: Usar mutaciones de React Query
   const handleActivateCliente = (cliente: Cliente) => {
+    if (pageActionsLocked) return;
     activateMutation.mutate(cliente.cliente_id);
   };
 
   const handleDeactivateCliente = (cliente: Cliente) => {
+    if (pageActionsLocked) return;
     if (!window.confirm(`¿Estás seguro de desactivar al cliente ${cliente.nombre_comercial || cliente.razon_social}?`)) {
       return;
     }
@@ -113,8 +130,14 @@ const ClientManagementPage: React.FC = () => {
   };
 
   const openEditModal = (cliente: Cliente) => {
+    if (pageActionsLocked) return;
     setSelectedCliente(cliente);
     setIsEditModalOpen(true);
+  };
+
+  const openCreateModal = () => {
+    if (pageActionsLocked) return;
+    setIsCreateModalOpen(true);
   };
 
   // Si no es super admin
@@ -122,9 +145,9 @@ const ClientManagementPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <Building className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Acceso restringido</h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <Building className="mx-auto h-12 w-12 text-text-soft" />
+          <h3 className="mt-2 text-sm font-medium text-text-base">Acceso restringido</h3>
+          <p className="mt-1 text-sm text-text-soft">
             No tienes permisos para acceder a la gestión de clientes.
           </p>
         </div>
@@ -136,26 +159,27 @@ const ClientManagementPage: React.FC = () => {
     <div className="w-full">
       {/* Header */}
       {/*<div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-2xl font-bold text-text-base">
           Gestión de Clientes
         </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-sm text-text-soft">
           Administra todos los clientes del sistema multi-tenant
         </p>
       </div>*/}
 
       {/* Barra de herramientas */}
-      <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="mb-6 bg-surface rounded-lg shadow-sm border border-border-base p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           {/* Búsqueda */}
           <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-soft" />
             <input
               type="text"
               placeholder="Buscar clientes..."
               value={searchTerm}
               onChange={handleSearchChange}
-              className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+              disabled={pageActionsLocked}
+              className="pl-10 pr-4 py-2 w-full border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -164,7 +188,8 @@ const ClientManagementPage: React.FC = () => {
             <select
               value={filters.plan_suscripcion || ''}
               onChange={(e) => handleFilterChange('plan_suscripcion', e.target.value || undefined)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+              disabled={pageActionsLocked}
+              className="px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="">Todos los planes</option>
               <option value="trial">Trial</option>
@@ -176,7 +201,8 @@ const ClientManagementPage: React.FC = () => {
             <select
               value={filters.estado_suscripcion || ''}
               onChange={(e) => handleFilterChange('estado_suscripcion', e.target.value || undefined)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+              disabled={pageActionsLocked}
+              className="px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="">Todos los estados</option>
               <option value="activo">Activo</option>
@@ -187,7 +213,8 @@ const ClientManagementPage: React.FC = () => {
             <select
               value={filters.es_activo === undefined ? '' : filters.es_activo.toString()}
               onChange={(e) => handleFilterChange('es_activo', e.target.value === '' ? undefined : e.target.value === 'true')}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+              disabled={pageActionsLocked}
+              className="px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="">Todos</option>
               <option value="true">Activos</option>
@@ -199,16 +226,17 @@ const ClientManagementPage: React.FC = () => {
           <div className="flex gap-2">
             <button
               onClick={() => refetch()}
-              disabled={loading}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              disabled={loading || pageActionsLocked}
+              className="p-2 text-text-soft hover:text-text-base hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Actualizar"
             >
               <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
 
             <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-colors"
+              onClick={openCreateModal}
+              disabled={pageActionsLocked}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-surface transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="h-4 w-4" />
               Nuevo Cliente
@@ -218,19 +246,19 @@ const ClientManagementPage: React.FC = () => {
       </div>
 
       {/* Contenido */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-surface rounded-lg shadow-sm border border-border-base overflow-hidden">
         {/* Loading */}
         {loading && (
           <div className="flex items-center justify-center py-8">
             <RefreshCw className="animate-spin h-6 w-6 text-brand-primary" />
-            <span className="ml-2 text-gray-600 dark:text-gray-400">Cargando clientes...</span>
+            <span className="ml-2 text-text-soft">Cargando clientes...</span>
           </div>
         )}
 
         {/* Error */}
         {error && !loading && (
           <div className="p-6 text-center">
-            <div className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+            <div className="text-error bg-error/10 p-4 rounded-lg">
               {error}
             </div>
             <button
@@ -246,69 +274,69 @@ const ClientManagementPage: React.FC = () => {
         {!loading && !error && (
           <>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-700">
+              <table className="min-w-full divide-y divide-border-base">
+                <thead className="bg-subtle">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                       Cliente
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                       Contacto
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                       Plan/Estado
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                       Configuración
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                       Estado
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-text-soft uppercase tracking-wider">
                       Acciones
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="bg-surface divide-y divide-border-base">
                   {clientes.length > 0 ? (
                     clientes.map((cliente) => (
-                      <tr key={cliente.cliente_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <tr key={cliente.cliente_id} className="hover:bg-overlay/80 dark:hover:bg-overlay/50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <Building className="h-8 w-8 text-gray-400 mr-3" />
+                            <Building className="h-8 w-8 text-text-soft mr-3" />
                             <div>
-                              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              <div className="text-sm font-medium text-text-base">
                                 {cliente.nombre_comercial || cliente.razon_social}
                               </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                              <div className="text-sm text-text-soft">
                                 {cliente.codigo_cliente} • {cliente.subdominio}
                               </div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 dark:text-white">
+                          <div className="text-sm text-text-base">
                             {cliente.contacto_nombre || 'N/A'}
                           </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                          <div className="text-sm text-text-soft">
                             {cliente.contacto_email}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white capitalize">
+                          <div className="text-sm font-medium text-text-base capitalize">
                             {cliente.plan_suscripcion}
                           </div>
                           <div className={`text-xs px-2 py-1 rounded-full inline-block mt-1 ${
                             cliente.estado_suscripcion === SubscriptionStatus.ACTIVE 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              ? 'bg-success/10 text-success'
                               : cliente.estado_suscripcion === SubscriptionStatus.TRIAL
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              ? 'bg-info/10 text-info'
+                              : 'bg-error/10 text-error'
                           }`}>
                             {cliente.estado_suscripcion}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
                           <div className="flex items-center gap-4">
                             <span className="capitalize">{cliente.tipo_instalacion}</span>
                             <span className="capitalize">{cliente.modo_autenticacion}</span>
@@ -317,13 +345,13 @@ const ClientManagementPage: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             cliente.es_activo
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              ? 'bg-success/10 text-success'
+                              : 'bg-error/10 text-error'
                           }`}>
                             {cliente.es_activo ? 'Activo' : 'Inactivo'}
                           </span>
                           {cliente.es_demo && (
-                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
                               Demo
                             </span>
                           )}
@@ -332,15 +360,17 @@ const ClientManagementPage: React.FC = () => {
                           <div className="flex justify-end items-center gap-2">
                             <button
                               onClick={() => openEditModal(cliente)}
-                              className="text-brand-primary hover:text-brand-primary-dark dark:text-brand-primary dark:hover:text-brand-primary-hover p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                              disabled={pageActionsLocked}
+                              className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Editar"
                             >
                               <Edit3 className="h-4 w-4" />
                             </button>
                             
                             <button
-                              onClick={() => navigate(`/super-admin/clientes/${cliente.cliente_id}`)}
-                              className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                              onClick={() => !pageActionsLocked && navigate(`/super-admin/clientes/${cliente.cliente_id}`)}
+                              disabled={pageActionsLocked}
+                              className="text-text-soft hover:text-text-base p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
                               title="Ver detalle"
                             >
                               <Eye className="h-4 w-4" />
@@ -349,7 +379,8 @@ const ClientManagementPage: React.FC = () => {
                             {cliente.es_activo ? (
                               <button
                                 onClick={() => handleDeactivateCliente(cliente)}
-                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                                disabled={pageActionsLocked}
+                                className="text-error hover:bg-overlay dark:hover:bg-overlay p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Desactivar"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -357,7 +388,8 @@ const ClientManagementPage: React.FC = () => {
                             ) : (
                               <button
                                 onClick={() => handleActivateCliente(cliente)}
-                                className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                                disabled={pageActionsLocked}
+                                className="text-success hover:bg-overlay dark:hover:bg-overlay p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Activar"
                               >
                                 <RefreshCw className="h-4 w-4" />
@@ -369,15 +401,16 @@ const ClientManagementPage: React.FC = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                        <Building className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <td colSpan={6} className="px-6 py-8 text-center text-sm text-text-soft">
+                        <Building className="mx-auto h-12 w-12 text-text-soft mb-4" />
                         <p>No se encontraron clientes</p>
                         {searchTerm || Object.keys(filters).length > 0 ? (
                           <p className="mt-1">Intenta ajustar los filtros de búsqueda</p>
                         ) : (
                           <button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors"
+                            onClick={openCreateModal}
+                            disabled={pageActionsLocked}
+                            className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Crear primer cliente
                           </button>
@@ -391,9 +424,9 @@ const ClientManagementPage: React.FC = () => {
 
             {/* Paginación */}
             {totalClientes > limitPerPage && (
-              <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+              <div className="px-6 py-4 border-t border-border-base bg-subtle">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-700 dark:text-gray-300">
+                  <div className="text-sm text-text-base">
                     Mostrando <span className="font-medium">{(currentPage - 1) * limitPerPage + 1}</span> a{' '}
                     <span className="font-medium">{Math.min(currentPage * limitPerPage, totalClientes)}</span> de{' '}
                     <span className="font-medium">{totalClientes}</span> clientes
@@ -401,18 +434,18 @@ const ClientManagementPage: React.FC = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={handlePreviousPage}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={currentPage === 1 || pageActionsLocked}
+                      className="px-3 py-1 text-sm border border-border-base rounded-md bg-surface text-text-base hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Anterior
                     </button>
-                    <span className="px-3 py-1 text-sm text-gray-700 dark:text-gray-300">
+                    <span className="px-3 py-1 text-sm text-text-base">
                       Página {currentPage} de {totalPages}
                     </span>
                     <button
                       onClick={handleNextPage}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={currentPage === totalPages || pageActionsLocked}
+                      className="px-3 py-1 text-sm border border-border-base rounded-md bg-surface text-text-base hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Siguiente
                     </button>
@@ -429,20 +462,19 @@ const ClientManagementPage: React.FC = () => {
       {isCreateModalOpen && (
         <CreateClientModal
           isOpen={isCreateModalOpen}
-          onClose={() => setIsCreateModalOpen(false)}
+          onClose={handleCreateModalClose}
           onSuccess={handleCreateSuccess}
+          onDiscardPendingChange={setClienteDiscardPending}
         />
       )}
 
       {isEditModalOpen && selectedCliente && (
         <EditClientModal
           isOpen={isEditModalOpen}
-          onClose={() => {
-            setIsEditModalOpen(false);
-            setSelectedCliente(null);
-          }}
+          onClose={handleEditModalClose}
           onSuccess={handleEditSuccess}
           cliente={selectedCliente}
+          onDiscardPendingChange={setClienteDiscardPending}
         />
       )}
     
