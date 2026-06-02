@@ -23,6 +23,12 @@ import {
 import CreateClientModal from '../components/CreateClientModal';
 import EditClientModal from '../components/EditClientModal';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
+import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
+
+type ClienteActiveAction = 'deactivate' | 'reactivate';
+
+const clienteDisplayName = (cliente: Cliente) =>
+  cliente.nombre_comercial || cliente.razon_social;
 
 // Componentes que crearemos después
 // import CreateClientModal from '../../../components/super-admin/CreateClientModal';
@@ -46,8 +52,10 @@ const ClientManagementPage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [clienteDiscardPending, setClienteDiscardPending] = useState<OrgDiscardPending>(null);
+  const [activeTarget, setActiveTarget] = useState<Cliente | null>(null);
+  const [activeAction, setActiveAction] = useState<ClienteActiveAction | null>(null);
 
-  const pageActionsLocked = clienteDiscardPending !== null;
+  const pageActionsLocked = clienteDiscardPending !== null || activeTarget !== null;
 
   // ✅ MIGRADO A REACT QUERY: Usar hook useClientes
   const { 
@@ -115,19 +123,33 @@ const ClientManagementPage: React.FC = () => {
     setSelectedCliente(null);
   };
 
-  // ✅ MIGRADO: Usar mutaciones de React Query
-  const handleActivateCliente = (cliente: Cliente) => {
-    if (pageActionsLocked) return;
-    activateMutation.mutate(cliente.cliente_id);
+  const closeActiveConfirm = () => {
+    setActiveTarget(null);
+    setActiveAction(null);
   };
 
-  const handleDeactivateCliente = (cliente: Cliente) => {
-    if (pageActionsLocked) return;
-    if (!window.confirm(`¿Estás seguro de desactivar al cliente ${cliente.nombre_comercial || cliente.razon_social}?`)) {
-      return;
-    }
-    deactivateMutation.mutate(cliente.cliente_id);
+  const openActiveConfirm = (cliente: Cliente) => {
+    if (clienteDiscardPending !== null) return;
+    setActiveTarget(cliente);
+    setActiveAction(cliente.es_activo ? 'deactivate' : 'reactivate');
   };
+
+  const handleActiveConfirm = () => {
+    if (!activeTarget || !activeAction) return;
+    const onSuccess = () => closeActiveConfirm();
+    if (activeAction === 'deactivate') {
+      deactivateMutation.mutate(activeTarget.cliente_id, { onSuccess });
+    } else {
+      activateMutation.mutate(activeTarget.cliente_id, { onSuccess });
+    }
+  };
+
+  const togglingActive =
+    activeAction === 'deactivate'
+      ? deactivateMutation.isPending
+      : activeAction === 'reactivate'
+        ? activateMutation.isPending
+        : false;
 
   const openEditModal = (cliente: Cliente) => {
     if (pageActionsLocked) return;
@@ -378,7 +400,7 @@ const ClientManagementPage: React.FC = () => {
 
                             {cliente.es_activo ? (
                               <button
-                                onClick={() => handleDeactivateCliente(cliente)}
+                                onClick={() => openActiveConfirm(cliente)}
                                 disabled={pageActionsLocked}
                                 className="text-error hover:bg-overlay dark:hover:bg-overlay p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Desactivar"
@@ -387,10 +409,10 @@ const ClientManagementPage: React.FC = () => {
                               </button>
                             ) : (
                               <button
-                                onClick={() => handleActivateCliente(cliente)}
+                                onClick={() => openActiveConfirm(cliente)}
                                 disabled={pageActionsLocked}
                                 className="text-success hover:bg-overlay dark:hover:bg-overlay p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Activar"
+                                title="Reactivar"
                               >
                                 <RefreshCw className="h-4 w-4" />
                               </button>
@@ -477,6 +499,24 @@ const ClientManagementPage: React.FC = () => {
           onDiscardPendingChange={setClienteDiscardPending}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={!!activeTarget && !!activeAction && clienteDiscardPending === null}
+        onClose={closeActiveConfirm}
+        onConfirm={handleActiveConfirm}
+        title={activeAction === 'reactivate' ? 'Reactivar cliente' : 'Desactivar cliente'}
+        message={
+          activeTarget
+            ? activeAction === 'reactivate'
+              ? `¿Reactivar el cliente "${clienteDisplayName(activeTarget)}"?`
+              : `¿Desactivar el cliente "${clienteDisplayName(activeTarget)}"?`
+            : ''
+        }
+        confirmText={activeAction === 'reactivate' ? 'Reactivar' : 'Desactivar'}
+        cancelText="Cancelar"
+        variant={activeAction === 'reactivate' ? 'info' : 'danger'}
+        loading={togglingActive}
+      />
     
     </div>
   );
