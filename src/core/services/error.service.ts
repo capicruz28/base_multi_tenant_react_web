@@ -7,6 +7,68 @@ interface FastAPIErrorDetail {
   detail: string | { msg: string; type: string; loc?: (string | number)[] }[]; // Pydantic: loc = path al campo
 }
 
+type PydanticValidationItem = { msg?: string; type?: string; loc?: (string | number)[] };
+
+/** Extrae mensaje legible de `detail` (FastAPI). Si no hay texto útil, null → usar fallback HTTP. */
+function messageFromDetail(detail: unknown): string | null {
+  if (detail === undefined || detail === null) return null;
+  if (typeof detail === 'string') {
+    const t = detail.trim();
+    return t.length > 0 ? detail : null;
+  }
+  if (Array.isArray(detail)) {
+    if (detail.length === 0) return null;
+    const parts: string[] = [];
+    for (const item of detail) {
+      if (typeof item === 'string') {
+        const t = item.trim();
+        if (t) parts.push(t);
+      } else if (item && typeof item === 'object' && 'msg' in item) {
+        const msg = (item as PydanticValidationItem).msg;
+        if (typeof msg === 'string' && msg.trim()) parts.push(msg.trim());
+      }
+    }
+    if (parts.length === 0) return null;
+    return parts.join('; ');
+  }
+  return null;
+}
+
+/** Si el body de error llega como string JSON, intentar parsearlo para leer `detail`. */
+function normalizeErrorPayload(data: unknown): unknown {
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data) as unknown;
+    } catch {
+      return data;
+    }
+  }
+  return data;
+}
+
+function messageFromHttpStatus(status: number): string {
+  switch (status) {
+    case 400:
+      return 'Los datos enviados son incorrectos. Revisa los campos marcados en rojo y corrige los errores.';
+    case 401:
+      return 'Tu sesión ha expirado o las credenciales son inválidas. Por favor, inicia sesión nuevamente.';
+    case 403:
+      return 'No tienes permiso para realizar esta acción. Contacta al administrador si necesitas acceso.';
+    case 404:
+      return 'El recurso solicitado no existe o fue eliminado. Verifica que la información sea correcta.';
+    case 409:
+      return 'El recurso ya existe o hay un conflicto de duplicidad. Verifica que no esté duplicado (ej: subdominio, código).';
+    case 422:
+      return 'Los datos enviados no son válidos. Revisa el formato de los campos y vuelve a intentar.';
+    case 500:
+      return 'Error interno del servidor (500). Revise los logs del backend; suele deberse a base de datos, migraciones o un fallo en la API.';
+    case 503:
+      return 'El servicio no está disponible temporalmente. Intenta nuevamente en unos momentos.';
+    default:
+      return `Error del servidor (${status}). Intenta nuevamente o contacta al soporte si persiste.`;
+  }
+}
+
 /** Resultado para mostrar errores 422 por campo en formularios */
 export interface ValidationErrorsResult {
   message: string;
@@ -21,55 +83,18 @@ export const getErrorMessage = (error: unknown): SimplifiedApiError => {
     const axiosError = error as AxiosError<FastAPIErrorDetail>; // Tipar la data esperada
 
     if (axiosError.response) {
-      // Error de respuesta del servidor (4xx, 5xx)
       const status = axiosError.response.status;
-      let message = 'Error desconocido del servidor.'; // Mensaje por defecto
-
-      // --- PRIORIDAD 1: Usar el 'detail' del backend si existe ---
-      if (axiosError.response.data?.detail) {
-        const detail = axiosError.response.data.detail;
-        if (typeof detail === 'string') {
-          message = detail; // Usar el mensaje string directamente
-        } else if (Array.isArray(detail) && detail.length > 0 && detail[0].msg) {
-          // Si es un array de errores de validación Pydantic, tomar el primero
-          message = detail[0].msg;
-        }
-        // Podrías añadir lógica para manejar múltiples errores de validación si quisieras
-      } else {
-        // --- PRIORIDAD 2: Mensajes específicos y accionables por status si no hay 'detail' ---
-        switch (status) {
-          case 400:
-            message = 'Los datos enviados son incorrectos. Revisa los campos marcados en rojo y corrige los errores.';
-            break;
-          case 401:
-            message = 'Tu sesión ha expirado o las credenciales son inválidas. Por favor, inicia sesión nuevamente.';
-            break;
-          case 403:
-            message = 'No tienes permiso para realizar esta acción. Contacta al administrador si necesitas acceso.';
-            break;
-          case 404:
-            message = 'El recurso solicitado no existe o fue eliminado. Verifica que la información sea correcta.';
-            break;
-          case 409:
-            message = 'El recurso ya existe o hay un conflicto de duplicidad. Verifica que no esté duplicado (ej: subdominio, código).';
-            break;
-          case 422:
-            message = 'Los datos enviados no son válidos. Revisa el formato de los campos y vuelve a intentar.';
-            break;
-          case 500:
-            message = 'Error interno del servidor (500). Revise los logs del backend; suele deberse a base de datos, migraciones o un fallo en la API.';
-            break;
-          case 503:
-            message = 'El servicio no está disponible temporalmente. Intenta nuevamente en unos momentos.';
-            break;
-          default:
-            message = `Error del servidor (${status}). Intenta nuevamente o contacta al soporte si persiste.`;
-        }
-      }
-
+      const payload = normalizeErrorPayload(axiosError.response.data);
+      const detail =
+        payload && typeof payload === 'object' && 'detail' in payload
+          ? (payload as FastAPIErrorDetail).detail
+          : undefined;
+      const fromDetail = messageFromDetail(detail);
+      const message = fromDetail ?? messageFromHttpStatus(status);
       return { message, status };
+    }
 
-    } else if (axiosError.request) {
+    if (axiosError.request) {
       // Error de conexión (no hubo respuesta)
       return {
         message: 'No se pudo conectar con el servidor. Verifica tu conexión a internet.',
@@ -78,11 +103,18 @@ export const getErrorMessage = (error: unknown): SimplifiedApiError => {
     }
   }
 
-  // Si no es un error de Axios o es otro tipo de error
-  console.error("Error no manejado por Axios:", error); // Loggear el error original
+  // Errores de contrato FE (p. ej. respuesta vacía del servicio) — no reemplaza propagación Axios
+  if (error instanceof Error) {
+    const trimmed = error.message?.trim();
+    if (trimmed) {
+      return { message: trimmed, status: 0 };
+    }
+  }
+
+  console.error('Error no manejado por Axios:', error);
   return {
     message: 'Ocurrió un error inesperado en la aplicación.',
-    status: 0 // O algún código genérico de error de cliente
+    status: 0,
   };
 };
 
@@ -91,16 +123,17 @@ export const getErrorMessage = (error: unknown): SimplifiedApiError => {
  * Si el error no es 422 o no tiene detail en formato array, devuelve fieldErrors vacío.
  */
 export const getValidationErrors = (error: unknown): ValidationErrorsResult => {
-  const fallback = { message: 'Error de validación.', status: 422, fieldErrors: {} as Record<string, string> };
   if (!axios.isAxiosError(error) || !error.response) {
     const base = getErrorMessage(error);
     return { ...base, fieldErrors: {} };
   }
   const status = error.response.status;
-  const data = error.response.data as FastAPIErrorDetail | undefined;
-  const detail = data?.detail;
+  const payload = normalizeErrorPayload(error.response.data);
+  const detail =
+    payload && typeof payload === 'object' && 'detail' in payload
+      ? (payload as FastAPIErrorDetail).detail
+      : undefined;
   const fieldErrors: Record<string, string> = {};
-  let message = status === 422 ? 'Revisa los campos marcados.' : (data && typeof (data as { message?: string }).message === 'string' ? (data as { message: string }).message : 'Error del servidor.');
 
   if (Array.isArray(detail) && detail.length > 0) {
     for (const item of detail) {
@@ -108,16 +141,19 @@ export const getValidationErrors = (error: unknown): ValidationErrorsResult => {
         const msg = (item as { msg: string }).msg;
         const loc = (item as { loc?: (string | number)[] }).loc;
         if (loc && Array.isArray(loc)) {
-          // loc suele ser ["body", "codigo_empresa"] o ["query", "empresa_id"]; usar el último segmento como clave
           const key = typeof loc[loc.length - 1] === 'string' ? loc[loc.length - 1] : String(loc[loc.length - 1]);
           if (key && key !== 'body') fieldErrors[key] = msg;
         }
-        if (!message || message === 'Revisa los campos marcados.') message = msg;
       }
     }
-  } else if (typeof detail === 'string') {
-    message = detail;
   }
+
+  const fromDetail = messageFromDetail(detail);
+  const message =
+    fromDetail ??
+    (status === 422 && Object.keys(fieldErrors).length > 0
+      ? 'Revisa los campos marcados.'
+      : messageFromHttpStatus(status));
 
   return { message, status, fieldErrors };
 };

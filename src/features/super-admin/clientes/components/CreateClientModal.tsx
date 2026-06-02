@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import { X, Building, CheckCircle, XCircle, Loader, Palette, Calendar, Server } from 'lucide-react';
 import { clienteService } from '../services/cliente.service';
 import { ClienteCreate } from '../types/cliente.types';
-import { getErrorMessage } from '@/core/services/error.service';
+import { useCreateCliente } from '@/core/hooks/useClienteMutations';
 import { InstallationType, AuthenticationMode, SubscriptionPlan, SubscriptionStatus } from '@/core/constants';
 import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
@@ -26,7 +26,9 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
   onSuccess,
   onDiscardPendingChange,
 }) => {
-  const [loading, setLoading] = useState<boolean>(false);
+  const createMutation = useCreateCliente();
+  const isSubmitting = createMutation.isPending;
+
   const [validatingSubdomain, setValidatingSubdomain] = useState<boolean>(false);
   const [subdomainAvailable, setSubdomainAvailable] = useState<boolean | null>(null);
   const [subdomainMessage, setSubdomainMessage] = useState<string>('');
@@ -48,7 +50,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
   } = useClienteModalDiscard({
     isOpen,
     isDirty,
-    isSubmitting: loading,
+    isSubmitting,
     mode: 'create',
     onClose,
     onDiscardPendingChange,
@@ -230,35 +232,28 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
       return;
     }
 
-    setLoading(true);
-    try {
-      // Preparar datos para enviar (convertir strings vacíos a null)
-      const dataToSend: ClienteCreate = {
-        ...formData,
-        nombre_comercial: formData.nombre_comercial?.trim() || null,
-        ruc: formData.ruc?.trim() || null,
-        servidor_api_local: formData.servidor_api_local?.trim() || null,
-        logo_url: formData.logo_url?.trim() || null,
-        favicon_url: formData.favicon_url?.trim() || null,
-        tema_personalizado: formData.tema_personalizado?.trim() || null,
-        fecha_inicio_suscripcion: formData.fecha_inicio_suscripcion || null,
-        fecha_fin_trial: formData.fecha_fin_trial || null,
-        contacto_nombre: formData.contacto_nombre?.trim() || null,
-        contacto_telefono: formData.contacto_telefono?.trim() || null,
-        api_key_sincronizacion: formData.api_key_sincronizacion?.trim() || null,
-        sincronizacion_habilitada: formData.sincronizacion_habilitada || false,
-      };
+    const dataToSend: ClienteCreate = {
+      ...formData,
+      nombre_comercial: formData.nombre_comercial?.trim() || null,
+      ruc: formData.ruc?.trim() || null,
+      servidor_api_local: formData.servidor_api_local?.trim() || null,
+      logo_url: formData.logo_url?.trim() || null,
+      favicon_url: formData.favicon_url?.trim() || null,
+      tema_personalizado: formData.tema_personalizado?.trim() || null,
+      fecha_inicio_suscripcion: formData.fecha_inicio_suscripcion || null,
+      fecha_fin_trial: formData.fecha_fin_trial || null,
+      contacto_nombre: formData.contacto_nombre?.trim() || null,
+      contacto_telefono: formData.contacto_telefono?.trim() || null,
+      api_key_sincronizacion: formData.api_key_sincronizacion?.trim() || null,
+      sincronizacion_habilitada: formData.sincronizacion_habilitada || false,
+    };
 
-      await clienteService.createCliente(dataToSend);
-      toast.success('Cliente creado exitosamente');
+    try {
+      await createMutation.mutateAsync(dataToSend);
       onSuccess();
       onClose();
-    } catch (error) {
-      console.error('Error creating client:', error);
-      const errorData = getErrorMessage(error);
-      toast.error(errorData.message || 'Error al crear el cliente');
-    } finally {
-      setLoading(false);
+    } catch {
+      /* toast de error: onError en useCreateCliente (ER-02) */
     }
   };
 
@@ -297,7 +292,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
             type="button"
             onClick={handleRequestClose}
             className="p-2 hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors"
-            disabled={loading}
+            disabled={isSubmitting}
           >
             <X className="h-5 w-5 text-text-soft" />
           </button>
@@ -375,7 +370,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           errors.codigo_cliente ? 'border-error' : 'border-border-base dark:border-border-base'
                         }`}
                         placeholder="Ej: CLI001"
-                        disabled={loading}
+                        disabled={isSubmitting}
                         maxLength={20}
                       />
                       {errors.codigo_cliente && (
@@ -400,7 +395,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                             'border-border-base dark:border-border-base'
                           }`}
                           placeholder="Ej: acme"
-                          disabled={loading}
+                          disabled={isSubmitting}
                           maxLength={63}
                         />
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -440,7 +435,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           errors.razon_social ? 'border-error' : 'border-border-base dark:border-border-base'
                         }`}
                         placeholder="Nombre legal completo de la empresa"
-                        disabled={loading}
+                        disabled={isSubmitting}
                         maxLength={200}
                       />
                       {errors.razon_social && (
@@ -460,7 +455,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-border-base dark:border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         placeholder="Nombre corto para mostrar"
-                        disabled={loading}
+                        disabled={isSubmitting}
                         maxLength={150}
                       />
                     </div>
@@ -480,7 +475,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         }`}
                         placeholder="8-15 dígitos"
                         maxLength={15}
-                        disabled={loading}
+                        disabled={isSubmitting}
                       />
                       {errors.ruc && (
                         <p className="mt-1 text-sm text-error">{errors.ruc}</p>
@@ -507,7 +502,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-border-base dark:border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         placeholder="Nombre del contacto principal"
-                        disabled={loading}
+                        disabled={isSubmitting}
                         maxLength={100}
                       />
                     </div>
@@ -526,7 +521,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           errors.contacto_email ? 'border-error' : 'border-border-base dark:border-border-base'
                         }`}
                         placeholder="email@empresa.com"
-                        disabled={loading}
+                        disabled={isSubmitting}
                       />
                       {errors.contacto_email && (
                         <p className="mt-1 text-sm text-error">{errors.contacto_email}</p>
@@ -545,7 +540,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-border-base dark:border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         placeholder="+51 999 999 999"
-                        disabled={loading}
+                        disabled={isSubmitting}
                         maxLength={20}
                       />
                     </div>
@@ -562,7 +557,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                       checked={formData.es_demo}
                       onChange={handleInputChange}
                       className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded"
-                      disabled={loading}
+                      disabled={isSubmitting}
                     />
                     <label htmlFor="es_demo" className="ml-2 block text-sm text-text-base">
                       Marcar como cliente de demostración
@@ -593,7 +588,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         value={formData.tipo_instalacion}
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-border-base dark:border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
-                        disabled={loading}
+                        disabled={isSubmitting}
                       >
                         <option value={InstallationType.SHARED}>Compartida</option>
                         <option value={InstallationType.DEDICATED}>Dedicada</option>
@@ -612,7 +607,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         value={formData.modo_autenticacion}
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-border-base dark:border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
-                        disabled={loading}
+                        disabled={isSubmitting}
                       >
                         <option value={AuthenticationMode.LOCAL}>Local</option>
                         <option value={AuthenticationMode.SSO}>SSO</option>
@@ -635,7 +630,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                             errors.servidor_api_local ? 'border-error' : 'border-border-base dark:border-border-base'
                           }`}
                           placeholder="https://api.cliente.local"
-                          disabled={loading}
+                          disabled={isSubmitting}
                         />
                         {errors.servidor_api_local && (
                           <p className="mt-1 text-sm text-error">{errors.servidor_api_local}</p>
@@ -663,7 +658,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           checked={formData.sincronizacion_habilitada || false}
                           onChange={handleInputChange}
                           className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded"
-                          disabled={loading}
+                          disabled={isSubmitting}
                         />
                         <label htmlFor="sincronizacion_habilitada" className="ml-2 block text-sm text-text-base">
                           Habilitar sincronización bidireccional con servidor central
@@ -687,7 +682,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           onChange={handleInputChange}
                           className="w-full px-3 py-2 border border-border-base dark:border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base font-mono text-sm"
                           placeholder="Ingrese la API key para sincronización"
-                          disabled={loading}
+                          disabled={isSubmitting}
                           maxLength={255}
                         />
                         <p className="mt-1 text-xs text-text-soft">
@@ -720,7 +715,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-border-base dark:border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         placeholder="https://cdn.tuapp.com/logos/acme.png"
-                        disabled={loading}
+                        disabled={isSubmitting}
                         maxLength={500}
                       />
                     </div>
@@ -737,7 +732,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-border-base dark:border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                         placeholder="https://cdn.tuapp.com/favicons/acme.ico"
-                        disabled={loading}
+                        disabled={isSubmitting}
                         maxLength={500}
                       />
                     </div>
@@ -754,7 +749,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           value={formData.color_primario}
                           onChange={handleInputChange}
                           className="h-10 w-20 border border-border-base dark:border-border-base rounded-lg cursor-pointer"
-                          disabled={loading}
+                          disabled={isSubmitting}
                         />
                         <input
                           type="text"
@@ -768,7 +763,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                             errors.color_primario ? 'border-error' : 'border-border-base dark:border-border-base'
                           }`}
                           placeholder="#1976D2"
-                          disabled={loading}
+                          disabled={isSubmitting}
                           maxLength={7}
                         />
                       </div>
@@ -789,7 +784,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           value={formData.color_secundario}
                           onChange={handleInputChange}
                           className="h-10 w-20 border border-border-base dark:border-border-base rounded-lg cursor-pointer"
-                          disabled={loading}
+                          disabled={isSubmitting}
                         />
                         <input
                           type="text"
@@ -803,7 +798,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                             errors.color_secundario ? 'border-error' : 'border-border-base dark:border-border-base'
                           }`}
                           placeholder="#424242"
-                          disabled={loading}
+                          disabled={isSubmitting}
                           maxLength={7}
                         />
                       </div>
@@ -825,7 +820,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           errors.tema_personalizado ? 'border-error' : 'border-border-base dark:border-border-base'
                         }`}
                         placeholder='{"font": "Roboto", "borderRadius": "8px"}'
-                        disabled={loading}
+                        disabled={isSubmitting}
                         rows={4}
                       />
                       {errors.tema_personalizado && (
@@ -858,7 +853,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         value={formData.plan_suscripcion}
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-border-base dark:border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
-                        disabled={loading}
+                        disabled={isSubmitting}
                       >
                         <option value={SubscriptionPlan.TRIAL}>Trial</option>
                         <option value={SubscriptionPlan.BASIC}>Básico</option>
@@ -877,7 +872,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         value={formData.estado_suscripcion}
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-border-base dark:border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
-                        disabled={loading}
+                        disabled={isSubmitting}
                       >
                         <option value={SubscriptionStatus.TRIAL}>Trial</option>
                         <option value={SubscriptionStatus.ACTIVE}>Activo</option>
@@ -898,7 +893,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         value={formData.fecha_inicio_suscripcion || ''}
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-border-base dark:border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
-                        disabled={loading}
+                        disabled={isSubmitting}
                       />
                     </div>
 
@@ -913,7 +908,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         value={formData.fecha_fin_trial || ''}
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-border-base dark:border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
-                        disabled={loading}
+                        disabled={isSubmitting}
                       />
                     </div>
                   </div>
@@ -946,7 +941,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
               <button
                 type="button"
                 onClick={handleRequestClose}
-                disabled={loading}
+                disabled={isSubmitting}
                 className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-secondary disabled:opacity-50"
               >
                 Cancelar
@@ -968,11 +963,11 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
               {activeSection === 'subscription' && (
                 <button
                   type="submit"
-                  disabled={loading || validatingSubdomain || subdomainAvailable === false}
+                  disabled={isSubmitting || validatingSubdomain || subdomainAvailable === false}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-primary disabled:opacity-50"
                 >
-                  {loading && <Loader className="h-4 w-4 animate-spin" />}
-                  {loading ? 'Creando...' : 'Crear Cliente'}
+                  {isSubmitting && <Loader className="h-4 w-4 animate-spin" />}
+                  {isSubmitting ? 'Creando...' : 'Crear Cliente'}
                 </button>
               )}
             </div>

@@ -24,6 +24,7 @@ import CreateClientModal from '../components/CreateClientModal';
 import EditClientModal from '../components/EditClientModal';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
+import { getErrorMessage } from '@/core/services/error.service';
 
 type ClienteActiveAction = 'deactivate' | 'reactivate';
 
@@ -74,7 +75,7 @@ const ClientManagementPage: React.FC = () => {
   const clientes = clientesData?.clientes || [];
   const totalPages = clientesData?.total_paginas || 1;
   const totalClientes = clientesData?.total_clientes || 0;
-  const error = queryError ? queryError.message : null;
+  const error = queryError ? getErrorMessage(queryError).message : null;
 
   // Mutaciones
   const activateMutation = useActivateCliente();
