@@ -115,11 +115,14 @@ export interface ClienteListResponse {
   items_por_pagina: number;
 }
 
+/** Filtro de estado activo/inactivo en listado super-admin (mapeo a solo_activos + filtro local). */
+export type ClienteActiveFilter = 'active' | 'inactive' | 'all';
+
 export interface ClienteFilters {
+  activeFilter?: ClienteActiveFilter;
   plan_suscripcion?: string;
   estado_suscripcion?: string;
   tipo_instalacion?: string;
-  es_activo?: boolean;
   buscar?: string;
 }
 

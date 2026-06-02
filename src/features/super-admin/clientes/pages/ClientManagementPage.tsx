@@ -12,7 +12,7 @@ import {
   Building,
 } from 'lucide-react';
 
-import { Cliente, ClienteFilters } from '../types/cliente.types';
+import { Cliente, ClienteActiveFilter, ClienteFilters } from '../types/cliente.types';
 import { useAuth } from '@/shared/context/AuthContext';
 import { SubscriptionStatus } from '@/core/constants';
 import { useClientes } from '@/core/hooks/useClientes';
@@ -46,6 +46,7 @@ const ClientManagementPage: React.FC = () => {
   // Filtros
   const [searchTerm, setSearchTerm] = useState<string>('');
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const [activeFilter, setActiveFilter] = useState<ClienteActiveFilter>('active');
   const [filters, setFilters] = useState<ClienteFilters>({});
   
   // Modales
@@ -67,7 +68,7 @@ const ClientManagementPage: React.FC = () => {
   } = useClientes({
     pagina: currentPage,
     limite: limitPerPage,
-    filtros: { ...filters, buscar: debouncedSearchTerm || undefined },
+    filtros: { ...filters, activeFilter, buscar: debouncedSearchTerm || undefined },
     enabled: isSuperAdmin,
   });
 
@@ -135,9 +136,17 @@ const ClientManagementPage: React.FC = () => {
     setActiveAction(cliente.es_activo ? 'deactivate' : 'reactivate');
   };
 
+  const handleActiveFilterChange = (value: ClienteActiveFilter) => {
+    setActiveFilter(value);
+    setCurrentPage(1);
+  };
+
   const handleActiveConfirm = () => {
     if (!activeTarget || !activeAction) return;
-    const onSuccess = () => closeActiveConfirm();
+    const onSuccess = async () => {
+      closeActiveConfirm();
+      await refetch();
+    };
     if (activeAction === 'deactivate') {
       deactivateMutation.mutate(activeTarget.cliente_id, { onSuccess });
     } else {
@@ -234,14 +243,14 @@ const ClientManagementPage: React.FC = () => {
             </select>
 
             <select
-              value={filters.es_activo === undefined ? '' : filters.es_activo.toString()}
-              onChange={(e) => handleFilterChange('es_activo', e.target.value === '' ? undefined : e.target.value === 'true')}
+              value={activeFilter}
+              onChange={(e) => handleActiveFilterChange(e.target.value as ClienteActiveFilter)}
               disabled={pageActionsLocked}
               className="px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <option value="">Todos</option>
-              <option value="true">Activos</option>
-              <option value="false">Inactivos</option>
+              <option value="all">Todos</option>
+              <option value="active">Activos</option>
+              <option value="inactive">Inactivos</option>
             </select>
           </div>
 
@@ -427,7 +436,7 @@ const ClientManagementPage: React.FC = () => {
                       <td colSpan={6} className="px-6 py-8 text-center text-sm text-text-soft">
                         <Building className="mx-auto h-12 w-12 text-text-soft mb-4" />
                         <p>No se encontraron clientes</p>
-                        {searchTerm || Object.keys(filters).length > 0 ? (
+                        {searchTerm || activeFilter !== 'active' || Object.keys(filters).length > 0 ? (
                           <p className="mt-1">Intenta ajustar los filtros de búsqueda</p>
                         ) : (
                           <button

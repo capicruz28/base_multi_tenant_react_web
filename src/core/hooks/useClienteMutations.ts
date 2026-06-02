@@ -66,15 +66,16 @@ export function useActivateCliente() {
 
   return useMutation<Cliente, Error, string>({
     mutationFn: (id) => clienteService.activateCliente(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        queryKey: ['clientes', tenantId] 
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['clientes', tenantId],
+        refetchType: 'active',
       });
-      toast.success('Cliente activado exitosamente');
+      toast.success('Cliente reactivado exitosamente');
     },
     onError: (error) => {
       const errorData = getErrorMessage(error);
-      toast.error(errorData.message || 'Error al activar el cliente');
+      toast.error(errorData.message || 'Error al reactivar el cliente');
     },
   });
 }
@@ -88,9 +89,10 @@ export function useDeactivateCliente() {
 
   return useMutation<{ message: string }, Error, string>({
     mutationFn: (id) => clienteService.deactivateCliente(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        queryKey: ['clientes', tenantId] 
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['clientes', tenantId],
+        refetchType: 'active',
       });
       toast.success('Cliente desactivado exitosamente');
     },

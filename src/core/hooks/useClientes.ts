@@ -40,7 +40,7 @@ export function useClientes(options: UseClientesOptions = {}) {
     queryKey: ['clientes', tenantId, pagina, limite, filtros],
     queryFn: () => clienteService.getClientes(pagina, limite, filtros),
     enabled: enabled && (isSuperAdmin || (requireTenant && !!tenantId)),
-    staleTime: 2 * 60 * 1000, // 2 minutos - datos de clientes cambian poco
+    staleTime: 0,
     gcTime: 5 * 60 * 1000, // 5 minutos
   });
 }
