@@ -58,6 +58,7 @@ export interface CatDepartamento {
   pais_id: string;
   codigo: string;
   nombre: string;
+  es_activo?: boolean | null;
 }
 
 export interface CatDepartamentoCreate {
@@ -70,6 +71,7 @@ export interface CatDepartamentoUpdate {
   pais_id?: string | null;
   codigo?: string | null;
   nombre?: string | null;
+  es_activo?: boolean | null;
 }
 
 // ─── Provincia (cat_provincia) ───────────────────────────────────────────
@@ -79,6 +81,7 @@ export interface CatProvincia {
   departamento_id: string;
   codigo: string;
   nombre: string;
+  es_activo?: boolean | null;
 }
 
 export interface CatProvinciaCreate {
@@ -91,6 +94,7 @@ export interface CatProvinciaUpdate {
   departamento_id?: string | null;
   codigo?: string | null;
   nombre?: string | null;
+  es_activo?: boolean | null;
 }
 
 // ─── Distrito (cat_distrito) ─────────────────────────────────────────────
@@ -101,6 +105,7 @@ export interface CatDistrito {
   codigo: string;
   nombre: string;
   ubigeo: string;
+  es_activo?: boolean | null;
 }
 
 export interface CatDistritoCreate {
@@ -115,5 +120,6 @@ export interface CatDistritoUpdate {
   codigo?: string | null;
   nombre?: string | null;
   ubigeo?: string | null;
+  es_activo?: boolean | null;
 }
 

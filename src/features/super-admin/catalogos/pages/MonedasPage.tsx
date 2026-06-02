@@ -26,15 +26,17 @@ const MonedasPage: React.FC = () => {
   const [form, setForm] = useState<CatMonedaCreate>(DEFAULT);
   const [editForm, setEditForm] = useState<CatMonedaUpdate>({});
   const [submitting, setSubmitting] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<CatMoneda | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [showInactivos, setShowInactivos] = useState(false);
+  const [activeTarget, setActiveTarget] = useState<CatMoneda | null>(null);
+  const [activeAction, setActiveAction] = useState<'deactivate' | 'reactivate' | null>(null);
+  const [togglingActive, setTogglingActive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   const fetchList = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await catalogosGlobalService.listMonedas();
+      const data = await catalogosGlobalService.listMonedas({ solo_activos: !showInactivos });
       setList(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(getErrorMessage(err).message);
@@ -42,7 +44,7 @@ const MonedasPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showInactivos]);
 
   useEffect(() => {
     if (isSuperAdmin) fetchList();
@@ -64,18 +66,34 @@ const MonedasPage: React.FC = () => {
     setEditOpen(true);
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
+  const closeActiveConfirm = () => {
+    setActiveTarget(null);
+    setActiveAction(null);
+  };
+
+  const openActiveConfirm = (row: CatMoneda) => {
+    const isActivo = row.es_activo !== false;
+    setActiveTarget(row);
+    setActiveAction(isActivo ? 'deactivate' : 'reactivate');
+  };
+
+  const handleActiveConfirm = async () => {
+    if (!activeTarget || !activeAction) return;
+    setTogglingActive(true);
     try {
-      await catalogosGlobalService.deleteMoneda(deleteTarget.moneda_id);
-      toast.success('Moneda eliminada.');
-      setDeleteTarget(null);
+      if (activeAction === 'deactivate') {
+        await catalogosGlobalService.deleteMoneda(activeTarget.moneda_id);
+        toast.success('Moneda desactivada.');
+      } else {
+        await catalogosGlobalService.updateMoneda(activeTarget.moneda_id, { es_activo: true });
+        toast.success('Moneda reactivada.');
+      }
+      closeActiveConfirm();
       fetchList();
     } catch (err) {
       toast.error(getErrorMessage(err).message);
     } finally {
-      setDeleting(false);
+      setTogglingActive(false);
     }
   };
 
@@ -119,42 +137,54 @@ const MonedasPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <DollarSign className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Acceso restringido</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">No tienes permisos para acceder a este catálogo.</p>
+          <DollarSign className="mx-auto h-12 w-12 text-text-soft" />
+          <h3 className="mt-2 text-sm font-medium text-text-base">Acceso restringido</h3>
+          <p className="mt-1 text-sm text-text-soft">No tienes permisos para acceder a este catálogo.</p>
         </div>
       </div>
     );
   }
 
-  const inputClass = 'mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm';
+  const inputClass = 'mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm';
 
   const q = searchTerm.trim().toLowerCase();
   const filteredList = q
     ? list.filter((m) => (m.codigo?.toLowerCase().includes(q) || m.nombre?.toLowerCase().includes(q) || m.simbolo?.toLowerCase().includes(q)))
     : list;
 
+  const soloActivos = !showInactivos;
+
   return (
     <div className="w-full">
       {/* Barra de herramientas */}
-      <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="mb-6 bg-surface rounded-lg shadow-sm border border-border-base p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-soft" />
             <input
               type="text"
               placeholder="Buscar monedas..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+              className="pl-10 pr-4 py-2 w-full border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
             />
           </div>
+          <label className="flex items-center gap-2 px-3 py-2 border border-border-base rounded-lg cursor-pointer hover:bg-overlay dark:hover:bg-overlay">
+            <input
+              type="checkbox"
+              checked={showInactivos}
+              onChange={(e) => setShowInactivos(e.target.checked)}
+              className="rounded border-border-base text-brand-primary focus:ring-brand-primary"
+              aria-label="Ver inactivos"
+            />
+            <span className="text-sm text-text-soft">Ver inactivos</span>
+          </label>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => fetchList()}
               disabled={loading}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="p-2 text-text-soft hover:text-text-base dark:hover:text-text-base hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors"
               title="Actualizar"
             >
               <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
@@ -162,7 +192,7 @@ const MonedasPage: React.FC = () => {
             <button
               type="button"
               onClick={openCreate}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-surface transition-colors"
             >
               <Plus className="h-4 w-4" />
               Nueva Moneda
@@ -172,45 +202,55 @@ const MonedasPage: React.FC = () => {
       </div>
 
       {/* Contenido */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-surface rounded-lg shadow-sm border border-border-base overflow-hidden">
         {loading && (
           <div className="flex justify-center items-center py-12">
             <RefreshCw className="animate-spin h-6 w-6 text-brand-primary" />
-            <span className="ml-2 text-gray-600 dark:text-gray-400">Cargando monedas...</span>
+            <span className="ml-2 text-text-soft">Cargando monedas...</span>
           </div>
         )}
         {error && !loading && (
           <div className="p-6">
-            <p className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">{error}</p>
+            <p className="text-error bg-error/10 p-4 rounded-lg">{error}</p>
           </div>
         )}
         {!loading && !error && (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+            <table className="min-w-full divide-y divide-border-base">
+              <thead className="bg-subtle dark:bg-subtle">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Código</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Nombre</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Símbolo</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Decimales</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Activo</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Acciones</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Código</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Nombre</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Símbolo</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Decimales</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Activo</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-text-soft uppercase">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-surface divide-y divide-border-base">
                 {filteredList.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"><DollarSign className="h-10 w-10 mx-auto mb-2 opacity-50" />{list.length === 0 ? 'No hay monedas.' : 'No hay resultados para la búsqueda.'}</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-text-soft"><DollarSign className="h-10 w-10 mx-auto mb-2 opacity-50" />{list.length === 0 ? 'No hay monedas.' : 'No hay resultados para la búsqueda.'}</td></tr>
                 ) : (
-                  filteredList.map((row) => (
-                  <tr key={row.moneda_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{row.codigo}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.nombre}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.simbolo}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.decimales ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.es_activo ? 'Sí' : 'No'}</td>
+                  filteredList
+                    .filter((row) => (soloActivos ? row.es_activo !== false : true))
+                    .map((row) => (
+                  <tr key={row.moneda_id} className="hover:bg-overlay dark:hover:bg-overlay">
+                    <td className="px-4 py-3 text-sm font-medium text-text-base">{row.codigo}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">{row.nombre}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">{row.simbolo}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">{row.decimales ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">{row.es_activo === false ? 'No' : 'Sí'}</td>
                     <td className="px-4 py-3 flex items-center justify-center gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(row)} className="text-brand-primary hover:text-brand-primary/80"><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(row)} className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="h-4 w-4" /></Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openActiveConfirm(row)}
+                        className={row.es_activo === false ? 'text-success hover:bg-success/10 dark:hover:bg-success/15' : 'text-error hover:bg-error/10 dark:hover:bg-error/15'}
+                        title={row.es_activo === false ? 'Reactivar' : 'Desactivar'}
+                      >
+                        {row.es_activo === false ? <RefreshCw className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
+                      </Button>
                     </td>
                   </tr>
                   ))
@@ -234,7 +274,7 @@ const MonedasPage: React.FC = () => {
                 <div className="flex items-center gap-2"><input type="checkbox" checked={form.es_activo ?? true} onChange={(e) => setForm((p) => ({ ...p, es_activo: e.target.checked }))} /><Label>Activo</Label></div>
               </div>
             </DialogBody>
-            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-gray-200 dark:border-gray-700"><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Crear</Button></DialogFooter>
+            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base"><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -251,12 +291,28 @@ const MonedasPage: React.FC = () => {
                 <div className="flex items-center gap-2"><input type="checkbox" checked={editForm.es_activo ?? true} onChange={(e) => setEditForm((p) => ({ ...p, es_activo: e.target.checked }))} /><Label>Activo</Label></div>
               </div>
             </DialogBody>
-            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-gray-200 dark:border-gray-700"><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button></DialogFooter>
+            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base"><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDeleteConfirm} title="Eliminar moneda" message={deleteTarget ? `¿Eliminar la moneda "${deleteTarget.nombre}"?` : ''} confirmText="Eliminar" cancelText="Cancelar" variant="danger" loading={deleting} />
+      <ConfirmDialog
+        isOpen={!!activeTarget && !!activeAction}
+        onClose={closeActiveConfirm}
+        onConfirm={handleActiveConfirm}
+        title={activeAction === 'reactivate' ? 'Reactivar moneda' : 'Desactivar moneda'}
+        message={
+          activeTarget
+            ? activeAction === 'reactivate'
+              ? `¿Reactivar la moneda "${activeTarget.nombre}"?`
+              : `¿Desactivar la moneda "${activeTarget.nombre}"?`
+            : ''
+        }
+        confirmText={activeAction === 'reactivate' ? 'Reactivar' : 'Desactivar'}
+        cancelText="Cancelar"
+        variant={activeAction === 'reactivate' ? 'info' : 'danger'}
+        loading={togglingActive}
+      />
     </div>
   );
 };

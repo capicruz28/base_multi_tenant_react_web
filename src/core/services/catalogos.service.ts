@@ -120,9 +120,10 @@ export const catalogosGlobalService = {
   },
 
   // Departamentos
-  async listDepartamentos(params?: { pais_id?: string }): Promise<CatDepartamento[]> {
-    const q: Record<string, string> = {};
+  async listDepartamentos(params?: { pais_id?: string; solo_activos?: boolean }): Promise<CatDepartamento[]> {
+    const q: Record<string, string | boolean> = {};
     if (params?.pais_id) q.pais_id = params.pais_id;
+    if (params?.solo_activos !== undefined) q.solo_activos = params.solo_activos;
     const { data } = await api.get<CatDepartamento[]>(`${GLOBAL_BASE}/departamentos`, { params: q });
     return Array.isArray(data) ? data : [];
   },
@@ -142,9 +143,10 @@ export const catalogosGlobalService = {
   },
 
   // Provincias
-  async listProvincias(params?: { departamento_id?: string }): Promise<CatProvincia[]> {
-    const q: Record<string, string> = {};
+  async listProvincias(params?: { departamento_id?: string; solo_activos?: boolean }): Promise<CatProvincia[]> {
+    const q: Record<string, string | boolean> = {};
     if (params?.departamento_id) q.departamento_id = params.departamento_id;
+    if (params?.solo_activos !== undefined) q.solo_activos = params.solo_activos;
     const { data } = await api.get<CatProvincia[]>(`${GLOBAL_BASE}/provincias`, { params: q });
     return Array.isArray(data) ? data : [];
   },
@@ -164,9 +166,10 @@ export const catalogosGlobalService = {
   },
 
   // Distritos
-  async listDistritos(params?: { provincia_id?: string }): Promise<CatDistrito[]> {
-    const q: Record<string, string> = {};
+  async listDistritos(params?: { provincia_id?: string; solo_activos?: boolean }): Promise<CatDistrito[]> {
+    const q: Record<string, string | boolean> = {};
     if (params?.provincia_id) q.provincia_id = params.provincia_id;
+    if (params?.solo_activos !== undefined) q.solo_activos = params.solo_activos;
     const { data } = await api.get<CatDistrito[]>(`${GLOBAL_BASE}/distritos`, { params: q });
     return Array.isArray(data) ? data : [];
   },
