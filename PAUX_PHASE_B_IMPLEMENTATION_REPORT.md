@@ -129,7 +129,7 @@ Handlers, state y copy **sin cambios**.
 
 | Hash | Mensaje |
 |------|---------|
-| *(ver git log)* | `fix(platform): PAUX Phase B — sanitize 422 UX and two-zone toolbars` |
+| `cec476d` | `fix(platform): PAUX Phase B — sanitize 422 UX and two-zone toolbars` |
 
 ---
 
