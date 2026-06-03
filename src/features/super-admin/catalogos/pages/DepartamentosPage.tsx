@@ -8,7 +8,7 @@ import { Map, Plus, Pencil, Trash2, Search, RefreshCw } from 'lucide-react';
 import { catalogosGlobalService } from '@/core/services/catalogos.service';
 import type { CatPais, CatDepartamento, CatDepartamentoCreate, CatDepartamentoUpdate } from '@/types/catalogos.types';
 import { useAuth } from '@/shared/context/AuthContext';
-import { getErrorMessage } from '@/core/services/error.service';
+import { getErrorMessage, getValidationErrors } from '@/core/services/error.service';
 import { Button } from '@/shared/components/ui/button';
 import { Dialog, DialogContent, DialogBody, DialogHeader, DialogFooter, DialogTitle } from '@/shared/components/ui/dialog';
 import { Label } from '@/shared/components/ui/label';
@@ -34,6 +34,8 @@ const DepartamentosPage: React.FC = () => {
   const [activeAction, setActiveAction] = useState<'deactivate' | 'reactivate' | null>(null);
   const [togglingActive, setTogglingActive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
 
   const fetchPaises = useCallback(async () => {
     try {
@@ -72,11 +74,13 @@ const DepartamentosPage: React.FC = () => {
 
   const openCreate = () => {
     setForm({ ...DEFAULT, pais_id: paisFilter || (paises[0]?.pais_id ?? '') });
+    setFieldErrors({});
     setCreateOpen(true);
   };
 
   const openEdit = (row: CatDepartamento) => {
     setEditing(row);
+    setEditFieldErrors({});
     setEditForm({ pais_id: row.pais_id, codigo: row.codigo, nombre: row.nombre });
     setEditOpen(true);
   };
@@ -119,13 +123,16 @@ const DepartamentosPage: React.FC = () => {
       return;
     }
     setSubmitting(true);
+    setFieldErrors({});
     try {
       await catalogosGlobalService.createDepartamento(form);
       toast.success('Departamento creado.');
       setCreateOpen(false);
       fetchList();
     } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      const { fieldErrors: nextErrors, message } = getValidationErrors(err);
+      setFieldErrors(nextErrors);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -135,6 +142,7 @@ const DepartamentosPage: React.FC = () => {
     e.preventDefault();
     if (!editing) return;
     setSubmitting(true);
+    setEditFieldErrors({});
     try {
       await catalogosGlobalService.updateDepartamento(editing.departamento_id, editForm);
       toast.success('Departamento actualizado.');
@@ -142,7 +150,9 @@ const DepartamentosPage: React.FC = () => {
       setEditing(null);
       fetchList();
     } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      const { fieldErrors: nextErrors, message } = getValidationErrors(err);
+      setEditFieldErrors(nextErrors);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -162,7 +172,10 @@ const DepartamentosPage: React.FC = () => {
     );
   }
 
-  const inputClass = 'mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm';
+  const inputClass = (key: string, isEdit = false) =>
+    `mt-1 w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm ${
+      (isEdit ? editFieldErrors : fieldErrors)[key] ? 'border-error' : 'border-border-base'
+    }`;
   const selectClass = 'mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm';
 
   const q = searchTerm.trim().toLowerCase();
@@ -279,9 +292,9 @@ const DepartamentosPage: React.FC = () => {
           <form onSubmit={handleCreate} className="flex flex-col min-h-0 flex-1">
             <DialogBody className="px-6 pb-2">
               <div className="space-y-4">
-                <div><Label>País *</Label><select value={form.pais_id} onChange={(e) => setForm((p) => ({ ...p, pais_id: e.target.value }))} className={selectClass} required><option value="">Seleccionar</option>{paises.map((p) => <option key={p.pais_id} value={p.pais_id}>{p.nombre}</option>)}</select></div>
-                <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className={inputClass} required /></div>
-                <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass} required /></div>
+                <div><Label>País *</Label><select value={form.pais_id} onChange={(e) => setForm((p) => ({ ...p, pais_id: e.target.value }))} className={inputClass('pais_id')} required><option value="">Seleccionar</option>{paises.map((p) => <option key={p.pais_id} value={p.pais_id}>{p.nombre}</option>)}</select></div>
+                <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className={inputClass('codigo')} required /></div>
+                <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass('nombre')} required /></div>
               </div>
             </DialogBody>
             <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base"><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button></DialogFooter>
@@ -295,9 +308,9 @@ const DepartamentosPage: React.FC = () => {
           <form onSubmit={handleUpdate} className="flex flex-col min-h-0 flex-1">
             <DialogBody className="px-6 pb-2">
               <div className="space-y-4">
-                <div><Label>País *</Label><select value={editForm.pais_id ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, pais_id: e.target.value }))} className={selectClass} required><option value="">Seleccionar</option>{paises.map((p) => <option key={p.pais_id} value={p.pais_id}>{p.nombre}</option>)}</select></div>
-                <div><Label>Código *</Label><input type="text" value={editForm.codigo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo: e.target.value }))} className={inputClass} required /></div>
-                <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass} required /></div>
+                <div><Label>País *</Label><select value={editForm.pais_id ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, pais_id: e.target.value }))} className={inputClass('pais_id', true)} required><option value="">Seleccionar</option>{paises.map((p) => <option key={p.pais_id} value={p.pais_id}>{p.nombre}</option>)}</select></div>
+                <div><Label>Código *</Label><input type="text" value={editForm.codigo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo: e.target.value }))} className={inputClass('codigo', true)} required /></div>
+                <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass('nombre', true)} required /></div>
               </div>
             </DialogBody>
             <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base"><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>

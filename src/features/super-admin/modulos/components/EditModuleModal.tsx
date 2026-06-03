@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import { X, Package, Loader } from 'lucide-react';
 import { moduloV2Service } from '@/features/modulos/services/modulo-v2.service';
 import type { ModuloV2, ModuloV2Update } from '@/features/modulos/types/modulo-v2.types';
-import { getErrorMessage } from '@/core/services/error.service';
+import { getValidationErrors } from '@/core/services/error.service';
 import IconSelector from '@/shared/components/ui/IconSelector';
 import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
@@ -136,14 +136,18 @@ const EditModuleModal: React.FC<EditModuleModalProps> = ({
     }
 
     setLoading(true);
+    setErrors({});
     try {
       await moduloV2Service.updateModulo(modulo.modulo_id, formData);
       toast.success('Módulo actualizado exitosamente');
       onSuccess();
     } catch (error) {
       console.error('Error updating module:', error);
-      const errorData = getErrorMessage(error);
-      toast.error(errorData.message || 'Error al actualizar el módulo');
+      const { fieldErrors: nextErrors, message } = getValidationErrors(error);
+      if (Object.keys(nextErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...nextErrors }));
+      }
+      toast.error(message || 'Error al actualizar el módulo');
     } finally {
       setLoading(false);
     }

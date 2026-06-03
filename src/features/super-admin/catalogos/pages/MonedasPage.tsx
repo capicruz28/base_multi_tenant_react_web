@@ -7,7 +7,7 @@ import { DollarSign, Plus, Pencil, Trash2, Search, RefreshCw } from 'lucide-reac
 import { catalogosGlobalService } from '@/core/services/catalogos.service';
 import type { CatMoneda, CatMonedaCreate, CatMonedaUpdate } from '@/types/catalogos.types';
 import { useAuth } from '@/shared/context/AuthContext';
-import { getErrorMessage } from '@/core/services/error.service';
+import { getErrorMessage, getValidationErrors } from '@/core/services/error.service';
 import { Button } from '@/shared/components/ui/button';
 import { Dialog, DialogContent, DialogBody, DialogHeader, DialogFooter, DialogTitle } from '@/shared/components/ui/dialog';
 import { Label } from '@/shared/components/ui/label';
@@ -31,6 +31,8 @@ const MonedasPage: React.FC = () => {
   const [activeAction, setActiveAction] = useState<'deactivate' | 'reactivate' | null>(null);
   const [togglingActive, setTogglingActive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -52,11 +54,13 @@ const MonedasPage: React.FC = () => {
 
   const openCreate = () => {
     setForm({ ...DEFAULT });
+    setFieldErrors({});
     setCreateOpen(true);
   };
 
   const openEdit = (row: CatMoneda) => {
     setEditing(row);
+    setEditFieldErrors({});
     setEditForm({
       nombre: row.nombre,
       simbolo: row.simbolo,
@@ -104,13 +108,16 @@ const MonedasPage: React.FC = () => {
       return;
     }
     setSubmitting(true);
+    setFieldErrors({});
     try {
       await catalogosGlobalService.createMoneda(form);
       toast.success('Moneda creada.');
       setCreateOpen(false);
       fetchList();
     } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      const { fieldErrors: nextErrors, message } = getValidationErrors(err);
+      setFieldErrors(nextErrors);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -120,6 +127,7 @@ const MonedasPage: React.FC = () => {
     e.preventDefault();
     if (!editing) return;
     setSubmitting(true);
+    setEditFieldErrors({});
     try {
       await catalogosGlobalService.updateMoneda(editing.moneda_id, editForm);
       toast.success('Moneda actualizada.');
@@ -127,7 +135,9 @@ const MonedasPage: React.FC = () => {
       setEditing(null);
       fetchList();
     } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      const { fieldErrors: nextErrors, message } = getValidationErrors(err);
+      setEditFieldErrors(nextErrors);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -145,7 +155,10 @@ const MonedasPage: React.FC = () => {
     );
   }
 
-  const inputClass = 'mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm';
+  const inputClass = (key: string, isEdit = false) =>
+    `mt-1 w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm ${
+      (isEdit ? editFieldErrors : fieldErrors)[key] ? 'border-error' : 'border-border-base'
+    }`;
 
   const q = searchTerm.trim().toLowerCase();
   const filteredList = q
@@ -267,10 +280,10 @@ const MonedasPage: React.FC = () => {
           <form onSubmit={handleCreate} className="flex flex-col min-h-0 flex-1">
             <DialogBody className="px-6 pb-2">
               <div className="space-y-4">
-                <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className={inputClass} required maxLength={3} /></div>
-                <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass} required /></div>
-                <div><Label>Símbolo *</Label><input type="text" value={form.simbolo} onChange={(e) => setForm((p) => ({ ...p, simbolo: e.target.value }))} className={inputClass} required maxLength={5} /></div>
-                <div><Label>Decimales</Label><input type="number" min={0} max={6} value={form.decimales ?? 2} onChange={(e) => setForm((p) => ({ ...p, decimales: parseInt(e.target.value, 10) || 0 }))} className={inputClass} /></div>
+                <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className={inputClass('codigo')} required maxLength={3} /></div>
+                <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass('nombre')} required /></div>
+                <div><Label>Símbolo *</Label><input type="text" value={form.simbolo} onChange={(e) => setForm((p) => ({ ...p, simbolo: e.target.value }))} className={inputClass('simbolo')} required maxLength={5} /></div>
+                <div><Label>Decimales</Label><input type="number" min={0} max={6} value={form.decimales ?? 2} onChange={(e) => setForm((p) => ({ ...p, decimales: parseInt(e.target.value, 10) || 0 }))} className={inputClass('decimales')} /></div>
                 <div className="flex items-center gap-2"><input type="checkbox" checked={form.es_activo ?? true} onChange={(e) => setForm((p) => ({ ...p, es_activo: e.target.checked }))} /><Label>Activo</Label></div>
               </div>
             </DialogBody>
@@ -285,9 +298,9 @@ const MonedasPage: React.FC = () => {
           <form onSubmit={handleUpdate} className="flex flex-col min-h-0 flex-1">
             <DialogBody className="px-6 pb-2">
               <div className="space-y-4">
-                <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass} required /></div>
-                <div><Label>Símbolo *</Label><input type="text" value={editForm.simbolo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, simbolo: e.target.value }))} className={inputClass} required maxLength={5} /></div>
-                <div><Label>Decimales</Label><input type="number" min={0} max={6} value={editForm.decimales ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, decimales: e.target.value === '' ? undefined : parseInt(e.target.value, 10) }))} className={inputClass} /></div>
+                <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass('nombre', true)} required /></div>
+                <div><Label>Símbolo *</Label><input type="text" value={editForm.simbolo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, simbolo: e.target.value }))} className={inputClass('simbolo', true)} required maxLength={5} /></div>
+                <div><Label>Decimales</Label><input type="number" min={0} max={6} value={editForm.decimales ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, decimales: e.target.value === '' ? undefined : parseInt(e.target.value, 10) }))} className={inputClass('decimales', true)} /></div>
                 <div className="flex items-center gap-2"><input type="checkbox" checked={editForm.es_activo ?? true} onChange={(e) => setEditForm((p) => ({ ...p, es_activo: e.target.checked }))} /><Label>Activo</Label></div>
               </div>
             </DialogBody>

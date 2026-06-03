@@ -49,7 +49,7 @@ function normalizeErrorPayload(data: unknown): unknown {
 function messageFromHttpStatus(status: number): string {
   switch (status) {
     case 400:
-      return 'Los datos enviados son incorrectos. Revisa los campos marcados en rojo y corrige los errores.';
+      return 'Los datos enviados son incorrectos.';
     case 401:
       return 'Tu sesión ha expirado o las credenciales son inválidas. Por favor, inicia sesión nuevamente.';
     case 403:
@@ -59,7 +59,7 @@ function messageFromHttpStatus(status: number): string {
     case 409:
       return 'El recurso ya existe o hay un conflicto de duplicidad. Verifica que no esté duplicado (ej: subdominio, código).';
     case 422:
-      return 'Los datos enviados no son válidos. Revisa el formato de los campos y vuelve a intentar.';
+      return 'Los datos enviados no son válidos.';
     case 500:
       return 'Error interno del servidor (500). Revise los logs del backend; suele deberse a base de datos, migraciones o un fallo en la API.';
     case 503:
@@ -149,10 +149,11 @@ export const getValidationErrors = (error: unknown): ValidationErrorsResult => {
   }
 
   const fromDetail = messageFromDetail(detail);
+  const hasFieldErrors = Object.keys(fieldErrors).length > 0;
   const message =
     fromDetail ??
-    (status === 422 && Object.keys(fieldErrors).length > 0
-      ? 'Revisa los campos marcados.'
+    (hasFieldErrors && (status === 422 || status === 400)
+      ? 'Revisa los campos indicados en el formulario.'
       : messageFromHttpStatus(status));
 
   return { message, status, fieldErrors };

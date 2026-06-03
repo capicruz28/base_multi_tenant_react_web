@@ -4,6 +4,7 @@ import { X, Building, CheckCircle, XCircle, Loader, Palette, Calendar, Server } 
 import { clienteService } from '../services/cliente.service';
 import { ClienteCreate } from '../types/cliente.types';
 import { useCreateCliente } from '@/core/hooks/useClienteMutations';
+import { getValidationErrors } from '@/core/services/error.service';
 import { InstallationType, AuthenticationMode, SubscriptionPlan, SubscriptionStatus } from '@/core/constants';
 import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
@@ -248,12 +249,16 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
       sincronizacion_habilitada: formData.sincronizacion_habilitada || false,
     };
 
+    setErrors({});
     try {
       await createMutation.mutateAsync(dataToSend);
       onSuccess();
       onClose();
-    } catch {
-      /* toast de error: onError en useCreateCliente (ER-02) */
+    } catch (err) {
+      const { fieldErrors: nextErrors } = getValidationErrors(err);
+      if (Object.keys(nextErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...nextErrors }));
+      }
     }
   };
 

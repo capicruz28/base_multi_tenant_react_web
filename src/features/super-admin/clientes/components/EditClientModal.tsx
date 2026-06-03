@@ -4,6 +4,7 @@ import { X, Building, Loader, Palette, Calendar, Server } from 'lucide-react';
 import { Cliente, ClienteUpdate } from '../types/cliente.types';
 import { InstallationType, AuthenticationMode, SubscriptionPlan, SubscriptionStatus } from '@/core/constants';
 import { useUpdateCliente } from '@/core/hooks/useClienteMutations';
+import { getValidationErrors } from '@/core/services/error.service';
 import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
 import type { ClienteFormNormalized } from '../utils/form-dirty/cliente-form-dirty';
@@ -221,20 +222,17 @@ const EditClientModal: React.FC<EditClientModalProps> = ({
       sincronizacion_habilitada: formData.sincronizacion_habilitada || false,
     };
 
-    // ✅ CORREGIDO: Usar mutación de React Query que invalida automáticamente las queries
-    updateMutation.mutate(
-      { id: cliente.cliente_id, data: dataToSend },
-      {
-        onSuccess: () => {
-          // El toast de éxito ya se maneja en la mutación
-          // React Query invalidará automáticamente las queries ['clientes', tenantId]
-          // y ['cliente', cliente_id], lo que refrescará la lista automáticamente
-          onSuccess();
-          onClose();
-        },
-        // El error ya se maneja en la mutación con toast
+    setErrors({});
+    try {
+      await updateMutation.mutateAsync({ id: cliente.cliente_id, data: dataToSend });
+      onSuccess();
+      onClose();
+    } catch (err) {
+      const { fieldErrors: nextErrors } = getValidationErrors(err);
+      if (Object.keys(nextErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...nextErrors }));
       }
-    );
+    }
   };
 
   if (!isOpen) return null;

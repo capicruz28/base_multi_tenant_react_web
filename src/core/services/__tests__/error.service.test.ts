@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import axios, { AxiosError } from 'axios';
-import { getErrorMessage } from '../error.service';
+import { getErrorMessage, getValidationErrors } from '../error.service';
 
 function axiosErrorWith(
   status: number,
@@ -42,6 +42,20 @@ describe('getErrorMessage', () => {
     expect(getErrorMessage(err).message).toContain('conflicto de duplicidad');
   });
 
+  it('fallback 400 sin detail no menciona campos en rojo', () => {
+    const err = axiosErrorWith(400, {});
+    const message = getErrorMessage(err).message;
+    expect(message).toBe('Los datos enviados son incorrectos.');
+    expect(message).not.toContain('rojo');
+  });
+
+  it('fallback 422 sin detail no menciona campos en rojo', () => {
+    const err = axiosErrorWith(422, {});
+    const message = getErrorMessage(err).message;
+    expect(message).toBe('Los datos enviados no son válidos.');
+    expect(message).not.toContain('rojo');
+  });
+
   it('propaga Error.message de contrato FE sin Axios', () => {
     expect(getErrorMessage(new Error('Respuesta del servidor sin datos del cliente')).message).toBe(
       'Respuesta del servidor sin datos del cliente',
@@ -52,5 +66,37 @@ describe('getErrorMessage', () => {
     const wrapped = new Error('El subdominio ya está registrado');
     expect(getErrorMessage(wrapped).message).toBe('El subdominio ya está registrado');
     expect(getErrorMessage(wrapped).message).not.toBe('Ocurrió un error inesperado en la aplicación.');
+  });
+});
+
+describe('getValidationErrors', () => {
+  it('mapea fieldErrors desde detail 422 por loc', () => {
+    const err = axiosErrorWith(422, {
+      detail: [{ msg: 'Email inválido', loc: ['body', 'contacto_email'] }],
+    });
+    const result = getValidationErrors(err);
+    expect(result.fieldErrors.contacto_email).toBe('Email inválido');
+    expect(result.status).toBe(422);
+  });
+
+  it('usa mensaje genérico 422 sin fieldErrors mapeables', () => {
+    const err = axiosErrorWith(422, {});
+    const result = getValidationErrors(err);
+    expect(result.fieldErrors).toEqual({});
+    expect(result.message).toBe('Los datos enviados no son válidos.');
+  });
+
+  it('usa copy coherente con UI cuando hay fieldErrors sin detail string', () => {
+    const err = axiosErrorWith(422, {
+      detail: [{ msg: 'Campo requerido', loc: ['body', 'razon_social'] }],
+    });
+    const result = getValidationErrors(err);
+    expect(result.fieldErrors.razon_social).toBe('Campo requerido');
+    expect(result.message).toBe('Campo requerido');
+  });
+
+  it('fallback 400 sin fieldErrors', () => {
+    const err = axiosErrorWith(400, {});
+    expect(getValidationErrors(err).message).toBe('Los datos enviados son incorrectos.');
   });
 });

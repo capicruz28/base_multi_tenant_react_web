@@ -89,11 +89,6 @@ const ClientManagementPage: React.FC = () => {
   };
 
 
-  const handleFilterChange = (key: keyof ClienteFilters, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setCurrentPage(1);
-  };
-
   const handlePreviousPage = () => {
     if (currentPage > 1) setCurrentPage(prev => prev - 1);
   };
@@ -217,31 +212,6 @@ const ClientManagementPage: React.FC = () => {
 
           {/* Filtros rápidos */}
           <div className="flex flex-wrap gap-2">
-            <select
-              value={filters.plan_suscripcion || ''}
-              onChange={(e) => handleFilterChange('plan_suscripcion', e.target.value || undefined)}
-              disabled={pageActionsLocked}
-              className="px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <option value="">Todos los planes</option>
-              <option value="trial">Trial</option>
-              <option value="basico">Básico</option>
-              <option value="profesional">Profesional</option>
-              <option value="enterprise">Enterprise</option>
-            </select>
-
-            <select
-              value={filters.estado_suscripcion || ''}
-              onChange={(e) => handleFilterChange('estado_suscripcion', e.target.value || undefined)}
-              disabled={pageActionsLocked}
-              className="px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <option value="">Todos los estados</option>
-              <option value="activo">Activo</option>
-              <option value="trial">Trial</option>
-              <option value="suspendido">Suspendido</option>
-            </select>
-
             <select
               value={activeFilter}
               onChange={(e) => handleActiveFilterChange(e.target.value as ClienteActiveFilter)}

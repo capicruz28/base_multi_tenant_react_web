@@ -8,7 +8,7 @@ import { LocateFixed, Plus, Pencil, Trash2, Search, RefreshCw } from 'lucide-rea
 import { catalogosGlobalService } from '@/core/services/catalogos.service';
 import type { CatProvincia, CatDistrito, CatDistritoCreate, CatDistritoUpdate } from '@/types/catalogos.types';
 import { useAuth } from '@/shared/context/AuthContext';
-import { getErrorMessage } from '@/core/services/error.service';
+import { getErrorMessage, getValidationErrors } from '@/core/services/error.service';
 import { Button } from '@/shared/components/ui/button';
 import { Dialog, DialogContent, DialogBody, DialogHeader, DialogFooter, DialogTitle } from '@/shared/components/ui/dialog';
 import { Label } from '@/shared/components/ui/label';
@@ -34,6 +34,8 @@ const DistritosPage: React.FC = () => {
   const [activeAction, setActiveAction] = useState<'deactivate' | 'reactivate' | null>(null);
   const [togglingActive, setTogglingActive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
 
   const fetchProvincias = useCallback(async () => {
     try {
@@ -72,11 +74,13 @@ const DistritosPage: React.FC = () => {
 
   const openCreate = () => {
     setForm({ ...DEFAULT, provincia_id: provinciaFilter || (provincias[0]?.provincia_id ?? '') });
+    setFieldErrors({});
     setCreateOpen(true);
   };
 
   const openEdit = (row: CatDistrito) => {
     setEditing(row);
+    setEditFieldErrors({});
     setEditForm({ provincia_id: row.provincia_id, codigo: row.codigo, nombre: row.nombre, ubigeo: row.ubigeo });
     setEditOpen(true);
   };
@@ -119,13 +123,16 @@ const DistritosPage: React.FC = () => {
       return;
     }
     setSubmitting(true);
+    setFieldErrors({});
     try {
       await catalogosGlobalService.createDistrito(form);
       toast.success('Distrito creado.');
       setCreateOpen(false);
       fetchList();
     } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      const { fieldErrors: nextErrors, message } = getValidationErrors(err);
+      setFieldErrors(nextErrors);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -135,6 +142,7 @@ const DistritosPage: React.FC = () => {
     e.preventDefault();
     if (!editing) return;
     setSubmitting(true);
+    setEditFieldErrors({});
     try {
       await catalogosGlobalService.updateDistrito(editing.distrito_id, editForm);
       toast.success('Distrito actualizado.');
@@ -142,7 +150,9 @@ const DistritosPage: React.FC = () => {
       setEditing(null);
       fetchList();
     } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      const { fieldErrors: nextErrors, message } = getValidationErrors(err);
+      setEditFieldErrors(nextErrors);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -162,7 +172,10 @@ const DistritosPage: React.FC = () => {
     );
   }
 
-  const inputClass = 'mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm';
+  const inputClass = (key: string, isEdit = false) =>
+    `mt-1 w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm ${
+      (isEdit ? editFieldErrors : fieldErrors)[key] ? 'border-error' : 'border-border-base'
+    }`;
   const selectClass = 'mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm';
 
   const q = searchTerm.trim().toLowerCase();
@@ -281,10 +294,10 @@ const DistritosPage: React.FC = () => {
           <form onSubmit={handleCreate} className="flex flex-col min-h-0 flex-1">
             <DialogBody className="px-6 pb-2">
               <div className="space-y-4">
-                <div><Label>Provincia *</Label><select value={form.provincia_id} onChange={(e) => setForm((p) => ({ ...p, provincia_id: e.target.value }))} className={selectClass} required><option value="">Seleccionar</option>{provincias.map((p) => <option key={p.provincia_id} value={p.provincia_id}>{p.nombre}</option>)}</select></div>
-                <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className={inputClass} required /></div>
-                <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass} required /></div>
-                <div><Label>Ubigeo *</Label><input type="text" value={form.ubigeo} onChange={(e) => setForm((p) => ({ ...p, ubigeo: e.target.value }))} className={inputClass} required maxLength={6} placeholder="6 dígitos" /></div>
+                <div><Label>Provincia *</Label><select value={form.provincia_id} onChange={(e) => setForm((p) => ({ ...p, provincia_id: e.target.value }))} className={inputClass('provincia_id')} required><option value="">Seleccionar</option>{provincias.map((p) => <option key={p.provincia_id} value={p.provincia_id}>{p.nombre}</option>)}</select></div>
+                <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className={inputClass('codigo')} required /></div>
+                <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass('nombre')} required /></div>
+                <div><Label>Ubigeo *</Label><input type="text" value={form.ubigeo} onChange={(e) => setForm((p) => ({ ...p, ubigeo: e.target.value }))} className={inputClass('ubigeo')} required maxLength={6} placeholder="6 dígitos" /></div>
               </div>
             </DialogBody>
             <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base"><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button></DialogFooter>
@@ -298,10 +311,10 @@ const DistritosPage: React.FC = () => {
           <form onSubmit={handleUpdate} className="flex flex-col min-h-0 flex-1">
             <DialogBody className="px-6 pb-2">
               <div className="space-y-4">
-                <div><Label>Provincia *</Label><select value={editForm.provincia_id ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, provincia_id: e.target.value }))} className={selectClass} required><option value="">Seleccionar</option>{provincias.map((p) => <option key={p.provincia_id} value={p.provincia_id}>{p.nombre}</option>)}</select></div>
-                <div><Label>Código *</Label><input type="text" value={editForm.codigo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo: e.target.value }))} className={inputClass} required /></div>
-                <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass} required /></div>
-                <div><Label>Ubigeo *</Label><input type="text" value={editForm.ubigeo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, ubigeo: e.target.value }))} className={inputClass} required maxLength={6} /></div>
+                <div><Label>Provincia *</Label><select value={editForm.provincia_id ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, provincia_id: e.target.value }))} className={inputClass('provincia_id', true)} required><option value="">Seleccionar</option>{provincias.map((p) => <option key={p.provincia_id} value={p.provincia_id}>{p.nombre}</option>)}</select></div>
+                <div><Label>Código *</Label><input type="text" value={editForm.codigo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo: e.target.value }))} className={inputClass('codigo', true)} required /></div>
+                <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass('nombre', true)} required /></div>
+                <div><Label>Ubigeo *</Label><input type="text" value={editForm.ubigeo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, ubigeo: e.target.value }))} className={inputClass('ubigeo', true)} required maxLength={6} /></div>
               </div>
             </DialogBody>
             <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base"><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>

@@ -7,7 +7,7 @@ import { Flag, Plus, Pencil, Trash2, Search, RefreshCw } from 'lucide-react';
 import { catalogosGlobalService } from '@/core/services/catalogos.service';
 import type { CatPais, CatPaisCreate, CatPaisUpdate } from '@/types/catalogos.types';
 import { useAuth } from '@/shared/context/AuthContext';
-import { getErrorMessage } from '@/core/services/error.service';
+import { getErrorMessage, getValidationErrors } from '@/core/services/error.service';
 import { Button } from '@/shared/components/ui/button';
 import { Dialog, DialogContent, DialogBody, DialogHeader, DialogFooter, DialogTitle } from '@/shared/components/ui/dialog';
 import { Label } from '@/shared/components/ui/label';
@@ -31,6 +31,8 @@ const PaisesPage: React.FC = () => {
   const [activeAction, setActiveAction] = useState<'deactivate' | 'reactivate' | null>(null);
   const [togglingActive, setTogglingActive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -52,11 +54,13 @@ const PaisesPage: React.FC = () => {
 
   const openCreate = () => {
     setForm({ ...DEFAULT });
+    setFieldErrors({});
     setCreateOpen(true);
   };
 
   const openEdit = (row: CatPais) => {
     setEditing(row);
+    setEditFieldErrors({});
     setEditForm({
       codigo_iso2: row.codigo_iso2,
       codigo_iso3: row.codigo_iso3,
@@ -104,13 +108,16 @@ const PaisesPage: React.FC = () => {
       return;
     }
     setSubmitting(true);
+    setFieldErrors({});
     try {
       await catalogosGlobalService.createPais(form);
       toast.success('País creado.');
       setCreateOpen(false);
       fetchList();
     } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      const { fieldErrors: nextErrors, message } = getValidationErrors(err);
+      setFieldErrors(nextErrors);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -120,6 +127,7 @@ const PaisesPage: React.FC = () => {
     e.preventDefault();
     if (!editing) return;
     setSubmitting(true);
+    setEditFieldErrors({});
     try {
       await catalogosGlobalService.updatePais(editing.pais_id, editForm);
       toast.success('País actualizado.');
@@ -127,7 +135,9 @@ const PaisesPage: React.FC = () => {
       setEditing(null);
       fetchList();
     } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      const { fieldErrors: nextErrors, message } = getValidationErrors(err);
+      setEditFieldErrors(nextErrors);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -145,7 +155,10 @@ const PaisesPage: React.FC = () => {
     );
   }
 
-  const inputClass = 'mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm';
+  const inputClass = (key: string, isEdit = false) =>
+    `mt-1 w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm ${
+      (isEdit ? editFieldErrors : fieldErrors)[key] ? 'border-error' : 'border-border-base'
+    }`;
 
   const q = searchTerm.trim().toLowerCase();
   const filteredList = q
@@ -253,9 +266,9 @@ const PaisesPage: React.FC = () => {
           <form onSubmit={handleCreate} className="flex flex-col min-h-0 flex-1">
             <DialogBody className="px-6 pb-2">
               <div className="space-y-4">
-                <div><Label>Código ISO2 *</Label><input type="text" value={form.codigo_iso2} onChange={(e) => setForm((p) => ({ ...p, codigo_iso2: e.target.value.toUpperCase().slice(0, 2) }))} className={inputClass} required maxLength={2} placeholder="PE" /></div>
-                <div><Label>Código ISO3 *</Label><input type="text" value={form.codigo_iso3} onChange={(e) => setForm((p) => ({ ...p, codigo_iso3: e.target.value.toUpperCase().slice(0, 3) }))} className={inputClass} required maxLength={3} placeholder="PER" /></div>
-                <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass} required /></div>
+                <div><Label>Código ISO2 *</Label><input type="text" value={form.codigo_iso2} onChange={(e) => setForm((p) => ({ ...p, codigo_iso2: e.target.value.toUpperCase().slice(0, 2) }))} className={inputClass('codigo_iso2')} required maxLength={2} placeholder="PE" /></div>
+                <div><Label>Código ISO3 *</Label><input type="text" value={form.codigo_iso3} onChange={(e) => setForm((p) => ({ ...p, codigo_iso3: e.target.value.toUpperCase().slice(0, 3) }))} className={inputClass('codigo_iso3')} required maxLength={3} placeholder="PER" /></div>
+                <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass('nombre')} required /></div>
                 <div className="flex items-center gap-2"><input type="checkbox" checked={form.es_activo ?? true} onChange={(e) => setForm((p) => ({ ...p, es_activo: e.target.checked }))} /><Label>Activo</Label></div>
               </div>
             </DialogBody>
@@ -270,9 +283,9 @@ const PaisesPage: React.FC = () => {
           <form onSubmit={handleUpdate} className="flex flex-col min-h-0 flex-1">
             <DialogBody className="px-6 pb-2">
               <div className="space-y-4">
-                <div><Label>Código ISO2 *</Label><input type="text" value={editForm.codigo_iso2 ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo_iso2: e.target.value.toUpperCase().slice(0, 2) }))} className={inputClass} required maxLength={2} /></div>
-                <div><Label>Código ISO3 *</Label><input type="text" value={editForm.codigo_iso3 ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo_iso3: e.target.value.toUpperCase().slice(0, 3) }))} className={inputClass} required maxLength={3} /></div>
-                <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass} required /></div>
+                <div><Label>Código ISO2 *</Label><input type="text" value={editForm.codigo_iso2 ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo_iso2: e.target.value.toUpperCase().slice(0, 2) }))} className={inputClass('codigo_iso2', true)} required maxLength={2} /></div>
+                <div><Label>Código ISO3 *</Label><input type="text" value={editForm.codigo_iso3 ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo_iso3: e.target.value.toUpperCase().slice(0, 3) }))} className={inputClass('codigo_iso3', true)} required maxLength={3} /></div>
+                <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass('nombre', true)} required /></div>
                 <div className="flex items-center gap-2"><input type="checkbox" checked={editForm.es_activo ?? true} onChange={(e) => setEditForm((p) => ({ ...p, es_activo: e.target.checked }))} /><Label>Activo</Label></div>
               </div>
             </DialogBody>
