@@ -171,27 +171,29 @@ const PaisesPage: React.FC = () => {
     <div className="w-full">
       <div className="mb-6 bg-surface rounded-lg shadow-sm border border-border-base p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-soft" />
-            <input
-              type="text"
-              placeholder="Buscar países..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 w-full border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
-            />
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto flex-wrap items-center">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-soft" />
+              <input
+                type="text"
+                placeholder="Buscar países..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 w-full border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
+              />
+            </div>
+            <label className="flex items-center gap-2 px-3 py-2 border border-border-base rounded-lg cursor-pointer hover:bg-overlay dark:hover:bg-overlay">
+              <input
+                type="checkbox"
+                checked={showInactivos}
+                onChange={(e) => setShowInactivos(e.target.checked)}
+                className="rounded border-border-base text-brand-primary focus:ring-brand-primary"
+                aria-label="Ver inactivos"
+              />
+              <span className="text-sm text-text-soft">Ver inactivos</span>
+            </label>
           </div>
-          <label className="flex items-center gap-2 px-3 py-2 border border-border-base rounded-lg cursor-pointer hover:bg-overlay dark:hover:bg-overlay">
-            <input
-              type="checkbox"
-              checked={showInactivos}
-              onChange={(e) => setShowInactivos(e.target.checked)}
-              className="rounded border-border-base text-brand-primary focus:ring-brand-primary"
-              aria-label="Ver inactivos"
-            />
-            <span className="text-sm text-text-soft">Ver inactivos</span>
-          </label>
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <button type="button" onClick={() => fetchList()} disabled={loading} className="p-2 text-text-soft hover:text-text-base dark:hover:text-text-base hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors" title="Actualizar">
               <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
             </button>

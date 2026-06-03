@@ -197,21 +197,18 @@ const ClientManagementPage: React.FC = () => {
       {/* Barra de herramientas */}
       <div className="mb-6 bg-surface rounded-lg shadow-sm border border-border-base p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-          {/* Búsqueda */}
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-soft" />
-            <input
-              type="text"
-              placeholder="Buscar clientes..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              disabled={pageActionsLocked}
-              className="pl-10 pr-4 py-2 w-full border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-          </div>
-
-          {/* Filtros rápidos */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto flex-wrap items-center">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-soft" />
+              <input
+                type="text"
+                placeholder="Buscar clientes..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                disabled={pageActionsLocked}
+                className="pl-10 pr-4 py-2 w-full border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
             <select
               value={activeFilter}
               onChange={(e) => handleActiveFilterChange(e.target.value as ClienteActiveFilter)}
@@ -224,8 +221,7 @@ const ClientManagementPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Acciones */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <button
               onClick={() => refetch()}
               disabled={loading || pageActionsLocked}

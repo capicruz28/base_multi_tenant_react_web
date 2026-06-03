@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { clienteService } from '@/features/super-admin/clientes/services/cliente.service';
 import { Cliente, ClienteCreate, ClienteUpdate } from '@/features/super-admin/clientes/types/cliente.types';
-import { getErrorMessage } from '../services/error.service';
+import { getErrorMessage, getValidationErrors } from '../services/error.service';
 import { useTenant } from '../../features/tenant/components/TenantContext';
 
 /**
@@ -25,6 +25,10 @@ export function useCreateCliente() {
       toast.success('Cliente creado exitosamente');
     },
     onError: (error) => {
+      const { fieldErrors, status } = getValidationErrors(error);
+      if ((status === 422 || status === 400) && Object.keys(fieldErrors).length > 0) {
+        return;
+      }
       const errorData = getErrorMessage(error);
       toast.error(errorData.message || 'Error al crear el cliente');
     },
@@ -51,6 +55,10 @@ export function useUpdateCliente() {
       toast.success('Cliente actualizado exitosamente');
     },
     onError: (error) => {
+      const { fieldErrors, status } = getValidationErrors(error);
+      if ((status === 422 || status === 400) && Object.keys(fieldErrors).length > 0) {
+        return;
+      }
       const errorData = getErrorMessage(error);
       toast.error(errorData.message || 'Error al actualizar el cliente');
     },
