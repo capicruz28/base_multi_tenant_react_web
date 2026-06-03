@@ -132,7 +132,7 @@ Eliminado copy «Revisa los campos marcados en rojo» de fallbacks genéricos.
 
 | Commit | Mensaje |
 |--------|---------|
-| `32c261b` | `fix(platform): PAUX Phase A — editar detalle, 422 por campo, ER-03, ocultar filtros plan/estado` |
+| `464fa75` | `fix(platform): PAUX Phase A — editar detalle, 422 por campo, ER-03, ocultar filtros plan/estado` |
 
 ---
 
