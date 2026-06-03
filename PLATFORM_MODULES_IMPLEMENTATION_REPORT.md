@@ -102,8 +102,8 @@
 
 ## Commits generados
 
-*(Completar tras `git commit` en el repositorio.)*
+| Hash | Mensaje |
+|------|---------|
+| `3cbb05e` | `feat(platform): PLAT-SURF-003/004/005 en gestion de modulos` |
 
-```
-feat(platform): PLAT-SURF-003/004/005 módulos confirm, vocabulario y discard B11
-```
+Cuerpo: ConfirmDialog para desactivar/reactivar, vocabulario unificado y descarte B11 en modales create/edit con `pageActionsLocked` alineado a Clientes.
