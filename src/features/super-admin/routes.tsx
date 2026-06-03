@@ -15,6 +15,7 @@ const DepartamentosPage = lazy(() => import('./catalogos/pages/DepartamentosPage
 const ProvinciasPage = lazy(() => import('./catalogos/pages/ProvinciasPage'));
 const DistritosPage = lazy(() => import('./catalogos/pages/DistritosPage'));
 const MonedasPage = lazy(() => import('./catalogos/pages/MonedasPage'));
+const AuditoriaGlobalPage = lazy(() => import('./auditoria/pages/AuditoriaGlobalPage'));
 
 export const superAdminRoutes: RouteObject = {
   path: 'super-admin',
@@ -49,6 +50,14 @@ export const superAdminRoutes: RouteObject = {
       element: (
         <Suspense fallback={<LoadingSpinner message="Cargando gestión de módulos..." />}>
           <ModuleManagementPage />
+        </Suspense>
+      ),
+    },
+    {
+      path: 'auditoria',
+      element: (
+        <Suspense fallback={<LoadingSpinner message="Cargando auditoría global..." />}>
+          <AuditoriaGlobalPage />
         </Suspense>
       ),
     },
