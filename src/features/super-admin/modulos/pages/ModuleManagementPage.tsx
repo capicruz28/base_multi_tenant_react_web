@@ -24,6 +24,10 @@ import { useAuth } from '@/shared/context/AuthContext';
 import { getErrorMessage } from '@/core/services/error.service';
 import CreateModuleModal from '../components/CreateModuleModal';
 import EditModuleModal from '../components/EditModuleModal';
+import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
+import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
+
+type ModuloActiveAction = 'deactivate' | 'reactivate';
 
 const ModuleManagementPage: React.FC = () => {
   const { isSuperAdmin, isAuthenticated, loading: authLoading } = useAuth();
@@ -66,6 +70,12 @@ const ModuleManagementPage: React.FC = () => {
   const [selectedModulo, setSelectedModulo] = useState<ModuloV2 | null>(null);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [showExportMenu, setShowExportMenu] = useState<boolean>(false);
+  const [moduloDiscardPending, setModuloDiscardPending] = useState<OrgDiscardPending>(null);
+  const [activeTarget, setActiveTarget] = useState<ModuloV2 | null>(null);
+  const [activeAction, setActiveAction] = useState<ModuloActiveAction | null>(null);
+  const [togglingActive, setTogglingActive] = useState<boolean>(false);
+
+  const pageActionsLocked = moduloDiscardPending !== null || activeTarget !== null;
 
   // Debounce para búsqueda
   useEffect(() => {
@@ -163,38 +173,73 @@ const ModuleManagementPage: React.FC = () => {
   };
 
   const handleCreateSuccess = () => {
+    setModuloDiscardPending(null);
     setIsCreateModalOpen(false);
     fetchModulos();
-    toast.success('Módulo creado exitosamente');
   };
 
   const handleEditSuccess = () => {
+    setModuloDiscardPending(null);
     setIsEditModalOpen(false);
     setSelectedModulo(null);
     fetchModulos();
-    toast.success('Módulo actualizado exitosamente');
   };
 
-  const handleToggleActivation = async (modulo: ModuloV2) => {
+  const handleCreateModalClose = () => {
+    setModuloDiscardPending(null);
+    setIsCreateModalOpen(false);
+  };
+
+  const handleEditModalClose = () => {
+    setModuloDiscardPending(null);
+    setIsEditModalOpen(false);
+    setSelectedModulo(null);
+  };
+
+  const closeActiveConfirm = () => {
+    setActiveTarget(null);
+    setActiveAction(null);
+  };
+
+  const openActiveConfirm = (modulo: ModuloV2) => {
+    if (moduloDiscardPending !== null) return;
+    setActiveTarget(modulo);
+    setActiveAction(modulo.es_activo ? 'deactivate' : 'reactivate');
+  };
+
+  const handleActiveConfirm = async () => {
+    if (!activeTarget || !activeAction || togglingActive) return;
+    setTogglingActive(true);
     try {
-      // ✅ CORREGIDO: Usar endpoints específicos de activar/desactivar
-      if (modulo.es_activo) {
-        await moduloV2Service.deactivateModulo(modulo.modulo_id);
+      if (activeAction === 'deactivate') {
+        await moduloV2Service.deactivateModulo(activeTarget.modulo_id);
         toast.success('Módulo desactivado exitosamente');
       } else {
-        await moduloV2Service.activateModulo(modulo.modulo_id);
-        toast.success('Módulo activado exitosamente');
+        await moduloV2Service.activateModulo(activeTarget.modulo_id);
+        toast.success('Módulo reactivado exitosamente');
       }
+      closeActiveConfirm();
       fetchModulos();
     } catch (err) {
       const errorData = getErrorMessage(err);
-      toast.error(errorData.message || `Error al ${modulo.es_activo ? 'desactivar' : 'activar'} el módulo`);
+      toast.error(
+        errorData.message ||
+          `Error al ${activeAction === 'deactivate' ? 'desactivar' : 'reactivar'} el módulo`,
+      );
+    } finally {
+      setTogglingActive(false);
     }
   };
 
   const openEditModal = (modulo: ModuloV2) => {
+    if (pageActionsLocked) return;
     setSelectedModulo(modulo);
     setIsEditModalOpen(true);
+  };
+
+  const openCreateModal = () => {
+    if (pageActionsLocked) return;
+    setIsCreateModalOpen(true);
   };
 
   // ✅ NUEVO: Manejar cambio de límite por página
@@ -350,9 +395,9 @@ const ModuleManagementPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <Package className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Acceso restringido</h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <Package className="mx-auto h-12 w-12 text-text-soft" />
+          <h3 className="mt-2 text-sm font-medium text-text-base">Acceso restringido</h3>
+          <p className="mt-1 text-sm text-text-soft">
             No tienes permisos para acceder a la gestión de módulos.
           </p>
         </div>
@@ -365,27 +410,28 @@ const ModuleManagementPage: React.FC = () => {
       {/* Header */}
       {/*
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-2xl font-bold text-text-base">
           Gestión de Módulos
         </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-sm text-text-soft">
           Administra los módulos disponibles en el sistema multi-tenant
         </p>
       </div>
       */}
       {/* Barra de herramientas */}
-      <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="mb-6 bg-surface rounded-lg shadow-sm border border-border-base p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           {/* Búsqueda y Filtros */}
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-soft" />
               <input
                 type="text"
                 placeholder="Buscar módulos..."
                 value={searchTerm}
                 onChange={handleSearchChange}
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+                disabled={pageActionsLocked}
+                className="pl-10 pr-4 py-2 w-full border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base disabled:opacity-50"
               />
             </div>
 
@@ -397,7 +443,8 @@ const ModuleManagementPage: React.FC = () => {
                   setSelectedCategoria(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+                disabled={pageActionsLocked}
+                className="px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base disabled:opacity-50"
               >
                 <option value="">Todas las categorías</option>
                 {categorias.map(cat => (
@@ -407,7 +454,7 @@ const ModuleManagementPage: React.FC = () => {
             )}
 
             {/* ✅ NUEVO: Filtro para mostrar solo activos */}
-            <label className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
+            <label className={`flex items-center gap-2 px-3 py-2 border border-border-base rounded-lg ${pageActionsLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-overlay dark:hover:bg-overlay'}`}>
               <input
                 type="checkbox"
                 checked={soloActivos}
@@ -415,9 +462,10 @@ const ModuleManagementPage: React.FC = () => {
                   setSoloActivos(e.target.checked);
                   setCurrentPage(1);
                 }}
-                className="rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
+                disabled={pageActionsLocked}
+                className="rounded border-border-base text-brand-primary focus:ring-brand-primary"
               />
-              <span className="text-sm text-gray-700 dark:text-gray-300">Solo activos</span>
+              <span className="text-sm text-text-soft">Solo activos</span>
             </label>
           </div>
 
@@ -425,13 +473,14 @@ const ModuleManagementPage: React.FC = () => {
           <div className="flex flex-wrap gap-2 items-center">
             {/* ✅ NUEVO: Selector de límite por página */}
             <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
+              <label className="text-sm text-text-soft whitespace-nowrap">
                 Mostrar:
               </label>
               <select
                 value={limitPerPage}
                 onChange={(e) => handleLimitChange(Number(e.target.value))}
-                className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+                disabled={pageActionsLocked}
+                className="px-3 py-2 text-sm border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base disabled:opacity-50"
               >
                 {LIMIT_OPTIONS.map(limit => (
                   <option key={limit} value={limit}>{limit}</option>
@@ -440,25 +489,29 @@ const ModuleManagementPage: React.FC = () => {
             </div>
 
             {/* ✅ NUEVO: Toggle de vista */}
-            <div className="flex items-center gap-1 border border-gray-300 dark:border-gray-600 rounded-lg p-1">
+            <div className="flex items-center gap-1 border border-border-base rounded-lg p-1">
               <button
-                onClick={() => setViewMode('table')}
+                type="button"
+                onClick={() => !pageActionsLocked && setViewMode('table')}
+                disabled={pageActionsLocked}
                 className={`p-1.5 rounded transition-colors ${
                   viewMode === 'table'
                     ? 'bg-brand-primary text-white'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
+                    : 'text-text-soft hover:bg-overlay dark:hover:bg-overlay'
+                } disabled:opacity-50`}
                 title="Vista de tabla"
               >
                 <List className="h-4 w-4" />
               </button>
               <button
-                onClick={() => setViewMode('grid')}
+                type="button"
+                onClick={() => !pageActionsLocked && setViewMode('grid')}
+                disabled={pageActionsLocked}
                 className={`p-1.5 rounded transition-colors ${
                   viewMode === 'grid'
                     ? 'bg-brand-primary text-white'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
+                    : 'text-text-soft hover:bg-overlay dark:hover:bg-overlay'
+                } disabled:opacity-50`}
                 title="Vista de tarjetas"
               >
                 <Grid3x3 className="h-4 w-4" />
@@ -468,9 +521,10 @@ const ModuleManagementPage: React.FC = () => {
             {/* ✅ NUEVO: Botón de exportar con menú desplegable */}
             <div className="relative export-menu-container">
               <button
-                onClick={() => setShowExportMenu(!showExportMenu)}
-                disabled={isExporting || loading}
-                className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => !pageActionsLocked && setShowExportMenu(!showExportMenu)}
+                disabled={isExporting || loading || pageActionsLocked}
+                className="flex items-center gap-2 px-4 py-2 text-sm border border-border-base rounded-lg bg-surface text-text-soft hover:bg-overlay dark:hover:bg-overlay transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Exportar datos"
               >
                 <Download className={`h-4 w-4 ${isExporting ? 'animate-bounce' : ''}`} />
@@ -478,13 +532,13 @@ const ModuleManagementPage: React.FC = () => {
               </button>
               {/* Menú desplegable de exportación */}
               {showExportMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+                <div className="absolute right-0 mt-2 w-48 bg-surface rounded-lg shadow-lg border border-border-base z-10">
                   <button
                     onClick={() => {
                       exportToCSV();
                       setShowExportMenu(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                    className="w-full text-left px-4 py-2 text-sm text-text-soft hover:bg-overlay dark:hover:bg-overlay flex items-center gap-2"
                   >
                     <FileDown className="h-4 w-4" />
                     Exportar a CSV
@@ -494,7 +548,7 @@ const ModuleManagementPage: React.FC = () => {
                       exportToExcel();
                       setShowExportMenu(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                    className="w-full text-left px-4 py-2 text-sm text-text-soft hover:bg-overlay dark:hover:bg-overlay flex items-center gap-2"
                   >
                     <FileDown className="h-4 w-4" />
                     Exportar a Excel
@@ -504,17 +558,20 @@ const ModuleManagementPage: React.FC = () => {
             </div>
 
             <button
+              type="button"
               onClick={fetchModulos}
-              disabled={loading}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              disabled={loading || pageActionsLocked}
+              className="p-2 text-text-soft hover:text-text-base hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors disabled:opacity-50"
               title="Actualizar"
             >
               <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
 
             <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-colors"
+              type="button"
+              onClick={openCreateModal}
+              disabled={pageActionsLocked}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-surface transition-colors disabled:opacity-50"
             >
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">Nuevo Módulo</span>
@@ -525,55 +582,55 @@ const ModuleManagementPage: React.FC = () => {
 
       {/* Estadísticas rápidas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-surface rounded-lg shadow-sm border border-border-base p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <Package className="h-8 w-8 text-brand-primary" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Módulos</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{totalModulos}</p>
+              <p className="text-sm font-medium text-text-soft">Total Módulos</p>
+              <p className="text-2xl font-semibold text-text-base">{totalModulos}</p>
             </div>
           </div>
         </div>
 
         {/* ✅ NUEVO: Estadística de categorías */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-surface rounded-lg shadow-sm border border-border-base p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Star className="h-8 w-8 text-yellow-600" />
+              <Star className="h-8 w-8 text-warning" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Categorías</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-text-soft">Categorías</p>
+              <p className="text-2xl font-semibold text-text-base">
                 {categorias.length}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-surface rounded-lg shadow-sm border border-border-base p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <CheckCircle className="h-8 w-8 text-green-600" />
+              <CheckCircle className="h-8 w-8 text-success" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Activos</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-text-soft">Activos</p>
+              <p className="text-2xl font-semibold text-text-base">
                 {modulos?.filter(m => m.es_activo).length || 0}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-surface rounded-lg shadow-sm border border-border-base p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <XCircle className="h-8 w-8 text-red-600" />
+              <XCircle className="h-8 w-8 text-error" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Inactivos</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-text-soft">Inactivos</p>
+              <p className="text-2xl font-semibold text-text-base">
                 {modulos?.filter(m => !m.es_activo).length || 0}
               </p>
             </div>
@@ -582,19 +639,19 @@ const ModuleManagementPage: React.FC = () => {
       </div>
 
       {/* Contenido */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-surface rounded-lg shadow-sm border border-border-base overflow-hidden">
         {/* Loading */}
         {loading && (
           <div className="flex items-center justify-center py-8">
             <RefreshCw className="animate-spin h-6 w-6 text-brand-primary" />
-            <span className="ml-2 text-gray-600 dark:text-gray-400">Cargando módulos...</span>
+            <span className="ml-2 text-text-soft">Cargando módulos...</span>
           </div>
         )}
 
         {/* Error */}
         {error && !loading && (
           <div className="p-6 text-center">
-            <div className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+            <div className="text-error bg-error/10 p-4 rounded-lg">
               {error}
             </div>
             <button
@@ -611,33 +668,33 @@ const ModuleManagementPage: React.FC = () => {
           <>
             {viewMode === 'table' ? (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-700">
+                <table className="min-w-full divide-y divide-border-base">
+                <thead className="bg-subtle">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                       Módulo
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                       Código
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                       Categoría
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                       Descripción
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                       Estado
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-text-soft uppercase tracking-wider">
                       Acciones
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="bg-surface divide-y divide-border-base">
                   {modulos && modulos.length > 0 ? (
                     modulos.map((modulo) => (
-                      <tr key={modulo.modulo_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <tr key={modulo.modulo_id} className="hover:bg-overlay/50 dark:hover:bg-overlay/50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             {/* ✅ NUEVO: Mostrar color del módulo */}
@@ -648,35 +705,35 @@ const ModuleManagementPage: React.FC = () => {
                               <Package className="h-6 w-6" />
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              <div className="text-sm font-medium text-text-base">
                                 {modulo.nombre}
                               </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                              <div className="text-sm text-text-soft">
                                 Orden: {modulo.orden}
                               </div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <code className="text-sm font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                          <code className="text-sm font-mono bg-subtle px-2 py-1 rounded">
                             {modulo.codigo}
                           </code>
                         </td>
                         {/* ✅ NUEVO: Columna de categoría */}
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-info/10 text-info">
                             {modulo.categoria || 'Sin categoría'}
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-sm text-gray-500 dark:text-gray-400 max-w-md truncate">
+                          <div className="text-sm text-text-soft max-w-md truncate">
                             {modulo.descripcion || 'Sin descripción'}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${modulo.es_activo
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                            ? 'bg-success/10 text-success'
+                            : 'bg-error/10 text-error'
                             }`}>
                             {modulo.es_activo ? (
                               <>
@@ -694,20 +751,24 @@ const ModuleManagementPage: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end items-center gap-2">
                             <button
+                              type="button"
                               onClick={() => openEditModal(modulo)}
-                              className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                              disabled={pageActionsLocked}
+                              className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50"
                               title="Editar"
                             >
                               <Edit3 className="h-4 w-4" />
                             </button>
 
                             <button
-                              onClick={() => handleToggleActivation(modulo)}
-                              className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${modulo.es_activo
-                                ? 'text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300'
-                                : 'text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300'
+                              type="button"
+                              onClick={() => openActiveConfirm(modulo)}
+                              disabled={pageActionsLocked}
+                              className={`p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 ${modulo.es_activo
+                                ? 'text-error hover:bg-overlay dark:hover:bg-overlay'
+                                : 'text-success hover:bg-overlay dark:hover:bg-overlay'
                                 }`}
-                              title={modulo.es_activo ? 'Desactivar' : 'Activar'}
+                              title={modulo.es_activo ? 'Desactivar' : 'Reactivar'}
                             >
                               {modulo.es_activo ? <Trash2 className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
                             </button>
@@ -717,15 +778,17 @@ const ModuleManagementPage: React.FC = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                        <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <td colSpan={6} className="px-6 py-8 text-center text-sm text-text-soft">
+                        <Package className="mx-auto h-12 w-12 text-text-soft mb-4" />
                         <p>No se encontraron módulos</p>
                         {searchTerm ? (
                           <p className="mt-1">Intenta ajustar los términos de búsqueda</p>
                         ) : (
                           <button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors"
+                            type="button"
+                            onClick={openCreateModal}
+                            disabled={pageActionsLocked}
+                            className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors disabled:opacity-50"
                           >
                             Crear primer módulo
                           </button>
@@ -744,7 +807,7 @@ const ModuleManagementPage: React.FC = () => {
                     {modulos.map((modulo) => (
                       <div
                         key={modulo.modulo_id}
-                        className="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4 hover:shadow-lg transition-shadow"
+                        className="bg-surface rounded-lg border border-border-base p-4 hover:shadow-lg transition-shadow"
                       >
                         {/* Header de la tarjeta */}
                         <div className="flex items-start justify-between mb-3">
@@ -756,20 +819,24 @@ const ModuleManagementPage: React.FC = () => {
                           </div>
                           <div className="flex gap-1">
                             <button
+                              type="button"
                               onClick={() => openEditModal(modulo)}
-                              className="p-1 text-brand-primary hover:text-brand-primary/80 rounded hover:bg-gray-100 dark:hover:bg-gray-600"
+                              disabled={pageActionsLocked}
+                              className="p-1 text-brand-primary hover:text-brand-primary/80 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50"
                               title="Editar"
                             >
                               <Edit3 className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => handleToggleActivation(modulo)}
-                              className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600 ${
+                              type="button"
+                              onClick={() => openActiveConfirm(modulo)}
+                              disabled={pageActionsLocked}
+                              className={`p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 ${
                                 modulo.es_activo
-                                  ? 'text-red-600 hover:text-red-900'
-                                  : 'text-green-600 hover:text-green-900'
+                                  ? 'text-error hover:bg-overlay'
+                                  : 'text-success hover:bg-overlay'
                               }`}
-                              title={modulo.es_activo ? 'Desactivar' : 'Activar'}
+                              title={modulo.es_activo ? 'Desactivar' : 'Reactivar'}
                             >
                               {modulo.es_activo ? (
                                 <Trash2 className="h-4 w-4" />
@@ -782,34 +849,34 @@ const ModuleManagementPage: React.FC = () => {
 
                         {/* Contenido */}
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                          <h3 className="text-lg font-semibold text-text-base mb-1">
                             {modulo.nombre}
                           </h3>
-                          <code className="text-xs font-mono bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded block mb-2">
+                          <code className="text-xs font-mono bg-subtle px-2 py-1 rounded block mb-2">
                             {modulo.codigo}
                           </code>
                           
                           {modulo.categoria && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 mb-2">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-info/10 text-info mb-2">
                               {modulo.categoria}
                             </span>
                           )}
 
                           {modulo.descripcion && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
+                            <p className="text-sm text-text-soft line-clamp-2 mb-3">
                               {modulo.descripcion}
                             </p>
                           )}
 
-                          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center justify-between mt-3 pt-3 border-t border-border-base">
+                            <span className="text-xs text-text-soft">
                               Orden: {modulo.orden}
                             </span>
                             <span
                               className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                 modulo.es_activo
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                  : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                  ? 'bg-success/10 text-success'
+                                  : 'bg-error/10 text-error'
                               }`}
                             >
                               {modulo.es_activo ? (
@@ -831,10 +898,10 @@ const ModuleManagementPage: React.FC = () => {
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                    <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p className="text-sm text-gray-500 dark:text-gray-400">No se encontraron módulos</p>
+                    <Package className="mx-auto h-12 w-12 text-text-soft mb-4" />
+                    <p className="text-sm text-text-soft">No se encontraron módulos</p>
                     {searchTerm && (
-                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      <p className="mt-1 text-sm text-text-soft">
                         Intenta ajustar los términos de búsqueda
                       </p>
                     )}
@@ -845,28 +912,30 @@ const ModuleManagementPage: React.FC = () => {
 
             {/* Paginación */}
             {totalModulos > limitPerPage && (
-              <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+              <div className="px-6 py-4 border-t border-border-base bg-subtle">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-700 dark:text-gray-300">
+                  <div className="text-sm text-text-base">
                     Mostrando <span className="font-medium">{(currentPage - 1) * limitPerPage + 1}</span> a{' '}
                     <span className="font-medium">{Math.min(currentPage * limitPerPage, totalModulos)}</span> de{' '}
                     <span className="font-medium">{totalModulos}</span> módulos
                   </div>
                   <div className="flex gap-2">
                     <button
+                      type="button"
                       onClick={handlePreviousPage}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={currentPage === 1 || pageActionsLocked}
+                      className="px-3 py-1 text-sm border border-border-base rounded-md bg-surface text-text-soft hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Anterior
                     </button>
-                    <span className="px-3 py-1 text-sm text-gray-700 dark:text-gray-300">
+                    <span className="px-3 py-1 text-sm text-text-base">
                       Página {currentPage} de {totalPages}
                     </span>
                     <button
+                      type="button"
                       onClick={handleNextPage}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={currentPage === totalPages || pageActionsLocked}
+                      className="px-3 py-1 text-sm border border-border-base rounded-md bg-surface text-text-soft hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Siguiente
                     </button>
@@ -882,22 +951,39 @@ const ModuleManagementPage: React.FC = () => {
       {isCreateModalOpen && (
         <CreateModuleModal
           isOpen={isCreateModalOpen}
-          onClose={() => setIsCreateModalOpen(false)}
+          onClose={handleCreateModalClose}
           onSuccess={handleCreateSuccess}
+          onDiscardPendingChange={setModuloDiscardPending}
         />
       )}
 
       {isEditModalOpen && selectedModulo && (
         <EditModuleModal
           isOpen={isEditModalOpen}
-          onClose={() => {
-            setIsEditModalOpen(false);
-            setSelectedModulo(null);
-          }}
+          onClose={handleEditModalClose}
           onSuccess={handleEditSuccess}
           modulo={selectedModulo}
+          onDiscardPendingChange={setModuloDiscardPending}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={!!activeTarget && !!activeAction && moduloDiscardPending === null}
+        onClose={closeActiveConfirm}
+        onConfirm={handleActiveConfirm}
+        title={activeAction === 'reactivate' ? 'Reactivar módulo' : 'Desactivar módulo'}
+        message={
+          activeTarget
+            ? activeAction === 'reactivate'
+              ? `¿Reactivar el módulo "${activeTarget.nombre}"?`
+              : `¿Desactivar el módulo "${activeTarget.nombre}"?`
+            : ''
+        }
+        confirmText={activeAction === 'reactivate' ? 'Reactivar' : 'Desactivar'}
+        cancelText="Cancelar"
+        variant={activeAction === 'reactivate' ? 'info' : 'danger'}
+        loading={togglingActive}
+      />
     </div>
   );
 };

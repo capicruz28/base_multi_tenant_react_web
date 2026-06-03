@@ -1,52 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { X, Package, Loader } from 'lucide-react';
-// ✅ NUEVO: Usar servicios y tipos V2
 import { moduloV2Service } from '@/features/modulos/services/modulo-v2.service';
 import type { ModuloV2Create } from '@/features/modulos/types/modulo-v2.types';
 import { getErrorMessage } from '@/core/services/error.service';
 import IconSelector from '@/shared/components/ui/IconSelector';
+import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
+import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
+import {
+  CREATE_MODULO_DEFAULT,
+  isCreateModuloDirty,
+} from '../utils/form-dirty/modulo-form-dirty';
+import { useModuloModalDiscard } from '../hooks/useModuloModalDiscard';
 
 interface CreateModuleModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onDiscardPendingChange?: (pending: OrgDiscardPending) => void;
 }
 
 const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  onDiscardPendingChange,
 }) => {
   const [loading, setLoading] = useState<boolean>(false);
-
-  // ✅ NUEVO: Usar tipos ModuloV2Create
-  const [formData, setFormData] = useState<ModuloV2Create>({
-    codigo: '',
-    nombre: '',
-    descripcion: '',
-    icono: 'Package',
-    color: '#6366f1', // Color por defecto (indigo)
-    categoria: '',
-    orden: 0,
-    es_activo: true
-  });
-
+  const [formData, setFormData] = useState<ModuloV2Create>({ ...CREATE_MODULO_DEFAULT });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Resetear formulario cuando se abra/cierre
-  React.useEffect(() => {
+  const isDirty = useMemo(() => isCreateModuloDirty(formData), [formData]);
+
+  const {
+    discardPending,
+    shellVisible,
+    handleRequestClose,
+    handleDiscardCancel,
+    handleDiscardConfirm,
+    handleBackdropClick,
+  } = useModuloModalDiscard({
+    isOpen,
+    isDirty,
+    isSubmitting: loading,
+    mode: 'create',
+    onClose,
+    onDiscardPendingChange,
+  });
+
+  useEffect(() => {
     if (isOpen) {
-      setFormData({
-        codigo: '',
-        nombre: '',
-        descripcion: '',
-        icono: 'Package',
-        color: '#6366f1',
-        categoria: '',
-        orden: 0,
-        es_activo: true
-      });
+      setFormData({ ...CREATE_MODULO_DEFAULT });
       setErrors({});
     }
   }, [isOpen]);
@@ -61,7 +65,6 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
         type === 'number' ? parseInt(value) || 0 : value
     }));
 
-    // Limpiar error del campo cuando se modifique
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -106,11 +109,9 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
 
     setLoading(true);
     try {
-      // ✅ NUEVO: Usar moduloV2Service
       await moduloV2Service.createModulo(formData);
       toast.success('Módulo creado exitosamente');
       onSuccess();
-      onClose();
     } catch (error) {
       console.error('Error creating module:', error);
       const errorData = getErrorMessage(error);
@@ -123,30 +124,40 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+    <>
+    {shellVisible && (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      onClick={handleBackdropClick}
+      role="presentation"
+    >
+      <div
+        className="bg-surface rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-module-modal-title"
+      >
+        <div className="flex items-center justify-between p-6 border-b border-border-base">
           <div className="flex items-center gap-3">
-            <Package className="h-6 w-6 text-green-600" />
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            <Package className="h-6 w-6 text-brand-primary" />
+            <h2 id="create-module-modal-title" className="text-xl font-semibold text-text-base">
               Crear Nuevo Módulo
             </h2>
           </div>
           <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            type="button"
+            onClick={handleRequestClose}
+            className="p-2 hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors"
             disabled={loading}
+            aria-label="Cerrar"
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-text-soft" />
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Código del Módulo */}
           <div>
-            <label htmlFor="codigo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="codigo" className="block text-sm font-medium text-text-soft mb-1">
               Código del Módulo *
             </label>
             <input
@@ -155,22 +166,21 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               name="codigo"
               value={formData.codigo}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.codigo ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${errors.codigo ? 'border-error' : 'border-border-base'
                 }`}
               placeholder="Ej: PLANILLAS, CONTABILIDAD"
               disabled={loading}
             />
             {errors.codigo && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.codigo}</p>
+              <p className="mt-1 text-sm text-error">{errors.codigo}</p>
             )}
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs text-text-soft">
               Solo mayúsculas, números y guiones bajos. Usado para referencia en código.
             </p>
           </div>
 
-          {/* Nombre del Módulo */}
           <div>
-            <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="nombre" className="block text-sm font-medium text-text-soft mb-1">
               Nombre del Módulo *
             </label>
             <input
@@ -179,19 +189,18 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               name="nombre"
               value={formData.nombre}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.nombre ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${errors.nombre ? 'border-error' : 'border-border-base'
                 }`}
               placeholder="Ej: Planillas y RRHH"
               disabled={loading}
             />
             {errors.nombre && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.nombre}</p>
+              <p className="mt-1 text-sm text-error">{errors.nombre}</p>
             )}
           </div>
 
-          {/* Descripción */}
           <div>
-            <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="descripcion" className="block text-sm font-medium text-text-soft mb-1">
               Descripción
             </label>
             <textarea
@@ -200,15 +209,14 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               value={formData.descripcion || ''}
               onChange={handleInputChange}
               rows={3}
-              className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+              className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
               placeholder="Descripción detallada del módulo..."
               disabled={loading}
             />
           </div>
 
-          {/* Icono */}
           <div>
-            <label htmlFor="icono" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="icono" className="block text-sm font-medium text-text-soft mb-1">
               Icono *
             </label>
             <IconSelector
@@ -216,13 +224,12 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               onChange={(icon) => setFormData(prev => ({ ...prev, icono: icon || 'Package' }))}
             />
             {errors.icono && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.icono}</p>
+              <p className="mt-1 text-sm text-error">{errors.icono}</p>
             )}
           </div>
 
-          {/* ✅ NUEVO: Color */}
           <div>
-            <label htmlFor="color" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="color" className="block text-sm font-medium text-text-soft mb-1">
               Color *
             </label>
             <div className="flex gap-2">
@@ -232,7 +239,7 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
                 name="color"
                 value={formData.color}
                 onChange={handleInputChange}
-                className="h-10 w-20 border border-brand-input-border dark:border-brand-input-border rounded-lg cursor-pointer"
+                className="h-10 w-20 border border-border-base rounded-lg cursor-pointer"
                 disabled={loading}
               />
               <input
@@ -244,20 +251,19 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
                     setFormData(prev => ({ ...prev, color: value || '#6366f1' }));
                   }
                 }}
-                className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.color ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${errors.color ? 'border-error' : 'border-border-base'
                   }`}
                 placeholder="#6366f1"
                 disabled={loading}
               />
             </div>
             {errors.color && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.color}</p>
+              <p className="mt-1 text-sm text-error">{errors.color}</p>
             )}
           </div>
 
-          {/* ✅ NUEVO: Categoría */}
           <div>
-            <label htmlFor="categoria" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="categoria" className="block text-sm font-medium text-text-soft mb-1">
               Categoría *
             </label>
             <input
@@ -266,19 +272,18 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               name="categoria"
               value={formData.categoria}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.categoria ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${errors.categoria ? 'border-error' : 'border-border-base'
                 }`}
               placeholder="Ej: Finanzas, RRHH, Operaciones"
               disabled={loading}
             />
             {errors.categoria && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.categoria}</p>
+              <p className="mt-1 text-sm text-error">{errors.categoria}</p>
             )}
           </div>
 
-          {/* Orden */}
           <div>
-            <label htmlFor="orden" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="orden" className="block text-sm font-medium text-text-soft mb-1">
               Orden de Visualización
             </label>
             <input
@@ -288,19 +293,18 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               value={formData.orden}
               onChange={handleInputChange}
               min="0"
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.orden ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${errors.orden ? 'border-error' : 'border-border-base'
                 }`}
               disabled={loading}
             />
             {errors.orden && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.orden}</p>
+              <p className="mt-1 text-sm text-error">{errors.orden}</p>
             )}
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs text-text-soft">
               Menor número = aparece primero en la lista.
             </p>
           </div>
 
-          {/* ✅ NUEVO: Estado del Módulo */}
           <div className="flex items-center">
             <input
               type="checkbox"
@@ -308,31 +312,30 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
               name="es_activo"
               checked={formData.es_activo || false}
               onChange={handleInputChange}
-              className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+              className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded"
               disabled={loading}
             />
-            <label htmlFor="es_activo" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+            <label htmlFor="es_activo" className="ml-2 block text-sm text-text-base">
               Módulo Activo
             </label>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+          <p className="text-xs text-text-soft ml-6">
             Los módulos inactivos no estarán disponibles para los clientes.
           </p>
 
-          {/* Footer */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-end gap-3 pt-6 border-t border-border-base">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleRequestClose}
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-secondary disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-primary disabled:opacity-50"
             >
               {loading && <Loader className="h-4 w-4 animate-spin" />}
               {loading ? 'Creando...' : 'Crear Módulo'}
@@ -341,6 +344,14 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
         </form>
       </div>
     </div>
+    )}
+    <OrgDiscardConfirmDialog
+      discardPending={discardPending}
+      entityLabel="el módulo"
+      onClose={handleDiscardCancel}
+      onConfirm={handleDiscardConfirm}
+    />
+    </>
   );
 };
 
