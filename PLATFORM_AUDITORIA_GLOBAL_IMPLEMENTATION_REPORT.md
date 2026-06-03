@@ -138,7 +138,7 @@
 
 | Hash | Mensaje |
 |------|---------|
-| *(post-commit)* | `feat(platform): PLAT-SURF-001 auditoria global MVP` |
+| `97b0078` | `feat(platform): PLAT-SURF-001 auditoria global MVP` |
 
 ---
 
