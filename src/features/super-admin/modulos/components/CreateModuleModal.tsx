@@ -132,12 +132,12 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
       role="presentation"
     >
       <div
-        className="bg-surface rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+        className="bg-surface rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col"
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-module-modal-title"
       >
-        <div className="flex items-center justify-between p-6 border-b border-border-base">
+        <div className="flex flex-shrink-0 items-center justify-between p-6 border-b border-border-base">
           <div className="flex items-center gap-3">
             <Package className="h-6 w-6 text-brand-primary" />
             <h2 id="create-module-modal-title" className="text-xl font-semibold text-text-base">
@@ -155,7 +155,8 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 space-y-4">
           <div>
             <label htmlFor="codigo" className="block text-sm font-medium text-text-soft mb-1">
               Código del Módulo *
@@ -322,8 +323,9 @@ const CreateModuleModal: React.FC<CreateModuleModalProps> = ({
           <p className="text-xs text-text-soft ml-6">
             Los módulos inactivos no estarán disponibles para los clientes.
           </p>
+          </div>
 
-          <div className="flex justify-end gap-3 pt-6 border-t border-border-base">
+          <div className="flex flex-shrink-0 justify-end gap-3 border-t border-border-base px-6 py-4">
             <button
               type="button"
               onClick={handleRequestClose}
