@@ -91,7 +91,7 @@ Se reemplazó el scroll monolítico del panel (`overflow-y-auto` en el contenedo
 
 | Hash | Mensaje |
 |------|---------|
-| *(ver `git log -1` tras commit)* | `fix(platform): footer fijo en modales de modulos (MODAL-UX-011)` |
+| `778fcab` | `fix(platform): footer fijo en modales de modulos (MODAL-UX-011)` |
 
 ---
 
