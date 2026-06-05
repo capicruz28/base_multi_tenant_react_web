@@ -1,221 +1,186 @@
-# AUDITORÍA FRONTEND — ORG (Organización)
+# AUDITORÍA FRONTEND — Módulo ORG (Organización)
 
-Fecha: 2026-05-09  
-Contrato fuente: `docs/api/ORG_API.json`  
-Implementación revisada: `src/features/org/*`
-
----
-
-## 1) Endpoints del contrato API (inventario)
-
-**Total**: 36 operaciones (6 entidades × 6 operaciones).
-
-Patrones globales del contrato:
-- **Auth**: `OAuth2PasswordBearer` (JWT).
-- **Paginación**: no hay; listas devuelven `array`.
-- **Filtros**: `solo_activos?: boolean (default true)`, `buscar?: string | null` (en listas).
-- **Ámbito empresa**:
-  - `Empresa`: no usa `empresa_id` como query param.
-  - Resto: `empresa_id?: uuid | null` como **query param** en varios endpoints (lista y también detalle/mutaciones).
-  - `Parámetros`: `empresa_id` en query tiene semántica especial (permite globales `empresa_id NULL` o de esa empresa; excluye otras).
-
-### Empresa
-- `GET /api/v1/org/empresa` (query: `solo_activos?`, `buscar?`) → `EmpresaRead[]`
-- `POST /api/v1/org/empresa` (body: `EmpresaCreate`) → `EmpresaRead`
-- `GET /api/v1/org/empresa/{empresa_id}` → `EmpresaRead`
-- `PUT /api/v1/org/empresa/{empresa_id}` (body: `EmpresaUpdate`) → `EmpresaRead`
-- `DELETE /api/v1/org/empresa/{empresa_id}` → 204
-- `POST /api/v1/org/empresa/{empresa_id}/reactivar` → `EmpresaRead`
-
-### Sucursales
-- `GET /api/v1/org/sucursales` (query: `empresa_id?`, `solo_activos?`, `buscar?`) → `SucursalRead[]`
-- `POST /api/v1/org/sucursales` (body: `SucursalCreate`) → `SucursalRead`
-- `GET /api/v1/org/sucursales/{sucursal_id}` (query: `empresa_id?`) → `SucursalRead`
-- `PUT /api/v1/org/sucursales/{sucursal_id}` (query: `empresa_id?`, body: `SucursalUpdate`) → `SucursalRead`
-- `DELETE /api/v1/org/sucursales/{sucursal_id}` (query: `empresa_id?`) → 204
-- `POST /api/v1/org/sucursales/{sucursal_id}/reactivar` (query: `empresa_id?`) → `SucursalRead`
-
-### Centros de costo
-- `GET /api/v1/org/centros-costo` (query: `empresa_id?`, `solo_activos?`, `buscar?`) → `CentroCostoRead[]`
-- `POST /api/v1/org/centros-costo` (body: `CentroCostoCreate`) → `CentroCostoRead`
-- `GET /api/v1/org/centros-costo/{centro_costo_id}` (query: `empresa_id?`) → `CentroCostoRead`
-- `PUT /api/v1/org/centros-costo/{centro_costo_id}` (query: `empresa_id?`, body: `CentroCostoUpdate`) → `CentroCostoRead`
-- `DELETE /api/v1/org/centros-costo/{centro_costo_id}` (query: `empresa_id?`) → 204
-- `POST /api/v1/org/centros-costo/{centro_costo_id}/reactivar` (query: `empresa_id?`) → `CentroCostoRead`
-
-### Departamentos
-- `GET /api/v1/org/departamentos` (query: `empresa_id?`, `solo_activos?`, `buscar?`) → `DepartamentoRead[]`
-- `POST /api/v1/org/departamentos` (body: `DepartamentoCreate`) → `DepartamentoRead`
-- `GET /api/v1/org/departamentos/{departamento_id}` (query: `empresa_id?`) → `DepartamentoRead`
-- `PUT /api/v1/org/departamentos/{departamento_id}` (query: `empresa_id?`, body: `DepartamentoUpdate`) → `DepartamentoRead`
-- `DELETE /api/v1/org/departamentos/{departamento_id}` (query: `empresa_id?`) → 204
-- `POST /api/v1/org/departamentos/{departamento_id}/reactivar` (query: `empresa_id?`) → `DepartamentoRead`
-
-### Cargos
-- `GET /api/v1/org/cargos` (query: `empresa_id?`, `solo_activos?`, `buscar?`) → `CargoRead[]`
-- `POST /api/v1/org/cargos` (body: `CargoCreate`) → `CargoRead`
-- `GET /api/v1/org/cargos/{cargo_id}` (query: `empresa_id?`) → `CargoRead`
-- `PUT /api/v1/org/cargos/{cargo_id}` (query: `empresa_id?`, body: `CargoUpdate`) → `CargoRead`
-- `DELETE /api/v1/org/cargos/{cargo_id}` (query: `empresa_id?`) → 204
-- `POST /api/v1/org/cargos/{cargo_id}/reactivar` (query: `empresa_id?`) → `CargoRead`
-
-### Parámetros
-- `GET /api/v1/org/parametros` (query: `empresa_id?`, `modulo_codigo?`, `solo_activos?`, `buscar?`) → `ParametroRead[]`
-- `POST /api/v1/org/parametros` (body: `ParametroCreate`) → `ParametroRead`
-- `GET /api/v1/org/parametros/{parametro_id}` (query: `empresa_id?`) → `ParametroRead`
-- `PUT /api/v1/org/parametros/{parametro_id}` (query: `empresa_id?`, body: `ParametroUpdate`) → `ParametroRead`
-- `DELETE /api/v1/org/parametros/{parametro_id}` (query: `empresa_id?`) → 204
-- `POST /api/v1/org/parametros/{parametro_id}/reactivar` (query: `empresa_id?`) → `ParametroRead`
+**Fecha:** 2026-05-12
+**Contrato fuente:** `docs/api/ORG_API.json`
+**Implementación revisada:** `src/features/org/*`
+**Auditor:** PROMPT_FRONTEND_MAESTRO v2
 
 ---
 
-## 2) Implementación actual detectada (inventario)
+## DIAGNÓSTICO GENERAL
 
-### Rutas
-- `src/features/org/routes.tsx` expone: `empresa`, `sucursales`, `departamentos`, `cargos`, `centros-costo`, `parametros`.
-- `src/app/router.tsx`: módulo completo protegido con `PermissionGuard module="org" action="ver"`.
+🟡 **AJUSTES**
 
-### Types
-- `src/features/org/types/org.types.ts`
-  - Define interfaces: `Empresa`, `Sucursal`, `CentroCosto`, `Departamento`, `Cargo`, `Parametro` + `Create/Update`.
-  - Incluye tipos no presentes en ORG_API: `Moneda*` (potencial desalineamiento, ver sección 4).
-
-### Services
-- `src/features/org/services/org.service.ts`
-  - Servicios por entidad: `empresaService`, `sucursalService`, `centroCostoService`, `departamentoService`, `cargoService`, `parametroService`.
-  - Patrón actual: usa `api` (`src/core/api/api.ts` → `apiCentral`).
-  - No existen hooks React Query para ORG; las pages consumen services directamente con `useEffect + useState`.
-
-### Pages (UI)
-- `src/features/org/pages/EmpresaPage.tsx`
-- `src/features/org/pages/SucursalesPage.tsx`
-- `src/features/org/pages/CentrosCostoPage.tsx`
-- `src/features/org/pages/DepartamentosPage.tsx`
-- `src/features/org/pages/CargosPage.tsx`
-- `src/features/org/pages/ParametrosPage.tsx`
+La infraestructura de datos del módulo ORG (types, services, hooks React Query) está **completamente implementada y alineada** con el contrato API: 36 endpoints activos cubiertos, 6 entidades con CRUD + reactivar, `empresa_id` como query param donde corresponde, `buscar` soportado, tipado TypeScript sin `any`. Sin embargo, **las 6 páginas** presentan brechas sistemáticas de UX/UI: ausencia de badge de estado semántico, toolbar no compacta, carga de dependencias auxiliares sin pasar por los hooks React Query, y un bug de tipo en `CargosPage` (`moneda_salarial` requerido se inicializa como `undefined`). Adicionalmente `OrgPageLayout` incluye un `<h1>` + subtítulo que el Prompt Maestro prohíbe expresamente. Ningún problema es de datos o conectividad — todos son de presentación y arquitectura de componentes.
 
 ---
 
-## 3) Evaluación por endpoint (service/hook/componente)
+## ENDPOINTS DEPRECATED CONSUMIDOS ACTUALMENTE
 
-Leyenda:
-- **✔ Completo**: endpoint existe en service y está consumido en UI, con estados loading/error/empty, y tenant/empresa_id acorde.
-- **⚠ Parcial**: existe pero falta (a) hook React Query, (b) params requeridos por contrato, (c) UI incompleta, o (d) RBAC por acción.
-- **✖ Faltante**: no hay implementación.
-
-> Nota: En ORG no se implementaron hooks React Query; por lo tanto, todas las filas quedan como **⚠ Parcial** o **✖** aunque exista llamada en service/UI.
-
-| Endpoint | Método | Service | Hook | Componente | Estado |
-|---|---|---|---|---|---|
-| `/api/v1/org/empresa` | GET | `empresaService.list` | ✖ | `EmpresaPage` | ⚠ (no soporta `buscar`) |
-| `/api/v1/org/empresa` | POST | `empresaService.create` | ✖ | `EmpresaPage` | ⚠ (sin RBAC acción) |
-| `/api/v1/org/empresa/{empresa_id}` | GET | `empresaService.getById` | ✖ | ✖ | ⚠ (service existe, UI no usa) |
-| `/api/v1/org/empresa/{empresa_id}` | PUT | `empresaService.update` | ✖ | `EmpresaPage` | ⚠ (sin RBAC acción) |
-| `/api/v1/org/empresa/{empresa_id}` | DELETE | `empresaService.delete` | ✖ | `EmpresaPage` | ⚠ (sin RBAC acción) |
-| `/api/v1/org/empresa/{empresa_id}/reactivar` | POST | `empresaService.reactivar` | ✖ | `EmpresaPage` | ⚠ (sin RBAC acción) |
-| `/api/v1/org/sucursales` | GET | `sucursalService.list` | ✖ | `SucursalesPage` | ⚠ (no soporta `buscar`) |
-| `/api/v1/org/sucursales` | POST | `sucursalService.create` | ✖ | `SucursalesPage` | ⚠ (sin RBAC acción) |
-| `/api/v1/org/sucursales/{sucursal_id}` | GET | `sucursalService.getById` | ✖ | ✖ | ⚠ (falta `empresa_id` query, UI no usa) |
-| `/api/v1/org/sucursales/{sucursal_id}` | PUT | `sucursalService.update` | ✖ | `SucursalesPage` | ⚠ (falta `empresa_id` query, sin RBAC acción) |
-| `/api/v1/org/sucursales/{sucursal_id}` | DELETE | `sucursalService.delete` | ✖ | `SucursalesPage` | ⚠ (falta `empresa_id` query, sin RBAC acción) |
-| `/api/v1/org/sucursales/{sucursal_id}/reactivar` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/org/centros-costo` | GET | `centroCostoService.list` | ✖ | `CentrosCostoPage` | ⚠ (no soporta `buscar`) |
-| `/api/v1/org/centros-costo` | POST | `centroCostoService.create` | ✖ | `CentrosCostoPage` | ⚠ (sin RBAC acción) |
-| `/api/v1/org/centros-costo/{centro_costo_id}` | GET | `centroCostoService.getById` | ✖ | ✖ | ⚠ (falta `empresa_id` query, UI no usa) |
-| `/api/v1/org/centros-costo/{centro_costo_id}` | PUT | `centroCostoService.update` | ✖ | `CentrosCostoPage` | ⚠ (falta `empresa_id` query, sin RBAC acción) |
-| `/api/v1/org/centros-costo/{centro_costo_id}` | DELETE | `centroCostoService.delete` | ✖ | `CentrosCostoPage` | ⚠ (falta `empresa_id` query, sin RBAC acción) |
-| `/api/v1/org/centros-costo/{centro_costo_id}/reactivar` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/org/departamentos` | GET | `departamentoService.list` | ✖ | `DepartamentosPage` | ⚠ (no soporta `buscar`) |
-| `/api/v1/org/departamentos` | POST | `departamentoService.create` | ✖ | `DepartamentosPage` | ⚠ (sin RBAC acción) |
-| `/api/v1/org/departamentos/{departamento_id}` | GET | `departamentoService.getById` | ✖ | ✖ | ⚠ (falta `empresa_id` query, UI no usa) |
-| `/api/v1/org/departamentos/{departamento_id}` | PUT | `departamentoService.update` | ✖ | `DepartamentosPage` | ⚠ (falta `empresa_id` query, sin RBAC acción) |
-| `/api/v1/org/departamentos/{departamento_id}` | DELETE | `departamentoService.delete` | ✖ | `DepartamentosPage` | ⚠ (falta `empresa_id` query, sin RBAC acción) |
-| `/api/v1/org/departamentos/{departamento_id}/reactivar` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/org/cargos` | GET | `cargoService.list` | ✖ | `CargosPage` | ⚠ (no soporta `buscar`) |
-| `/api/v1/org/cargos` | POST | `cargoService.create` | ✖ | `CargosPage` | ⚠ (sin RBAC acción) |
-| `/api/v1/org/cargos/{cargo_id}` | GET | `cargoService.getById` | ✖ | ✖ | ⚠ (falta `empresa_id` query, UI no usa) |
-| `/api/v1/org/cargos/{cargo_id}` | PUT | `cargoService.update` | ✖ | `CargosPage` | ⚠ (falta `empresa_id` query, sin RBAC acción) |
-| `/api/v1/org/cargos/{cargo_id}` | DELETE | `cargoService.delete` | ✖ | `CargosPage` | ⚠ (falta `empresa_id` query, sin RBAC acción) |
-| `/api/v1/org/cargos/{cargo_id}/reactivar` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/org/parametros` | GET | `parametroService.list` | ✖ | `ParametrosPage` | ⚠ (no soporta `buscar`; no filtra por `empresa_id`) |
-| `/api/v1/org/parametros` | POST | `parametroService.create` | ✖ | `ParametrosPage` | ⚠ (sin RBAC acción) |
-| `/api/v1/org/parametros/{parametro_id}` | GET | `parametroService.getById` | ✖ | ✖ | ⚠ (falta `empresa_id` query, UI no usa) |
-| `/api/v1/org/parametros/{parametro_id}` | PUT | `parametroService.update` | ✖ | `ParametrosPage` | ⚠ (falta `empresa_id` query, sin RBAC acción) |
-| `/api/v1/org/parametros/{parametro_id}` | DELETE | `parametroService.delete` | ✖ | `ParametrosPage` | ⚠ (falta `empresa_id` query, sin RBAC acción) |
-| `/api/v1/org/parametros/{parametro_id}/reactivar` | POST | ✖ | ✖ | ✖ | ✖ |
+Ninguno detectado. El contrato ORG no tiene endpoints deprecated y todos los 36 endpoints activos son consumidos correctamente.
 
 ---
 
-## 4) Brechas por endpoint / técnica (lo más relevante)
+## UUIDs EXPUESTOS EN UI
 
-### 4.1 Endpoints faltantes (críticos)
-- Falta `POST /.../reactivar` para:
-  - `sucursales/{sucursal_id}/reactivar`
-  - `centros-costo/{centro_costo_id}/reactivar`
-  - `departamentos/{departamento_id}/reactivar`
-  - `cargos/{cargo_id}/reactivar`
-  - `parametros/{parametro_id}/reactivar`
+Ninguno detectado. Los campos `*_id` se usan únicamente como `key` de React y como parámetros internos de mutaciones. Ninguno aparece en columnas visibles de tablas ni en campos de solo lectura.
 
-### 4.2 Query params requeridos por contrato no aplicados
-- **`buscar`**: ninguno de los `list()` en `org.service.ts` lo expone; las pages no implementan búsqueda.
-  - Impacta: listas de Empresa/Sucursal/CentroCosto/Departamento/Cargo/Parametro.
-- **`empresa_id` en detalle/mutaciones** (contrato lo define como query param opcional para validar pertenencia a empresa):
-  - Actualmente **no se envía** en `getById/update/delete` de Sucursal/CentroCosto/Departamento/Cargo/Parametro.
-  - Impacto: backend puede rechazar o permitir acceso más amplio de lo previsto; además rompe el patrón explícito de “scope empresa”.
-- **Parámetros**: el contrato define `empresa_id` query con scope especial; hoy no se soporta en `getById/update/delete/reactivar`.
-
-### 4.3 Arquitectura de datos: React Query no usado en ORG
-- No existen hooks tipo `useOrg*` ni uso de `useTenantQuery/useTenantMutation`.
-- Riesgo: cache/invalidation manual, inconsistencias multi-tenant, UX menos consistente.
-
-### 4.4 API híbrida (central vs local) no respetada en services ORG
-- `org.service.ts` usa `api` (central) en vez de `getApiInstance(clienteInfo)` o patrón equivalente.
-- Impacto: en clientes on-prem/hybrid, ORG podría apuntar siempre al servidor central.
-
-### 4.5 RBAC por acción (crear/editar/eliminar) no aplicado
-- El módulo `ORG` está protegido por `PermissionGuard` para acción `ver`.
-- Pero los botones/acciones de **crear/editar/eliminar/reactivar** no validan `usePermissions().can('org', action)`.
-- Impacto: UI muestra acciones a usuarios sin permiso (aunque el backend podría bloquear).
-
-### 4.6 UI: activo/inactivo inconsistente vs contrato
-- `EmpresaPage` sí implementa “incluir inactivos” + botón reactivar (solo empresa).
-- Para el resto de entidades:
-  - Las listas se consumen con `solo_activos: true` fijo.
-  - No hay modo de ver inactivos ni reactivar (aunque el contrato lo soporta).
-
-### 4.7 Tipado potencialmente desalineado con OpenAPI
-- `Parametro.valor_json` está tipado como `unknown` (correcto), pero en UI se convierte a string/JSON; OK.
-- `Cargo.rango_salarial_min/max`: OpenAPI permite `number|string|null`; tipos actuales lo fuerzan a `number|null`.
-- `Sucursal.latitud/longitud`: OpenAPI permite `number|string|null`; en types no se observa aquí (revisar si están presentes).
-- `types/org.types.ts` contiene `Moneda*` que no aparece en `ORG_API.json` (posible legado o módulo distinto).
+**Único caso de atención:** `moneda_salarial` en `CargoRead` devuelve un **UUID** (FK a `cat_moneda`). La tabla de `CargosPage` no muestra esta columna actualmente, lo cual evita exponer el UUID. Sin embargo, el formulario de Cargo actualmente lee el UUID crudo del response (`row.moneda_salarial`) y lo asigna al `<select>` que carga monedas por catálogo — esto es correcto siempre que el Select muestre el nombre de la moneda y envíe el UUID. Ver sección "Campos faltantes".
 
 ---
 
-## 5) Componentes desalineados (NO eliminar)
+## FLUJOS CABECERA+DETALLE MAL IMPLEMENTADOS
 
-No se detectaron componentes que llamen rutas inexistentes del contrato ORG.
-Sin embargo, hay **desalineamiento funcional** por omisión:
-- Falta soporte de `buscar` en UI.
-- Falta manejo de inactivos/reactivar en 5 entidades.
-- Falta envío de `empresa_id` query en detalle/mutaciones donde el contrato lo define.
+Ninguno detectado. El módulo ORG es de maestros simples. No existen entidades con detalle embebido.
 
 ---
 
-## 6) Problemas de tipado / multi-tenant / RBAC (resumen)
+## AUDITORÍA POR ENDPOINT
 
-- **Multi-tenant**: `empresa_id` se usa como filtro en listas, pero no como scope en detalle/mutaciones; `cliente_id` se asume por token (correcto).
-- **RBAC**: solo guard de lectura; falta control granular por acción en UI.
-- **React Query**: no implementado; se usa `useEffect` + state local.
-- **API híbrida**: services ORG actualmente no seleccionan instancia (central/local) según tenant.
+| Endpoint | Método | Service ✅/❌ | Hook ✅/❌ | Componente ✅/❌ | UUIDs en UI ✅/❌ | Loading/Error ✅/❌ | RBAC ✅/❌ |
+|---|---|---|---|---|---|---|---|
+| `GET /api/v1/org/empresa` | GET | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /api/v1/org/empresa` | POST | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GET /api/v1/org/empresa/{id}` | GET | ✅ | ✅ | ⚠ (service/hook exist; UI no usa detalle) | ✅ | ✅ | N/A |
+| `PUT /api/v1/org/empresa/{id}` | PUT | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `DELETE /api/v1/org/empresa/{id}` | DELETE | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /api/v1/org/empresa/{id}/reactivar` | POST | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GET /api/v1/org/sucursales` | GET | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /api/v1/org/sucursales` | POST | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GET /api/v1/org/sucursales/{id}` | GET | ✅ | ✅ | ⚠ (no usado en UI) | ✅ | ✅ | N/A |
+| `PUT /api/v1/org/sucursales/{id}` | PUT | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `DELETE /api/v1/org/sucursales/{id}` | DELETE | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /api/v1/org/sucursales/{id}/reactivar` | POST | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GET /api/v1/org/centros-costo` | GET | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /api/v1/org/centros-costo` | POST | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GET /api/v1/org/centros-costo/{id}` | GET | ✅ | ✅ | ⚠ (no usado en UI) | ✅ | ✅ | N/A |
+| `PUT /api/v1/org/centros-costo/{id}` | PUT | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `DELETE /api/v1/org/centros-costo/{id}` | DELETE | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /api/v1/org/centros-costo/{id}/reactivar` | POST | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GET /api/v1/org/departamentos` | GET | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /api/v1/org/departamentos` | POST | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GET /api/v1/org/departamentos/{id}` | GET | ✅ | ✅ | ⚠ (no usado en UI) | ✅ | ✅ | N/A |
+| `PUT /api/v1/org/departamentos/{id}` | PUT | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `DELETE /api/v1/org/departamentos/{id}` | DELETE | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /api/v1/org/departamentos/{id}/reactivar` | POST | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GET /api/v1/org/cargos` | GET | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /api/v1/org/cargos` | POST | ✅ | ✅ | ⚠ (bug: `moneda_salarial` puede ser vacío) | ✅ | ✅ | ✅ |
+| `GET /api/v1/org/cargos/{id}` | GET | ✅ | ✅ | ⚠ (no usado en UI) | ✅ | ✅ | N/A |
+| `PUT /api/v1/org/cargos/{id}` | PUT | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `DELETE /api/v1/org/cargos/{id}` | DELETE | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /api/v1/org/cargos/{id}/reactivar` | POST | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GET /api/v1/org/parametros` | GET | ✅ | ✅ | ⚠ (falta filtro empresa_id en toolbar) | ✅ | ✅ | ✅ |
+| `POST /api/v1/org/parametros` | POST | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GET /api/v1/org/parametros/{id}` | GET | ✅ | ✅ | ⚠ (no usado en UI) | ✅ | ✅ | N/A |
+| `PUT /api/v1/org/parametros/{id}` | PUT | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `DELETE /api/v1/org/parametros/{id}` | DELETE | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `POST /api/v1/org/parametros/{id}/reactivar` | POST | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
-## 7) Recomendación de implementación (para Fase 3, no ejecutar aquí)
+## AUDITORÍA DE VISTAS UX/UI
 
-Prioridad sugerida:
-1) Completar endpoints faltantes (`reactivar` en 5 entidades) en `org.service.ts`.
-2) Ajustar firma de services para soportar `buscar` y `empresa_id` query donde aplique.
-3) Migrar ORG a hooks React Query (preferible `useTenantQuery/useTenantMutation`) + invalidaciones.
-4) Aplicar RBAC por acción en botones: `can('org', 'crear'|'editar'|'eliminar')`.
-5) Alinear tipos con OpenAPI en campos `number|string|null` (cargo/sucursal) para evitar rechazos.
+| Vista | Existe | Búsqueda | Filtro empresa | Ver inactivos | Empty state | Toast | Modal confirm. | Badge estado | Toolbar compacta |
+|---|---|---|---|---|---|---|---|---|---|
+| EmpresaPage | ✅ | ✅ | N/A | ✅ | ⚠ (sin botón acción) | ✅ | ✅ | ❌ (texto plano) | ❌ (vertical) |
+| SucursalesPage | ✅ | ✅ | ✅ | ✅ | ⚠ (sin botón acción) | ✅ | ✅ | ❌ (ausente) | ❌ (vertical) |
+| CentrosCostoPage | ✅ | ✅ | ✅ | ✅ | ⚠ (sin botón acción) | ✅ | ✅ | ❌ (ausente) | ❌ (vertical) |
+| DepartamentosPage | ✅ | ✅ | ✅ | ✅ | ⚠ (sin botón acción) | ✅ | ✅ | ❌ (ausente) | ❌ (vertical) |
+| CargosPage | ✅ | ✅ | ✅ | ✅ | ⚠ (sin botón acción) | ✅ | ✅ | ❌ (ausente) | ❌ (vertical) |
+| ParametrosPage | ✅ | ✅ | ❌ (falta empresa_id) | ✅ | ⚠ (sin botón acción) | ✅ | ✅ | ❌ (ausente) | ❌ (vertical) |
 
+---
+
+## CAMPOS FALTANTES EN UI
+
+### EmpresaPage — tabla
+
+| Campo del response | Prioridad | Situación actual | Corrección |
+|---|---|---|---|
+| `es_activo` | 🔴 CRÍTICO | Texto "Activa/Inactiva" sin color | Badge verde/rojo semántico |
+| `nombre_comercial` | ⚠ IMPORTANTE | No visible en tabla | Agregar como columna o en tooltip del nombre |
+| `tipo_empresa` | ➕ MENOR | No visible en tabla | Opcional — columna corta |
+
+### SucursalesPage — tabla
+
+| Campo del response | Prioridad | Situación actual | Corrección |
+|---|---|---|---|
+| `es_activo` | 🔴 CRÍTICO | Ausente en tabla (solo se muestra reactivar si inactivo) | Badge verde/rojo en columna Estado |
+| `es_casa_matriz` | ⚠ IMPORTANTE | Columna "Principal" muestra "Sí/No" sin estilo | Badge o icono semántico |
+| `direccion` | ➕ MENOR | No visible en tabla | Tooltip o columna angosta |
+
+### CentrosCostoPage — tabla
+
+| Campo del response | Prioridad | Situación actual | Corrección |
+|---|---|---|---|
+| `es_activo` | 🔴 CRÍTICO | Ausente en tabla | Badge verde/rojo en columna Estado |
+| `responsable_nombre` | ⚠ IMPORTANTE | No visible en tabla | Columna compacta |
+| `tiene_presupuesto` | ➕ MENOR | No visible | Icono/check en tabla |
+
+### DepartamentosPage — tabla
+
+| Campo del response | Prioridad | Situación actual | Corrección |
+|---|---|---|---|
+| `es_activo` | 🔴 CRÍTICO | Ausente en tabla | Badge verde/rojo en columna Estado |
+| `jefe_nombre` | ⚠ IMPORTANTE | No visible en tabla | Columna compacta |
+| `tipo_departamento` | ⚠ IMPORTANTE | No visible en tabla | Columna corta |
+
+### CargosPage — tabla y formulario
+
+| Campo del response | Prioridad | Situación actual | Corrección |
+|---|---|---|---|
+| `es_activo` | 🔴 CRÍTICO | Ausente en tabla | Badge verde/rojo en columna Estado |
+| `moneda_salarial` | 🔴 CRÍTICO | UUID crudo en formulario (`DEFAULT: undefined` → posible 422 al crear) | Select cargado desde `catalogosService.listMonedas`, DEFAULT = primer `moneda_id` activo; muestra código+nombre, envía UUID |
+| `nivel_jerarquico` | ⚠ IMPORTANTE | No visible en tabla | Columna numérica angosta |
+| `area_funcional` | ➕ MENOR | No visible en tabla | — |
+
+### ParametrosPage — tabla
+
+| Campo del response | Prioridad | Situación actual | Corrección |
+|---|---|---|---|
+| `es_activo` | 🔴 CRÍTICO | Ausente en tabla | Badge verde/rojo en columna Estado |
+| `tipo_dato` | ⚠ IMPORTANTE | No visible en tabla | Badge de tipo (texto, numérico, json…) |
+| `modulo_codigo` | ⚠ IMPORTANTE | Solo filtra ORG; no muestra módulo al ver todos | Columna "Módulo" cuando filtro está vacío |
+| `empresa_id` | ⚠ IMPORTANTE | Filtro por empresa no implementado en toolbar | Select empresa en toolbar (igual que otras páginas) |
+
+---
+
+## ARCHIVOS A REESCRIBIR
+
+Ningún archivo requiere reescritura total. Todos los problemas son correcciones incrementales.
+
+---
+
+## ARCHIVOS A MODIFICAR
+
+| Archivo | Tipo de cambio | Motivo |
+|---|---|---|
+| `components/OrgPageLayout.tsx` | Modificar | Eliminar `<h1>` y `<p>` descriptivo. Convertir en wrapper limpio que solo aplica padding/max-width. El breadcrumb global ya identifica la página. |
+| `pages/EmpresaPage.tsx` | Modificar | (1) Badge semántico en columna Estado. (2) Toolbar horizontal compacta (filtros izq + botón der). (3) Empty state con botón de acción inline. |
+| `pages/SucursalesPage.tsx` | Modificar | (1) Badge semántico Estado. (2) Toolbar compacta. (3) Empty state con acción. (4) Reemplazar `useEffect+centroCostoService.list()` por hook `useCentrosCosto`. (5) Reemplazar carga geográficos con hook o mantener `useEffect` pero documentar como deuda técnica. |
+| `pages/CentrosCostoPage.tsx` | Modificar | (1) Badge semántico Estado. (2) Toolbar compacta. (3) Empty state con acción. (4) Agregar columna `responsable_nombre`. |
+| `pages/DepartamentosPage.tsx` | Modificar | (1) Badge semántico Estado. (2) Toolbar compacta. (3) Empty state con acción. (4) Reemplazar `useEffect+sucursalService/centroCostoService.list()` por hooks RQ. (5) Agregar columnas `tipo_departamento` y `jefe_nombre`. |
+| `pages/CargosPage.tsx` | Modificar | (1) Badge semántico Estado. (2) Toolbar compacta. (3) Empty state con acción. (4) Corregir `moneda_salarial`: Select cargado de catálogo, DEFAULT = primer `moneda_id` activo. (5) Reemplazar `useEffect+departamentoService.list()` por hook `useDepartamentos`. (6) Agregar columna `nivel_jerarquico`. |
+| `pages/ParametrosPage.tsx` | Modificar | (1) Badge semántico Estado. (2) Toolbar compacta. (3) Agregar filtro `empresa_id`. (4) Agregar columnas `tipo_dato` (badge) y `modulo_codigo`. (5) Empty state con acción. |
+| `types/org.types.ts` | Modificar | Corregir `CargoRead.rango_salarial_min/max` para aceptar `string | number | null` (el OpenAPI los devuelve como `string | null` en el Read, aunque Create acepta `number | string | null`). |
+
+---
+
+## ARCHIVOS NUEVOS A CREAR
+
+Ninguno. Todos los archivos necesarios (types, service, hooks, páginas, layout, routes) ya existen. Solo se requieren modificaciones.
+
+---
+
+## RESUMEN DE PRIORIDADES
+
+| Prioridad | Elemento | Impacto |
+|---|---|---|
+| 🔴 1 | Bug `moneda_salarial` en `CargosPage` | El create envía UUID vacío → 422 del backend |
+| 🔴 2 | Badge de estado en todas las tablas | Visibilidad de inactivos inexistente |
+| 🔴 3 | Toolbar compacta en todas las páginas | Desperdicio de espacio, UX inconsistente |
+| 🔴 4 | Eliminar H1+subtítulo de `OrgPageLayout` | Viola regla de layout del Prompt Maestro |
+| ⚠ 5 | Filtro empresa_id en ParametrosPage | Funcionalidad del contrato no expuesta |
+| ⚠ 6 | Carga auxiliares con hooks RQ | Inconsistencia arquitectural (useEffect+service directo) |
+| ⚠ 7 | Empty state con acción en 5 páginas | UX — el usuario no sabe qué hacer cuando no hay datos |
+| ➕ 8 | Campos adicionales en tablas | Enriquecimiento informativo |

@@ -198,7 +198,7 @@ export default function AsientoDetallePage() {
       }
     >
       <div className="mb-4">
-        <Button variant="outline" onClick={() => navigate('/fin/asientos')} className="mb-4">
+        <Button variant="outline" onClick={() => navigate('/app/fin/asientos')} className="mb-4">
           <ArrowLeft className="h-4 w-4 mr-2" /> Volver a asientos
         </Button>
         {asiento && (
@@ -303,7 +303,7 @@ export default function AsientoDetallePage() {
             {(form.debe > 0 && form.haber > 0) && (
               <p className="text-sm text-red-600 dark:text-red-400">⚠ Solo debe tener debe o haber, no ambos.</p>
             )}
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting || (form.debe > 0 && form.haber > 0)} className="bg-brand-primary hover:bg-brand-primary-hover">Agregar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting || (form.debe > 0 && form.haber > 0)} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Agregar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -324,7 +324,7 @@ export default function AsientoDetallePage() {
             {(editForm.debe !== undefined && editForm.haber !== undefined && editForm.debe > 0 && editForm.haber > 0) && (
               <p className="text-sm text-red-600 dark:text-red-400">⚠ Solo debe tener debe o haber, no ambos.</p>
             )}
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting || (editForm.debe !== undefined && editForm.haber !== undefined && editForm.debe > 0 && editForm.haber > 0)} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting || (editForm.debe !== undefined && editForm.haber !== undefined && editForm.debe > 0 && editForm.haber > 0)} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

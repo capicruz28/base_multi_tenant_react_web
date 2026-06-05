@@ -20,12 +20,12 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, className =
         onMouseLeave={() => setIsVisible(false)}
         className="cursor-help"
       >
-        {children || <HelpCircle className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />}
+        {children || <HelpCircle className="h-4 w-4 text-brand-text-secondary hover:text-brand-primary" />}
       </div>
       {isVisible && (
-        <div className="absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded-lg shadow-lg whitespace-normal max-w-xs">
+        <div className="absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-text-base bg-surface border border-border-base rounded-lg shadow-lg whitespace-normal max-w-xs">
           {content}
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700" />
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-surface" />
         </div>
       )}
     </div>
@@ -51,11 +51,11 @@ export const TooltipLabel: React.FC<TooltipLabelProps> = ({
   className = ''
 }) => {
   return (
-    <label htmlFor={htmlFor} className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 ${className}`}>
+    <label htmlFor={htmlFor} className={`block text-sm font-medium text-text-base mb-1 ${className}`}>
       <div className="flex items-center gap-2">
         <span>
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="text-error ml-1">*</span>}
         </span>
         <Tooltip content={tooltip} />
       </div>

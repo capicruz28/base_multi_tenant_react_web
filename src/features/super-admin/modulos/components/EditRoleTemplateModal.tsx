@@ -114,20 +114,20 @@ const EditRoleTemplateModal: React.FC<EditRoleTemplateModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-border-base">
           <div className="flex items-center gap-3">
             <Shield className="h-6 w-6 text-brand-primary" />
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-xl font-semibold text-text-base">
                 Editar Plantilla de Rol
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-text-soft">
                 {plantilla.nombre}
               </p>
               {modulo && (
-                <p className="text-xs text-gray-400 dark:text-gray-500">
+                <p className="text-xs text-text-soft">
                   Módulo: {modulo.nombre}
                 </p>
               )}
@@ -135,10 +135,10 @@ const EditRoleTemplateModal: React.FC<EditRoleTemplateModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors"
             disabled={loading}
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-text-soft" />
           </button>
         </div>
 
@@ -146,7 +146,7 @@ const EditRoleTemplateModal: React.FC<EditRoleTemplateModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Nombre de la Plantilla */}
           <div>
-            <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="nombre" className="block text-sm font-medium text-text-soft mb-1">
               Nombre de la Plantilla *
             </label>
             <input
@@ -155,18 +155,18 @@ const EditRoleTemplateModal: React.FC<EditRoleTemplateModalProps> = ({
               name="nombre"
               value={formData.nombre || ''}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.nombre ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${errors.nombre ? 'border-error' : 'border-border-base'
                 }`}
               disabled={loading}
             />
             {errors.nombre && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.nombre}</p>
+              <p className="mt-1 text-sm text-error">{errors.nombre}</p>
             )}
           </div>
 
           {/* Descripción */}
           <div>
-            <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="descripcion" className="block text-sm font-medium text-text-soft mb-1">
               Descripción
             </label>
             <textarea
@@ -175,14 +175,14 @@ const EditRoleTemplateModal: React.FC<EditRoleTemplateModalProps> = ({
               value={formData.descripcion || ''}
               onChange={handleInputChange}
               rows={3}
-              className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+              className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
               disabled={loading}
             />
           </div>
 
           {/* Permisos JSON - Editor */}
           <div>
-            <label htmlFor="permisos_json" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="permisos_json" className="block text-sm font-medium text-text-soft mb-1">
               Permisos (JSON) *
             </label>
             <textarea
@@ -191,14 +191,14 @@ const EditRoleTemplateModal: React.FC<EditRoleTemplateModalProps> = ({
               value={JSON.stringify(formData.permisos_json, null, 2)}
               onChange={(e) => handleJsonChange(e.target.value)}
               rows={10}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground font-mono text-sm ${errors.permisos_json || jsonError ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base font-mono text-sm ${errors.permisos_json || jsonError ? 'border-error' : 'border-border-base'
                 }`}
               disabled={loading}
             />
             {(errors.permisos_json || jsonError) && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.permisos_json || jsonError}</p>
+              <p className="mt-1 text-sm text-error">{errors.permisos_json || jsonError}</p>
             )}
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs text-text-soft">
               Estructura JSON con permisos por menú. Formato: {"{"}"menu_id": {"{"}"ver": true, "crear": false, "editar": true, "eliminar": false{"}"}{"}"}
             </p>
           </div>
@@ -211,31 +211,31 @@ const EditRoleTemplateModal: React.FC<EditRoleTemplateModalProps> = ({
               name="es_activa"
               checked={formData.es_activa || false}
               onChange={handleInputChange}
-              className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+              className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded"
               disabled={loading}
             />
-            <label htmlFor="es_activa" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+            <label htmlFor="es_activa" className="ml-2 block text-sm text-text-base">
               Plantilla Activa
             </label>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+          <p className="text-xs text-text-soft ml-6">
             Las plantillas inactivas no estarán disponibles para asignar a roles.
           </p>
 
           {/* Footer */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-end gap-3 pt-6 border-t border-border-base">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-secondary disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-primary disabled:opacity-50"
             >
               {loading && <Loader className="h-4 w-4 animate-spin" />}
               {loading ? 'Guardando...' : 'Guardar Cambios'}

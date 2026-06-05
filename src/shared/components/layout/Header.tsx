@@ -8,11 +8,25 @@ import { useTheme } from '../../context/ThemeContext';
 import { useNavMode } from '../../context/NavModeContext';
 import { User, Mail, Settings, LogOut, ChevronDown, ChevronRight, Home, Shield, Building2, Crown, Sun, Moon, PanelLeft, PanelTop } from 'lucide-react';
 import useUserType from '../../../core/hooks/useUserType';
+import { useLayoutShell } from './LayoutShellContext';
+import { SHELL_HOME_PATH } from './layout-shell.types';
+import { useAdminMenuItems } from './MenuSelector';
+import { useShellBreadcrumbs } from './useShellBreadcrumbs';
+import EmpresaSelector from './EmpresaSelector';
+import ShellCrossNav from './ShellCrossNav';
 
 const Header = () => {
+  const shell = useLayoutShell();
   const { auth, logout, menuModulos } = useAuth();
   const { breadcrumbs, setBreadcrumbs } = useBreadcrumb();
+  const { items: adminMenuItems } = useAdminMenuItems();
   const location = useLocation();
+  const shellBreadcrumbs = useShellBreadcrumbs(
+    menuModulos,
+    shell,
+    location.pathname,
+    adminMenuItems,
+  );
   const { isDarkMode, toggleDarkMode } = useTheme();
   const { navMode, toggleNavMode } = useNavMode();
   const navigate = useNavigate();
@@ -38,31 +52,10 @@ const Header = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Actualiza el breadcrumb según la ruta actual — funciona en todos los modos de navegación
-  // (en modo navbar el sidebar no se monta, por lo que este efecto es la única fuente de verdad)
+  // Única fuente de breadcrumbs (sidebar y navbar)
   useEffect(() => {
-    if (!menuModulos || menuModulos.length === 0) return;
-    const currentPath = location.pathname;
-
-    for (const modulo of menuModulos) {
-      for (const seccion of modulo.secciones ?? []) {
-        for (const menu of seccion.menus ?? []) {
-          if (!menu.ruta) continue;
-          const menuPath = menu.ruta.startsWith('/') ? menu.ruta : `/${menu.ruta}`;
-          if (currentPath === menuPath || currentPath.startsWith(menuPath + '/')) {
-            setBreadcrumbs([
-              { nombre: modulo.nombre, ruta: null },
-              { nombre: menu.nombre, ruta: menu.ruta },
-            ]);
-            return;
-          }
-        }
-      }
-    }
-
-    // Ruta no encontrada en ningún módulo — limpiar solo si no hay breadcrumbs previos útiles
-    setBreadcrumbs([]);
-  }, [location.pathname, menuModulos, setBreadcrumbs]);
+    setBreadcrumbs(shellBreadcrumbs);
+  }, [shellBreadcrumbs, setBreadcrumbs]);
 
   const getInitials = () => {
     if (auth.user?.nombre && auth.user?.apellido) {
@@ -108,7 +101,7 @@ const Header = () => {
   const BadgeIcon = userBadge.icon;
 
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-sm h-16 flex-shrink-0 w-full border-b border-gray-200 dark:border-gray-700"> 
+    <header className="bg-brand-surface shadow-sm h-16 flex-shrink-0 w-full border-b border-brand-border"> 
       <div className="h-full px-4 flex items-center relative">
 
         {/* Izquierda: Breadcrumb */}
@@ -117,8 +110,8 @@ const Header = () => {
             <nav className="flex items-center space-x-2 text-sm overflow-x-auto">
               {/* Home Icon */}
               <button
-                onClick={() => navigate('/')}
-                className="flex items-center text-gray-500 hover:text-brand-primary dark:text-gray-400 dark:hover:text-brand-primary transition-colors flex-shrink-0"
+                onClick={() => navigate(SHELL_HOME_PATH[shell])}
+                className="flex items-center text-brand-text-secondary hover:text-brand-primary transition-colors flex-shrink-0"
                 title="Inicio"
               >
                 <Home className="w-4 h-4" />
@@ -130,12 +123,12 @@ const Header = () => {
                 
                 return (
                   <div key={index} className="flex items-center space-x-2 flex-shrink-0">
-                    <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                    <ChevronRight className="w-4 h-4 text-brand-text-secondary" />
                     
                     {hasRoute && !isLast ? (
                       <button
                         onClick={() => handleBreadcrumbClick(crumb.ruta)}
-                        className="text-gray-600 hover:text-brand-primary dark:text-gray-300 dark:hover:text-brand-primary transition-colors font-medium truncate max-w-xs"
+                        className="text-brand-text-secondary hover:text-brand-primary transition-colors font-medium truncate max-w-xs"
                         title={crumb.nombre}
                       >
                         {crumb.nombre}
@@ -145,7 +138,7 @@ const Header = () => {
                         className={`truncate max-w-xs ${
                           isLast 
                             ? 'text-brand-primary dark:text-brand-primary font-semibold' 
-                            : 'text-gray-500 dark:text-gray-400'
+                            : 'text-brand-text-secondary'
                         }`}
                         title={crumb.nombre}
                       >
@@ -159,7 +152,7 @@ const Header = () => {
           ) : (
             <div className="flex items-center space-x-2">
               <Home className="w-5 h-5 text-brand-primary dark:text-brand-primary" />
-              <span className="text-lg font-semibold text-gray-800 dark:text-white">
+              <span className="text-lg font-semibold text-brand-text-primary">
                 Dashboard
               </span>
             </div>
@@ -172,11 +165,18 @@ const Header = () => {
           <GlobalSearch />
         </div>
 
-        {/* Derecha: botones + avatar */}
-        <div className="flex items-center gap-1 flex-shrink-0 ml-auto">
+        {/* Derecha: empresa + cross-shell (tenant_admin) + botones + avatar */}
+        <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+          {isTenantAdminUser && (shell === 'app' || shell === 'admin') && (
+            <ShellCrossNav shell={shell} menuModulos={menuModulos} />
+          )}
+          {!isSuperAdminUser &&
+            (shell === 'app' || (shell === 'admin' && isTenantAdminUser)) && (
+              <EmpresaSelector />
+            )}
           <button
             onClick={toggleDarkMode}
-            className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-2 rounded-lg text-brand-text-secondary hover:bg-overlay transition-colors"
             title={isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
           >
             {isDarkMode
@@ -186,7 +186,7 @@ const Header = () => {
           </button>
           <button
             onClick={toggleNavMode}
-            className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-2 rounded-lg text-brand-text-secondary hover:bg-overlay transition-colors"
             title={navMode === 'sidebar' ? 'Cambiar a vista navbar' : 'Cambiar a vista sidebar'}
           >
             {navMode === 'sidebar'
@@ -200,31 +200,31 @@ const Header = () => {
         <div className="relative ml-4 flex-shrink-0" ref={menuRef}>
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-center space-x-2 p-2 rounded-lg hover:bg-overlay transition-colors"
           >
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-brand-primary text-white font-semibold text-sm">
               {getInitials()}
             </div>
-            <span className="text-sm font-medium text-gray-800 dark:text-white hidden sm:inline">
+            <span className="text-sm font-medium text-brand-text-primary hidden sm:inline">
               {auth.user?.nombre}
             </span>
-            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isMenuOpen ? 'rotate-180' : 'rotate-0'}`} />
+            <ChevronDown className={`w-4 h-4 text-brand-text-secondary transition-transform ${isMenuOpen ? 'rotate-180' : 'rotate-0'}`} />
           </button>
           
           {isMenuOpen && (
-            <div className="absolute right-0 mt-2 w-64 origin-top-right bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 z-50">
+            <div className="absolute right-0 mt-2 w-64 origin-top-right bg-brand-surface border border-brand-border rounded-md shadow-lg py-1 z-50">
               
               {/* ✅ NUEVO: Información de usuario y tipo */}
-              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+              <div className="px-4 py-3 border-b border-brand-border">
                 <div className="flex items-center space-x-3">
                   <div className="flex items-center justify-center w-10 h-10 rounded-full bg-brand-primary text-white font-semibold text-sm">
                     {getInitials()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    <p className="text-sm font-medium text-brand-text-primary truncate">
                       {auth.user?.nombre} {auth.user?.apellido}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    <p className="text-xs text-brand-text-secondary truncate">
                       {auth.user?.correo}
                     </p>
                     <div className="flex items-center space-x-1 mt-1">
@@ -233,7 +233,7 @@ const Header = () => {
                         <span>{userBadge.text}</span>
                       </div>
                       {accessLevel > 0 && (
-                        <div className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs font-medium">
+                        <div className="bg-brand-surface-secondary text-brand-text-secondary px-2 py-0.5 rounded-full text-xs font-medium">
                           Nivel {accessLevel}
                         </div>
                       )}
@@ -244,14 +244,14 @@ const Header = () => {
 
               {/* ✅ NUEVO: Información del cliente para tenant admin */}
               {clienteInfo && (
-                <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-400">
+                <div className="px-4 py-2 border-b border-brand-border">
+                  <div className="flex items-center space-x-2 text-xs text-brand-text-secondary">
                     <Building2 className="w-3 h-3" />
                     <span className="truncate" title={clienteInfo.razon_social || clienteInfo.nombre_comercial || ''}>
                       {clienteInfo.razon_social || clienteInfo.nombre_comercial || 'Cliente'}
                     </span>
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                  <div className="text-xs text-brand-text-secondary mt-1">
                     Subdominio: {clienteInfo.subdominio}
                   </div>
                 </div>
@@ -259,52 +259,48 @@ const Header = () => {
 
               {/* Menú de opciones */}
               <button
-                className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                className="w-full px-4 py-2 text-sm text-left text-brand-text-primary hover:bg-overlay flex items-center"
               >
                 <User className="w-4 h-4 mr-3" />
                 Mi perfil
               </button>
 
               <button
-                className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                className="w-full px-4 py-2 text-sm text-left text-brand-text-primary hover:bg-overlay flex items-center"
               >
                 <Mail className="w-4 h-4 mr-3" />
                 Bandeja de entrada
               </button>
 
               <button
-                className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                className="w-full px-4 py-2 text-sm text-left text-brand-text-primary hover:bg-overlay flex items-center"
               >
                 <Settings className="w-4 h-4 mr-3" />
                 Configuraciones de la cuenta
               </button>
 
               {/* ✅ NUEVO: Enlace rápido a administración según tipo de usuario */}
-              {(isSuperAdminUser || isTenantAdminUser) && (
+              {shell === 'super-admin' && isSuperAdminUser && (
                 <>
-                  <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                  <div className="border-t border-brand-border my-1"></div>
                   <button
                     onClick={() => {
-                      if (isSuperAdminUser) {
-                        navigate('/super-admin/clientes');
-                      } else {
-                        navigate('/admin/usuarios');
-                      }
+                      navigate('/super-admin/clientes');
                       setIsMenuOpen(false);
                     }}
                     className="w-full px-4 py-2 text-sm text-left text-brand-primary dark:text-brand-primary hover:bg-brand-primary/10 dark:hover:bg-brand-primary/20 flex items-center"
                   >
                     <Shield className="w-4 h-4 mr-3" />
-                    {isSuperAdminUser ? 'Administración Global' : 'Administración del Tenant'}
+                    Administración Global
                   </button>
                 </>
               )}
 
-              <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+              <div className="border-t border-brand-border my-1"></div>
 
               <button
                 onClick={logout}
-                className="w-full px-4 py-2 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center"
+                className="w-full px-4 py-2 text-sm text-left text-error hover:bg-error/10 flex items-center"
                   >
                 <LogOut className="w-4 h-4 mr-3" />
                 Cerrar Sesión

@@ -111,6 +111,16 @@ export const useBrandingStore = create<BrandingStoreState & BrandingStoreInterna
     }
 
     const tenantState = get().getTenantState(tenantId);
+
+    if (tenantState.branding && tenantState.lastUpdated) {
+      set({
+        branding: tenantState.branding,
+        loading: false,
+        error: tenantState.error,
+        lastUpdated: tenantState.lastUpdated,
+      });
+      return;
+    }
     
     // Evitar cargar múltiples veces simultáneamente
     if (tenantState.loading) {

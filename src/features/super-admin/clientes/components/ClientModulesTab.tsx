@@ -275,7 +275,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader className="animate-spin h-10 w-10 text-brand-primary mb-4" />
-        <span className="text-gray-600 dark:text-gray-400">Cargando módulos...</span>
+        <span className="text-text-soft">Cargando módulos...</span>
       </div>
     );
   }
@@ -283,7 +283,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
   if (error) {
     return (
       <div className="p-6 text-center">
-        <div className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg mb-4">
+        <div className="text-error bg-error/10 p-4 rounded-lg mb-4">
           <AlertCircle className="h-5 w-5 inline mr-2" />
           {error}
         </div>
@@ -301,68 +301,68 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
     <div className="space-y-6">
       {/* Estadísticas mejoradas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl shadow-sm border border-blue-200 dark:border-blue-800 p-5">
+        <div className="bg-gradient-to-br from-info/10 to-info/5 dark:from-info/20 dark:to-info/10 rounded-xl shadow-sm border border-info/25 dark:border-info/30 p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-1">Total Módulos</p>
-              <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">{modulos.length}</p>
+              <p className="text-sm font-medium text-info mb-1">Total Módulos</p>
+              <p className="text-3xl font-bold text-text-base">{modulos.length}</p>
             </div>
-            <Package className="h-10 w-10 text-blue-600 dark:text-blue-400" />
+            <Package className="h-10 w-10 text-info" />
           </div>
         </div>
-        <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl shadow-sm border border-green-200 dark:border-green-800 p-5">
+        <div className="bg-gradient-to-br from-success/10 to-success/5 dark:from-success/20 dark:to-success/10 rounded-xl shadow-sm border border-success/25 dark:border-success/30 p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-green-600 dark:text-green-400 mb-1">Activos</p>
-              <p className="text-3xl font-bold text-green-900 dark:text-green-100">{modulosActivos.length}</p>
+              <p className="text-sm font-medium text-success mb-1">Activos</p>
+              <p className="text-3xl font-bold text-text-base">{modulosActivos.length}</p>
             </div>
-            <CheckCircle className="h-10 w-10 text-green-600 dark:text-green-400" />
+            <CheckCircle className="h-10 w-10 text-success" />
           </div>
         </div>
-        <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800/20 dark:to-gray-700/20 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+        <div className="bg-gradient-to-br from-subtle to-surface rounded-xl shadow-sm border border-border-base p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Disponibles</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{modulosDisponibles.length}</p>
+              <p className="text-sm font-medium text-text-soft mb-1">Disponibles</p>
+              <p className="text-3xl font-bold text-text-base">{modulosDisponibles.length}</p>
             </div>
-            <XCircle className="h-10 w-10 text-gray-600 dark:text-gray-400" />
+            <XCircle className="h-10 w-10 text-text-soft" />
           </div>
         </div>
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl shadow-sm border border-purple-200 dark:border-purple-800 p-5">
+        <div className="bg-gradient-to-br from-warning/10 to-warning/5 dark:from-warning/20 dark:to-warning/10 rounded-xl shadow-sm border border-warning/25 dark:border-warning/30 p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-purple-600 dark:text-purple-400 mb-1">Categorías</p>
-              <p className="text-3xl font-bold text-purple-900 dark:text-purple-100">{categorias.length}</p>
+              <p className="text-sm font-medium text-warning mb-1">Categorías</p>
+              <p className="text-3xl font-bold text-text-base">{categorias.length}</p>
             </div>
-            <Tag className="h-10 w-10 text-purple-600 dark:text-purple-400" />
+            <Tag className="h-10 w-10 text-warning" />
           </div>
         </div>
       </div>
 
       {/* Barra de herramientas mejorada */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+      <div className="bg-surface rounded-xl shadow-sm border border-border-base p-5">
         <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
           {/* Búsqueda y filtros */}
           <div className="flex-1 flex flex-wrap gap-3 w-full lg:w-auto">
             <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-text-soft" />
               <input
                 type="text"
                 placeholder="Buscar módulos..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2.5 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white transition-all"
+                className="pl-10 pr-4 py-2.5 w-full border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base transition-all"
               />
             </div>
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-text-soft" />
               <select
                 value={filterActivos === null ? 'all' : filterActivos ? 'active' : 'inactive'}
                 onChange={(e) => {
                   const value = e.target.value;
                   setFilterActivos(value === 'all' ? null : value === 'active');
                 }}
-                className="pl-10 pr-8 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white transition-all appearance-none bg-white dark:bg-gray-700"
+                className="pl-10 pr-8 py-2.5 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base transition-all appearance-none bg-surface"
               >
                 <option value="all">Todos</option>
                 <option value="active">Solo activos</option>
@@ -371,11 +371,11 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
             </div>
             {categorias.length > 0 && (
               <div className="relative">
-                <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-text-soft" />
                 <select
                   value={typeof categoryFilter === 'string' ? categoryFilter : 'all'}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="pl-10 pr-8 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white transition-all appearance-none bg-white dark:bg-gray-700"
+                  className="pl-10 pr-8 py-2.5 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base transition-all appearance-none bg-surface"
                 >
                   <option value="all">Todas las categorías</option>
                   {categorias.map(cat => (
@@ -391,7 +391,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
             <button
               onClick={fetchModulos}
               disabled={loading}
-              className="p-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50"
+              className="p-2.5 text-text-soft hover:text-text-base hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors disabled:opacity-50"
               title="Actualizar"
             >
               <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
@@ -404,12 +404,12 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
       {showActivos && filteredModulosActivos.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <h3 className="text-xl font-bold text-text-base flex items-center gap-2">
+              <div className="p-2 bg-success/10 dark:bg-success/15 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-success" />
               </div>
               Módulos Activos
-              <span className="ml-2 px-3 py-1 text-sm font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full">
+              <span className="ml-2 px-3 py-1 text-sm font-semibold bg-success/10 text-success rounded-full">
                 {filteredModulosActivos.length}
               </span>
             </h3>
@@ -418,7 +418,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
             {filteredModulosActivos.map((modulo) => (
               <div
                 key={modulo.modulo_id}
-                className="group bg-white dark:bg-gray-800 rounded-xl shadow-sm border-2 border-green-200 dark:border-green-800 p-6 hover:shadow-lg hover:border-green-300 dark:hover:border-green-700 transition-all duration-200"
+                className="group bg-surface rounded-xl shadow-sm border-2 border-success/25 dark:border-success/35 p-6 hover:shadow-lg hover:border-success/40 dark:hover:border-success/40 transition-all duration-200"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -432,15 +432,15 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-base font-bold text-gray-900 dark:text-white truncate">
+                      <h4 className="text-base font-bold text-text-base truncate">
                         {modulo.nombre}
                       </h4>
                       <div className="flex items-center gap-2 mt-1">
-                        <code className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                        <code className="text-xs text-text-soft bg-subtle px-2 py-0.5 rounded">
                           {modulo.codigo_modulo}
                         </code>
                         {modulo.categoria && (
-                          <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                          <span className="text-xs text-text-soft bg-subtle px-2 py-0.5 rounded">
                             {modulo.categoria}
                           </span>
                         )}
@@ -451,21 +451,21 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
 
                 {/* Información de configuración */}
                 {(modulo.fecha_vencimiento || modulo.limite_usuarios || modulo.limite_registros) && (
-                  <div className="space-y-2 mb-4 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                  <div className="space-y-2 mb-4 p-3 bg-subtle rounded-lg">
                     {modulo.fecha_vencimiento && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-2 text-sm text-text-soft">
                         <Calendar className="h-4 w-4 flex-shrink-0" />
                         <span className="truncate">Vence: {new Date(modulo.fecha_vencimiento).toLocaleDateString('es-ES')}</span>
                       </div>
                     )}
                     {modulo.limite_usuarios && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-2 text-sm text-text-soft">
                         <Users className="h-4 w-4 flex-shrink-0" />
                         <span>Límite usuarios: {modulo.limite_usuarios}</span>
                       </div>
                     )}
                     {modulo.limite_registros && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-2 text-sm text-text-soft">
                         <Database className="h-4 w-4 flex-shrink-0" />
                         <span>Límite registros: {modulo.limite_registros}</span>
                       </div>
@@ -474,7 +474,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
                 )}
 
                 {/* Acciones */}
-                <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex gap-2 pt-4 border-t border-border-base">
                   <button
                     onClick={() => handleEdit(modulo)}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-brand-primary bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg hover:bg-brand-primary/20 dark:hover:bg-brand-primary/30 transition-colors"
@@ -484,7 +484,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
                   </button>
                   <button
                     onClick={() => handleDeactivateClick(modulo)}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-error bg-error/10 rounded-lg hover:bg-error/10 dark:hover:bg-error/15 transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                     Desactivar
@@ -500,7 +500,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
       {showDisponibles && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <h3 className="text-xl font-bold text-text-base flex items-center gap-2">
               <div className="p-2 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg">
                 <Sparkles className="h-5 w-5 text-brand-primary" />
               </div>
@@ -516,7 +516,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
               {filteredModulosDisponibles.map((modulo) => (
                 <div
                   key={modulo.modulo_id}
-                  className="group bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg hover:border-brand-primary dark:hover:border-brand-primary transition-all duration-200"
+                  className="group bg-surface rounded-xl shadow-sm border border-border-base p-6 hover:shadow-lg hover:border-brand-primary dark:hover:border-brand-primary transition-all duration-200"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -530,15 +530,15 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-base font-bold text-gray-900 dark:text-white truncate">
+                        <h4 className="text-base font-bold text-text-base truncate">
                           {modulo.nombre}
                         </h4>
                         <div className="flex items-center gap-2 mt-1">
-                          <code className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                          <code className="text-xs text-text-soft bg-subtle px-2 py-0.5 rounded">
                             {modulo.codigo_modulo}
                           </code>
                           {modulo.categoria && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
+                            <span className="text-xs text-text-soft bg-subtle px-2 py-0.5 rounded">
                               {modulo.categoria}
                             </span>
                           )}
@@ -548,7 +548,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
                   </div>
 
                   {modulo.descripcion && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+                    <p className="text-sm text-text-soft mb-4 line-clamp-2">
                       {modulo.descripcion}
                     </p>
                   )}
@@ -564,9 +564,9 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
               ))}
             </div>
           ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
-              <Package className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <p className="text-gray-600 dark:text-gray-400 text-lg">
+            <div className="bg-surface rounded-xl shadow-sm border border-border-base p-12 text-center">
+              <Package className="mx-auto h-16 w-16 text-text-soft mb-4" />
+              <p className="text-text-soft text-lg">
                 {searchTerm || categoryFilter !== 'all' 
                   ? 'No se encontraron módulos disponibles con ese criterio' 
                   : 'No hay módulos disponibles para activar'}
@@ -578,9 +578,9 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
 
       {/* Estado vacío cuando no hay módulos */}
       {filteredModulos.length === 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
-          <AlertCircle className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-          <p className="text-gray-600 dark:text-gray-400 text-lg">
+        <div className="bg-surface rounded-xl shadow-sm border border-border-base p-12 text-center">
+          <AlertCircle className="mx-auto h-16 w-16 text-text-soft mb-4" />
+          <p className="text-text-soft text-lg">
             No hay módulos para mostrar con los filtros seleccionados
           </p>
         </div>
@@ -626,7 +626,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
         confirmText="Sí, Desactivar"
         cancelText="Cancelar"
         variant="danger"
-        confirmButtonClassName="bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white"
+        confirmButtonClassName="bg-error hover:bg-error/90 focus:ring-error text-white"
       />
     </div>
   );

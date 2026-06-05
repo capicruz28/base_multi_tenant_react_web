@@ -78,50 +78,47 @@ const IconSelector: React.FC<IconSelectorProps> = ({
     control: (provided: any, state: { isFocused: any; }) => ({
         ...provided,
         // Fondo del control principal (input)
-        backgroundColor: 'var(--select-bg, white)', // Usa variable o blanco por defecto
-        borderColor: state.isFocused ? '#6366F1' /* indigo-500 */ : '#D1D5DB' /* gray-300 */,
-        '&:hover': { borderColor: '#9CA3AF' /* gray-400 */ },
-        boxShadow: state.isFocused ? '0 0 0 1px #6366F1' : 'none',
-        color: 'var(--select-text, #111827)', // Color del texto en el control
+        backgroundColor: 'var(--select-bg, hsl(var(--brand-surface)))',
+        borderColor: state.isFocused ? 'var(--color-primary, #1976D2)' : 'hsl(var(--brand-border, 220 13% 91%))',
+        '&:hover': { borderColor: 'hsl(var(--brand-border, 220 13% 91%))' },
+        boxShadow: state.isFocused ? '0 0 0 1px var(--color-primary, #1976D2)' : 'none',
+        color: 'hsl(var(--brand-text-primary, 222 47% 11%))',
         minHeight: '38px', // Altura estándar de input de Tailwind
     }),
     input: (provided: any) => ({
         ...provided,
-        color: 'var(--select-input-text, #111827)', // Color del texto al escribir
+        color: 'hsl(var(--brand-text-primary, 222 47% 11%))',
         margin: '0px', // Ajuste fino si es necesario
     }),
     singleValue: (provided: any) => ({
         ...provided,
-        color: 'var(--select-text, #111827)', // Color del texto seleccionado
+        color: 'hsl(var(--brand-text-primary, 222 47% 11%))',
         display: 'flex',
         alignItems: 'center',
     }),
     placeholder: (provided: any) => ({
         ...provided,
-        color: 'var(--select-placeholder-text, #6B7280)' /* gray-500 */,
+        color: 'hsl(var(--brand-text-secondary, 215 16% 47%))',
     }),
     menu: (provided: any) => ({
         ...provided,
-        // Fondo del menú desplegable
-        backgroundColor: 'var(--select-menu-bg, white)', // Usa variable o blanco por defecto
+        backgroundColor: 'var(--select-menu-bg, hsl(var(--brand-surface)))',
         zIndex: 50,
-        border: '1px solid var(--select-menu-border-color, #E5E7EB)' /* gray-200 */,
+        border: '1px solid hsl(var(--brand-border, 220 13% 91%))',
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)', // Sombra suave
     }),
     option: (provided: any, state: { isSelected: any; isFocused: any; }) => ({
         ...provided,
-        // Fondo de cada opción
         backgroundColor: state.isSelected
-          ? 'var(--select-option-selected-bg, #4F46E5)' /* indigo-600 */
+          ? 'var(--color-primary, #1976D2)'
           : state.isFocused
-          ? 'var(--select-option-focused-bg, #EEF2FF)' /* indigo-100 */
-          : 'var(--select-menu-bg, white)', // Fondo normal (igual al del menú)
-        // Color del texto de cada opción
+          ? 'hsl(var(--color-primary-light-hsl, 210 79% 86%))'
+          : 'hsl(var(--brand-surface, 210 20% 98%))',
         color: state.isSelected
-          ? 'var(--select-option-selected-text, white)'
-          : 'var(--select-option-text, #111827)', // Texto normal
-        '&:active': { // Al hacer clic
-          backgroundColor: 'var(--select-option-active-bg, #6366F1)' /* indigo-500 */,
+          ? '#ffffff'
+          : 'hsl(var(--brand-text-primary, 222 47% 11%))',
+        '&:active': {
+          backgroundColor: 'var(--color-primary, #1976D2)',
         },
         cursor: 'pointer',
         paddingTop: '8px', // Espaciado interno

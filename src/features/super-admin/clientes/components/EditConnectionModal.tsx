@@ -220,26 +220,26 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header del Modal */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-border-base">
           <div className="flex items-center gap-3">
-            <Database className="h-6 w-6 text-purple-600" />
+            <Database className="h-6 w-6 text-brand-primary" />
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-xl font-semibold text-text-base">
                 Editar Conexión
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-text-soft">
                 {conexion.servidor}:{conexion.puerto} - {conexion.nombre_bd}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors"
             disabled={loading || testing}
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-text-soft" />
           </button>
         </div>
 
@@ -248,7 +248,7 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Información del Servidor */}
             <div>
-              <label htmlFor="servidor" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="servidor" className="block text-sm font-medium text-text-soft mb-1">
                 Servidor *
               </label>
               <input
@@ -257,18 +257,18 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                 name="servidor"
                 value={formData.servidor || ''}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                  errors.servidor ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                  errors.servidor ? 'border-error' : 'border-border-base'
                 }`}
                 disabled={loading || testing}
               />
               {errors.servidor && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.servidor}</p>
+                <p className="mt-1 text-sm text-error">{errors.servidor}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="puerto" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="puerto" className="block text-sm font-medium text-text-soft mb-1">
                 Puerto *
               </label>
               <input
@@ -279,18 +279,18 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                 onChange={handleInputChange}
                 min="1"
                 max="65535"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                  errors.puerto ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                  errors.puerto ? 'border-error' : 'border-border-base'
                 }`}
                 disabled={loading || testing}
               />
               {errors.puerto && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.puerto}</p>
+                <p className="mt-1 text-sm text-error">{errors.puerto}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="nombre_bd" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="nombre_bd" className="block text-sm font-medium text-text-soft mb-1">
                 Base de Datos *
               </label>
               <input
@@ -299,18 +299,18 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                 name="nombre_bd"
                 value={formData.nombre_bd || ''}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                  errors.nombre_bd ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                  errors.nombre_bd ? 'border-error' : 'border-border-base'
                 }`}
                 disabled={loading || testing}
               />
               {errors.nombre_bd && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.nombre_bd}</p>
+                <p className="mt-1 text-sm text-error">{errors.nombre_bd}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="tipo_bd" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="tipo_bd" className="block text-sm font-medium text-text-soft mb-1">
                 Tipo de Base de Datos
               </label>
               <select
@@ -318,7 +318,7 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                 name="tipo_bd"
                 value={formData.tipo_bd || 'sqlserver'}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                 disabled={loading || testing}
               >
                 <option value="sqlserver">SQL Server</option>
@@ -330,7 +330,7 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
 
             {/* Credenciales (solo para actualizar) */}
             <div>
-              <label htmlFor="usuario" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="usuario" className="block text-sm font-medium text-text-soft mb-1">
                 Usuario
               </label>
               <input
@@ -339,17 +339,17 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                 name="usuario"
                 value={formData.usuario || ''}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                 placeholder="Dejar vacío para mantener actual"
                 disabled={loading || testing}
               />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-xs text-text-soft">
                 Solo completar si desea cambiar el usuario
               </p>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-text-soft mb-1">
                 Contraseña (dejar vacío para mantener la actual)
               </label>
               <input
@@ -358,23 +358,23 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                 name="password"
                 value={formData.password || ''}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                 placeholder="••••••••"
                 disabled={loading || testing}
               />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-xs text-text-soft">
                 Solo completar si desea cambiar la contraseña
               </p>
             </div>
 
             {/* Configuración Avanzada */}
             <div className="md:col-span-2">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              <h3 className="text-lg font-medium text-text-base mb-4">
                 Configuración Avanzada
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="timeout_segundos" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label htmlFor="timeout_segundos" className="block text-sm font-medium text-text-soft mb-1">
                     Timeout (segundos)
                   </label>
                   <input
@@ -385,13 +385,13 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                     onChange={handleInputChange}
                     min="1"
                     max="300"
-                    className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                    className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                     disabled={loading || testing}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="max_pool_size" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label htmlFor="max_pool_size" className="block text-sm font-medium text-text-soft mb-1">
                     Max Pool Size
                   </label>
                   <input
@@ -402,7 +402,7 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                     onChange={handleInputChange}
                     min="1"
                     max="1000"
-                    className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+                    className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                     disabled={loading || testing}
                   />
                 </div>
@@ -418,10 +418,10 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                   name="usa_ssl"
                   checked={formData.usa_ssl || false}
                   onChange={handleInputChange}
-                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded"
                   disabled={loading || testing}
                 />
-                <label htmlFor="usa_ssl" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                <label htmlFor="usa_ssl" className="ml-2 block text-sm text-text-base">
                   Usar SSL/TLS
                 </label>
               </div>
@@ -433,10 +433,10 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                   name="es_solo_lectura"
                   checked={formData.es_solo_lectura || false}
                   onChange={handleInputChange}
-                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded"
                   disabled={loading || testing}
                 />
-                <label htmlFor="es_solo_lectura" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                <label htmlFor="es_solo_lectura" className="ml-2 block text-sm text-text-base">
                   Conexión solo lectura
                 </label>
               </div>
@@ -448,10 +448,10 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                   name="es_conexion_principal"
                   checked={formData.es_conexion_principal || false}
                   onChange={handleInputChange}
-                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded"
                   disabled={loading || testing}
                 />
-                <label htmlFor="es_conexion_principal" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                <label htmlFor="es_conexion_principal" className="ml-2 block text-sm text-text-base">
                   Conexión principal del módulo
                 </label>
               </div>
@@ -463,10 +463,10 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                   name="es_activo"
                   checked={formData.es_activo || false}
                   onChange={handleInputChange}
-                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+                  className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded"
                   disabled={loading || testing}
                 />
-                <label htmlFor="es_activo" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                <label htmlFor="es_activo" className="ml-2 block text-sm text-text-base">
                   Conexión activa
                 </label>
               </div>
@@ -474,12 +474,12 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
           </div>
 
           {/* Footer del Modal */}
-          <div className="flex justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-between pt-6 border-t border-border-base">
             <button
               type="button"
               onClick={handleTestConnection}
               disabled={loading || testing}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-info bg-info/10 border border-info/30 rounded-lg hover:bg-info/15 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-info disabled:opacity-50"
             >
               {testing && <Loader className="h-4 w-4 animate-spin" />}
               <TestTube className="h-4 w-4" />
@@ -491,14 +491,14 @@ const EditConnectionModal: React.FC<EditConnectionModalProps> = ({
                 type="button"
                 onClick={onClose}
                 disabled={loading || testing}
-                className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-secondary disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={loading || testing}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-primary disabled:opacity-50"
               >
                 {loading && <Loader className="h-4 w-4 animate-spin" />}
                 {loading ? 'Guardando...' : 'Guardar Cambios'}

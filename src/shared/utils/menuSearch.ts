@@ -1,28 +1,10 @@
 // src/shared/utils/menuSearch.ts
 import type { AuthMenuModulo, AuthMenuItem } from '../../core/auth/types/auth-menu.types';
-import { ERP_MODULES } from '../../core/constants/erp-modules';
-
-const ERP_CODES = new Set(ERP_MODULES.map((m) => m.codigo));
-
-/**
- * Determina si un ítem de menú es visible para el usuario según su rol.
- * Replica exactamente el filtro de TopNavbar (Nivel 2) y filteredModulos (Nivel 1).
- */
-function isMenuVisibleForUser(
-  menu: AuthMenuItem,
-  modulo: AuthMenuModulo,
-  userType: string,
-): boolean {
-  const isErp = ERP_CODES.has(modulo.codigo ?? '');
-  if (isErp) return menu.is_visible && menu.is_enabled;
-  if (userType === 'platform_admin') {
-    return (menu.is_visible && menu.is_enabled) && (menu.ruta?.startsWith('/super-admin') ?? false);
-  }
-  if (userType === 'tenant_admin') {
-    return (menu.is_visible && menu.is_enabled) && (menu.ruta?.startsWith('/admin') ?? false);
-  }
-  return false;
-}
+import type { LayoutShellVariant } from '@/shared/components/layout/layout-shell.types';
+import {
+  isMenuVisibleForShell,
+  normalizeNavRoute,
+} from '@/shared/components/layout/sidebar-menu.utils';
 
 /** AuthMenuItem enriquecido con el estado activo calculado desde currentPath. */
 export interface MenuSearchItem extends AuthMenuItem {
@@ -42,14 +24,13 @@ export interface MenuSearchResult {
  * @param modulos   Lista de módulos provenientes de AuthContext.menuModulos
  * @param query     Texto ingresado por el usuario
  * @param currentPath  pathname actual (useLocation().pathname)
- * @param userType  Rol del usuario ('platform_admin' | 'tenant_admin' | 'user')
- * @returns Array de resultados agrupados por módulo, vacío si query es vacío
+ * @param shell  Contexto de layout ('app' | 'admin' | 'super-admin')
  */
 export function searchMenuItems(
   modulos: AuthMenuModulo[],
   query: string,
   currentPath: string,
-  userType: string,
+  shell: LayoutShellVariant,
 ): MenuSearchResult[] {
   const normalizedQuery = query.toLowerCase().trim();
   if (!normalizedQuery) return [];
@@ -61,7 +42,7 @@ export function searchMenuItems(
 
     for (const seccion of modulo.secciones ?? []) {
       for (const menu of seccion.menus ?? []) {
-        if (!isMenuVisibleForUser(menu, modulo, userType)) continue;
+        if (!isMenuVisibleForShell(menu, modulo, shell)) continue;
 
         const matchesQuery =
           menu.nombre.toLowerCase().includes(normalizedQuery) ||
@@ -69,16 +50,17 @@ export function searchMenuItems(
           (menu.ruta ?? '').toLowerCase().includes(normalizedQuery);
 
         if (matchesQuery) {
-          const ruta = menu.ruta
+          const raw = menu.ruta
             ? menu.ruta.startsWith('/')
               ? menu.ruta
               : `/${menu.ruta}`
             : '';
+          const ruta = raw ? normalizeNavRoute(raw, shell) ?? raw : '';
           const isActive =
             !!ruta &&
             (currentPath === ruta || currentPath.startsWith(ruta + '/'));
 
-          matchedMenus.push({ ...menu, isActive });
+          matchedMenus.push({ ...menu, ruta: ruta || menu.ruta, isActive });
         }
       }
     }

@@ -66,7 +66,7 @@ module.exports = {
         // ========================================
         
         'brand-primary': {
-          // ✅ MEJORADO: Priorizar --caxis-blue si existe (de tema_personalizado), sino usar --color-primary
+          // Texto/bordes sólidos: var(--caxis-blue). Opacidad (/N) no aplica — fondo nav: clase .nav-item-active-bg.
           DEFAULT: 'var(--caxis-blue, rgb(var(--color-primary-rgb, 25, 118, 210)))',
           hex: 'var(--caxis-blue, var(--color-primary))',
           hover: 'hsl(var(--color-primary-hover-hsl, 210 79% 41%))',
@@ -86,14 +86,18 @@ module.exports = {
           dark: 'hsl(var(--color-secondary-dark-hsl, 0 0% 11%))',
         },
         'brand-surface': {
-          DEFAULT: 'hsl(var(--color-surface, 0 0% 100%))',
-          alt: 'hsl(var(--color-surface-alt, 0 0% 98%))',
+          DEFAULT: 'hsl(var(--brand-surface, var(--color-surface, 210 20% 98%)))',
+          secondary: 'hsl(var(--brand-surface-secondary, var(--color-surface-alt, 220 14% 96%)))',
+          alt: 'hsl(var(--brand-surface-secondary, var(--color-surface-alt, 220 14% 96%)))',
         },
+        'brand-surface-secondary': 'hsl(var(--brand-surface-secondary, 220 14% 96%))',
         'brand-text': {
-          DEFAULT: 'hsl(var(--color-text-primary, 0 0% 3.9%))',
-          secondary: 'hsl(var(--color-text-secondary, 0 0% 45.1%))',
+          DEFAULT: 'hsl(var(--brand-text-primary, var(--color-text-primary, 222 47% 11%)))',
+          secondary: 'hsl(var(--brand-text-secondary, var(--color-text-secondary, 215 16% 47%)))',
         },
-        'brand-border': 'hsl(var(--color-border, 0 0% 89.8%))',
+        'brand-text-primary': 'hsl(var(--brand-text-primary, 222 47% 11%))',
+        'brand-text-secondary': 'hsl(var(--brand-text-secondary, 215 16% 47%))',
+        'brand-border': 'hsl(var(--brand-border, var(--color-border, 220 13% 91%)))',
         'brand-input': {
           bg: 'hsl(var(--color-input-bg, 0 0% 100%))',
           border: 'hsl(var(--color-input-border, 0 0% 89.8%))',
@@ -124,7 +128,21 @@ module.exports = {
           'gray-800': 'var(--caxis-gray-800, #1E293B)',
           'gray-900': 'var(--caxis-gray-900, #0F172A)',
           black: 'var(--caxis-black, #020617)',
-        }
+        },
+        /* CAPA 1 — Design system fijo */
+        page:          'var(--bg-page)',
+        surface:       'var(--bg-surface)',
+        subtle:        'var(--bg-subtle)',
+        overlay:       'var(--bg-overlay)',
+        'text-base':     'var(--text-primary)',
+        'text-soft':     'var(--text-secondary)',
+        'text-faint':    'var(--text-muted)',
+        'border-base':   'var(--border-default)',
+        'border-strong': 'var(--border-strong)',
+        success:       'var(--color-success)',
+        error:         'var(--color-error)',
+        warning:       'var(--color-warning)',
+        info:          'var(--color-info)',
         // --- NO AÑADIR aquí referencias como 'colors.text.light' ---
         // --- NO AÑADIR aquí backgroundColor o textColor, usar clases directas ---
       },

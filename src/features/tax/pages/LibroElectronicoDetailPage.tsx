@@ -61,7 +61,7 @@ export default function LibroElectronicoDetailPage() {
       action={
         <Button
           variant="outline"
-          onClick={() => navigate('/tax/ple')}
+          onClick={() => navigate('/app/tax/ple')}
           className="flex items-center gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -80,7 +80,7 @@ export default function LibroElectronicoDetailPage() {
           <p className="text-red-600 dark:text-red-400 text-sm">
             {(error as Error)?.message ?? 'No se pudo cargar el libro electrónico.'}
           </p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/tax/ple')}>
+          <Button variant="outline" className="mt-4" onClick={() => navigate('/app/tax/ple')}>
             Volver a la lista
           </Button>
         </div>
@@ -90,7 +90,7 @@ export default function LibroElectronicoDetailPage() {
         <div className="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
           <FileText className="h-12 w-12 mb-3 opacity-40" />
           <p>Libro electrónico no encontrado.</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/tax/ple')}>
+          <Button variant="outline" className="mt-4" onClick={() => navigate('/app/tax/ple')}>
             Volver a la lista
           </Button>
         </div>

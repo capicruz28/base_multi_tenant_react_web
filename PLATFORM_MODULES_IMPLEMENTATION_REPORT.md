@@ -105,5 +105,6 @@
 | Hash | Mensaje |
 |------|---------|
 | `3cbb05e` | `feat(platform): PLAT-SURF-003/004/005 en gestion de modulos` |
+| `77a3f49` | `docs: actualizar hash de commit en reporte modulos PLAT-SURF` |
 
 Cuerpo: ConfirmDialog para desactivar/reactivar, vocabulario unificado y descarte B11 en modales create/edit con `pageActionsLocked` alineado a Clientes.

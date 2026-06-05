@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { Loader, FileText, Pencil, Search, Eye, CheckCircle, XCircle, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toAppPath } from '@/core/routing/post-login-path';
 import { empresaService } from '@/features/org/services/org.service';
 import { periodoContableService } from '../services/fin.service';
 import { asientoContableService } from '../services/fin.service';
@@ -276,7 +277,7 @@ export default function AsientosPage() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => navigate(`/fin/asientos/${row.asiento_id}/detalles`)} className="text-brand-primary hover:text-brand-primary/80" title="Ver detalles"><Eye className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => navigate(toAppPath(`/fin/asientos/${row.asiento_id}/detalles`))} className="text-brand-primary hover:text-brand-primary/80" title="Ver detalles"><Eye className="h-4 w-4" /></Button>
                           {row.estado === 'borrador' || row.estado === 'registrado' ? (
                             <>
                               <Button variant="ghost" size="icon" onClick={() => openEdit(row)} className="text-brand-primary hover:text-brand-primary/80"><Pencil className="h-4 w-4" /></Button>
@@ -316,7 +317,7 @@ export default function AsientosPage() {
                 <div className="md:col-span-2 text-sm text-red-600 dark:text-red-400">⚠ El asiento debe estar cuadrado (debe = haber).</div>
               )}
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting || form.total_debe !== form.total_haber} className="bg-brand-primary hover:bg-brand-primary-hover">Crear</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting || form.total_debe !== form.total_haber} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -328,7 +329,7 @@ export default function AsientosPage() {
               <div><Label>Número Asiento</Label><input type="text" value={editForm.numero_asiento ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, numero_asiento: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" /></div>
               <div><Label>Glosa</Label><textarea value={editForm.glosa ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, glosa: e.target.value }))} rows={2} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" /></div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

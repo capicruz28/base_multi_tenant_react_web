@@ -35,6 +35,68 @@ export interface PaginatedAuthAuditLogResponse {
   total_paginas: number;
 }
 
+export interface AuditoriaEstadisticasPeriodo {
+  fecha_desde: string;
+  fecha_hasta: string;
+}
+
+export interface AuditoriaEstadisticasAutenticacion {
+  total_eventos: number;
+  login_exitosos: number;
+  login_fallidos: number;
+  eventos_por_tipo: Record<string, number>;
+}
+
+export interface AuditoriaEstadisticasSincronizacion {
+  total_sincronizaciones: number;
+  exitosas: number;
+  fallidas: number;
+  por_tipo: Record<string, number>;
+}
+
+export interface AuditoriaTopIp {
+  ip_address: string;
+  total_eventos: number;
+  eventos_fallidos: number;
+}
+
+export interface AuditoriaTopUsuario {
+  usuario_id: string;
+  nombre_usuario: string;
+  total_eventos: number;
+}
+
+export interface AuditoriaEstadisticasResponse {
+  periodo: AuditoriaEstadisticasPeriodo;
+  autenticacion: AuditoriaEstadisticasAutenticacion;
+  sincronizacion: AuditoriaEstadisticasSincronizacion;
+  top_ips: AuditoriaTopIp[];
+  top_usuarios: AuditoriaTopUsuario[];
+}
+
+export interface SyncAuditLog {
+  log_id: string;
+  cliente_origen_id?: string | null;
+  cliente_origen?: SuperadminClienteInfo | null;
+  cliente_destino_id?: string | null;
+  cliente_destino?: SuperadminClienteInfo | null;
+  usuario_id?: string | null;
+  usuario?: AuditUsuarioInfo | null;
+  tipo_sincronizacion: string;
+  direccion: string;
+  operacion: string;
+  estado: string;
+  mensaje_error?: string | null;
+  fecha_sincronizacion: string;
+}
+
+export interface PaginatedSyncAuditLogResponse {
+  logs: SyncAuditLog[];
+  total_logs: number;
+  pagina_actual: number;
+  total_paginas: number;
+}
+
 
 
 

@@ -27,12 +27,23 @@ export const BrandingInitializer: React.FC = () => {
       return;
     }
     if (isAuthenticated && tenantId) {
+      const cached = useBrandingStore.getState().getBranding(tenantId);
+      if (cached) {
+        const tenantState = useBrandingStore.getState().getTenantState(tenantId);
+        useBrandingStore.setState({
+          branding: tenantState.branding,
+          loading: false,
+          error: tenantState.error,
+          lastUpdated: tenantState.lastUpdated,
+        });
+        return;
+      }
       if (import.meta.env.DEV) {
         console.log('🎨 [BrandingInitializer] Cargando branding por tenantId (post-login):', tenantId);
       }
       loadBranding(tenantId);
     }
-  }, [isAuthenticated, subdomain, tenantId]);
+  }, [isAuthenticated, subdomain, tenantId, loadBranding, loadBrandingBySubdomain]);
 
   return null; // Componente sin UI
 };

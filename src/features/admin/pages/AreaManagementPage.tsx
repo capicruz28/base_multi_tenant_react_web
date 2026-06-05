@@ -264,9 +264,9 @@ const AreaManagementPage: React.FC = () => {
             placeholder="Buscar por nombre o descripción..."
             value={searchTerm}
             onChange={handleSearchChange}
-            className="pl-10 pr-3 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+            className="pl-10 pr-3 py-2 w-full border border-border-base bg-surface rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-text-base placeholder:text-text-faint dark:bg-subtle"
             />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-text-soft" />
         </div>
         <button
             onClick={handleOpenCreateModal}
@@ -281,42 +281,42 @@ const AreaManagementPage: React.FC = () => {
       {isLoading && (
         <div className="flex justify-center items-center py-10">
             <Loader className="animate-spin h-8 w-8 text-brand-primary" />
-            <p className="ml-3 text-gray-500 dark:text-gray-400">Cargando áreas...</p> {/* <--- Cambiado texto */}
+            <p className="ml-3 text-text-soft">Cargando áreas...</p> {/* <--- Cambiado texto */}
         </div>
       )}
 
       {/* Mensaje de Error General */}
-      {error && !isLoading && <p className="text-center text-red-600 bg-red-100 dark:bg-red-900 dark:text-red-200 p-3 rounded-md">{error}</p>}
+      {error && !isLoading && <p className="text-center text-error bg-error/10 p-3 rounded-md">{error}</p>}
 
       {/* Tabla de Áreas */}
       {!isLoading && !error && (
-        <div className="overflow-x-auto shadow-md rounded-lg border border-gray-200 dark:border-gray-700">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+        <div className="overflow-x-auto shadow-md rounded-lg border border-border-base">
+          <table className="min-w-full divide-y divide-border-base">
+            <thead className="bg-subtle dark:bg-subtle">
               <tr>
                 {/* --- Cabeceras de tabla ajustadas --- */}
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">ID</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nombre</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Descripción</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Icono</th> {/* <--- Nueva columna */}
-                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
-                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">ID</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">Nombre</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">Descripción</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">Icono</th> {/* <--- Nueva columna */}
+                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">Estado</th>
+                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-surface divide-y divide-border-base">
               {areas.length > 0 ? ( // <--- Cambiado
                 areas.map((area) => ( // <--- Cambiado
-                  <tr key={area.area_id} className="hover:bg-gray-50 dark:hover:bg-gray-800"> {/* <--- Usa area_id */}
+                  <tr key={area.area_id} className="hover:bg-overlay/50 dark:hover:bg-overlay/50"> {/* <--- Usa area_id */}
                     {/* --- Celdas de tabla ajustadas --- */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{area.area_id}</td> {/* <--- Usa area_id */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{area.nombre}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 max-w-xs truncate" title={area.descripcion || ''}>{area.descripcion || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{area.icono || '-'}</td> {/* <--- Nueva celda icono */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-base">{area.area_id}</td> {/* <--- Usa area_id */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">{area.nombre}</td>
+                    <td className="px-6 py-4 text-sm text-text-soft max-w-xs truncate" title={area.descripcion || ''}>{area.descripcion || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">{area.icono || '-'}</td> {/* <--- Nueva celda icono */}
                     <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         area.es_activo // <--- Usa area.es_activo
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          ? 'bg-success/10 text-success'
+                          : 'bg-error/10 text-error'
                       }`}>
                         {area.es_activo ? 'Activo' : 'Inactivo'} {/* <--- Usa area.es_activo */}
                       </span>
@@ -325,7 +325,7 @@ const AreaManagementPage: React.FC = () => {
                       {/* Botón Editar */}
                       <button
                         onClick={() => handleOpenEditModal(area)} // <--- Pasa area
-                        className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-overlay dark:hover:bg-overlay"
                         title="Editar Área" // <--- Cambiado title
                       >
                         <Edit3 className="h-4 w-4" />
@@ -334,7 +334,7 @@ const AreaManagementPage: React.FC = () => {
                       {area.es_activo ? ( // <--- Usa area.es_activo
                         <button
                           onClick={() => handleOpenDeactivateConfirm(area)} // <--- Pasa area
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                          className="text-error hover:text-error p-1 rounded hover:bg-overlay"
                           title="Desactivar Área" // <--- Cambiado title
                         >
                           <EyeOff className="h-4 w-4" />
@@ -342,7 +342,7 @@ const AreaManagementPage: React.FC = () => {
                       ) : (
                         <button
                           onClick={() => handleOpenReactivateConfirm(area)} // <--- Pasa area
-                          className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                          className="text-success hover:text-success p-1 rounded hover:bg-overlay"
                           title="Reactivar Área" // <--- Cambiado title
                         >
                           <Eye className="h-4 w-4" />
@@ -354,7 +354,7 @@ const AreaManagementPage: React.FC = () => {
               ) : (
                 <tr>
                   {/* --- Ajustado colSpan --- */}
-                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-text-soft">
                     {searchTerm ? 'No se encontraron áreas que coincidan con la búsqueda.' : 'No hay áreas para mostrar.'} {/* <--- Cambiado texto */}
                   </td>
                 </tr>
@@ -366,9 +366,9 @@ const AreaManagementPage: React.FC = () => {
 
       {/* Controles de Paginación (Ajustado totalAreas) */}
       {!isLoading && !error && totalAreas > limitPerPage && ( // <--- Cambiado
-        <div className="py-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 mt-4">
+        <div className="py-4 flex items-center justify-between border-t border-border-base mt-4">
           <div>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
+              <p className="text-sm text-text-base">
                 Mostrando <span className="font-medium">{(currentPage - 1) * limitPerPage + 1}</span>
                 {' '}a <span className="font-medium">{Math.min(currentPage * limitPerPage, totalAreas)}</span> {/* <--- Cambiado */}
                 {' '}de <span className="font-medium">{totalAreas}</span> resultados {/* <--- Cambiado */}
@@ -379,18 +379,18 @@ const AreaManagementPage: React.FC = () => {
                  <button
                   onClick={handlePreviousPage}
                   disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-border-base bg-surface text-sm font-medium text-text-soft hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="sr-only">Anterior</span>
                   <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                 </button>
-                 <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-200">
+                 <span className="relative inline-flex items-center px-4 py-2 border border-border-base bg-surface text-sm font-medium text-text-base">
                     Página {currentPage} de {totalPages}
                  </span>
                 <button
                   onClick={handleNextPage}
                   disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-border-base bg-surface text-sm font-medium text-text-soft hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="sr-only">Siguiente</span>
                   <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
@@ -402,31 +402,31 @@ const AreaManagementPage: React.FC = () => {
 
       {/* --- MODAL DE CREACIÓN DE ÁREA --- */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center px-4">
-          <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
-            <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">Crear Nueva Área</h3> {/* <--- Cambiado título */}
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center px-4">
+          <div className="relative mx-auto p-6 border border-border-base w-full max-w-md shadow-lg rounded-md bg-surface">
+            <h3 className="text-lg font-medium leading-6 text-text-base mb-4">Crear Nueva Área</h3> {/* <--- Cambiado título */}
             <form onSubmit={handleCreateAreaSubmit} noValidate> {/* <--- Llama a handleCreateAreaSubmit */}
               <div className="space-y-4">
                 {/* Nombre */}
                 <div>
-                    <label htmlFor="create_nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre <span className="text-red-500">*</span></label>
+                    <label htmlFor="create_nombre" className="block text-sm font-medium text-text-base">Nombre <span className="text-error">*</span></label>
                     <input type="text" id="create_nombre" name="nombre" value={newAreaFormData.nombre} onChange={handleNewAreaChange} // <--- Llama a handleNewAreaChange
-                    className={`mt-1 block w-full px-3 py-2 border ${createFormErrors.nombre ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-brand-primary focus:ring-brand-primary'} rounded-md shadow-sm focus:outline-none sm:text-sm dark:bg-gray-700 dark:text-white`}
+                    className={`mt-1 block w-full px-3 py-2 border ${createFormErrors.nombre ? 'border-error focus:border-error focus:ring-error' : 'border-border-base focus:border-brand-primary focus:ring-brand-primary'} rounded-md shadow-sm focus:outline-none sm:text-sm bg-surface dark:bg-subtle dark:text-text-base`}
                     disabled={isSubmittingCreate} required />
-                    {createFormErrors.nombre && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{createFormErrors.nombre}</p>}
+                    {createFormErrors.nombre && <p className="mt-1 text-xs text-error">{createFormErrors.nombre}</p>}
                 </div>
                 {/* Descripción */}
                 <div>
-                    <label htmlFor="create_descripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Descripción</label>
+                    <label htmlFor="create_descripcion" className="block text-sm font-medium text-text-base">Descripción</label>
                     <textarea id="create_descripcion" name="descripcion" value={newAreaFormData.descripcion || ''} onChange={handleNewAreaChange} rows={3} // <--- Llama a handleNewAreaChange
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-surface dark:bg-subtle dark:text-text-base"
                     disabled={isSubmittingCreate} />
                 </div>
                 {/* Icono */}
                 <div>
-                    <label htmlFor="create_icono" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Icono (Nombre Lucide)</label>
+                    <label htmlFor="create_icono" className="block text-sm font-medium text-text-base">Icono (Nombre Lucide)</label>
                     <input type="text" id="create_icono" name="icono" value={newAreaFormData.icono || ''} onChange={handleNewAreaChange} // <--- Llama a handleNewAreaChange
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-surface dark:bg-subtle dark:text-text-base"
                     placeholder="Ej: FolderKanban"
                     disabled={isSubmittingCreate} />
                      {/* Podrías añadir un preview del icono si importas dinámicamente */}
@@ -434,9 +434,9 @@ const AreaManagementPage: React.FC = () => {
                 {/* Es Activo */}
                 <div className="flex items-center">
                     <input id="create_es_activo" name="es_activo" type="checkbox" checked={newAreaFormData.es_activo} onChange={handleNewAreaChange} // <--- Llama a handleNewAreaChange
-                    className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-brand-primary dark:ring-offset-gray-800"
+                    className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded dark:bg-subtle dark:border-border-base dark:focus:ring-brand-primary dark:ring-offset-surface"
                     disabled={isSubmittingCreate} />
-                    <label htmlFor="create_es_activo" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                    <label htmlFor="create_es_activo" className="ml-2 block text-sm text-text-base">
                         Área Activa {/* <--- Cambiado texto */}
                     </label>
                 </div>
@@ -460,40 +460,40 @@ const AreaManagementPage: React.FC = () => {
 
       {/* --- MODAL DE EDICIÓN DE ÁREA --- */}
       {isEditModalOpen && editingArea && ( // <--- Cambiado
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center px-4">
-          <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
-            <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">Editar Área: <span className='font-bold'>{editingArea.nombre}</span></h3> {/* <--- Cambiado título */}
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center px-4">
+          <div className="relative mx-auto p-6 border border-border-base w-full max-w-md shadow-lg rounded-md bg-surface">
+            <h3 className="text-lg font-medium leading-6 text-text-base mb-4">Editar Área: <span className='font-bold'>{editingArea.nombre}</span></h3> {/* <--- Cambiado título */}
             <form onSubmit={handleEditAreaSubmit} noValidate> {/* <--- Llama a handleEditAreaSubmit */}
               <div className="space-y-4">
                 {/* Nombre */}
                 <div>
-                    <label htmlFor="edit_nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre <span className="text-red-500">*</span></label>
+                    <label htmlFor="edit_nombre" className="block text-sm font-medium text-text-base">Nombre <span className="text-error">*</span></label>
                     <input type="text" id="edit_nombre" name="nombre" value={editFormData.nombre || ''} onChange={handleEditAreaChange} // <--- Llama a handleEditAreaChange
-                    className={`mt-1 block w-full px-3 py-2 border ${editFormErrors.nombre ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-brand-primary focus:ring-brand-primary'} rounded-md shadow-sm focus:outline-none sm:text-sm dark:bg-gray-700 dark:text-white`}
+                    className={`mt-1 block w-full px-3 py-2 border ${editFormErrors.nombre ? 'border-error focus:border-error focus:ring-error' : 'border-border-base focus:border-brand-primary focus:ring-brand-primary'} rounded-md shadow-sm focus:outline-none sm:text-sm bg-surface dark:bg-subtle dark:text-text-base`}
                     disabled={isSubmittingEdit} required />
-                    {editFormErrors.nombre && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{editFormErrors.nombre}</p>}
+                    {editFormErrors.nombre && <p className="mt-1 text-xs text-error">{editFormErrors.nombre}</p>}
                 </div>
                 {/* Descripción */}
                 <div>
-                    <label htmlFor="edit_descripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Descripción</label>
+                    <label htmlFor="edit_descripcion" className="block text-sm font-medium text-text-base">Descripción</label>
                     <textarea id="edit_descripcion" name="descripcion" value={editFormData.descripcion || ''} onChange={handleEditAreaChange} rows={3} // <--- Llama a handleEditAreaChange
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-surface dark:bg-subtle dark:text-text-base"
                     disabled={isSubmittingEdit} />
                 </div>
                  {/* Icono */}
                  <div>
-                    <label htmlFor="edit_icono" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Icono (Nombre Lucide)</label>
+                    <label htmlFor="edit_icono" className="block text-sm font-medium text-text-base">Icono (Nombre Lucide)</label>
                     <input type="text" id="edit_icono" name="icono" value={editFormData.icono || ''} onChange={handleEditAreaChange} // <--- Llama a handleEditAreaChange
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm dark:bg-gray-700 dark:text-white"
+                    className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-surface dark:bg-subtle dark:text-text-base"
                     placeholder="Ej: FolderKanban"
                     disabled={isSubmittingEdit} />
                 </div>
                 {/* Es Activo */}
                 <div className="flex items-center">
                     <input id="edit_es_activo" name="es_activo" type="checkbox" checked={editFormData.es_activo} onChange={handleEditAreaChange} // <--- Llama a handleEditAreaChange
-                    className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-brand-primary dark:ring-offset-gray-800"
+                    className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded dark:bg-subtle dark:border-border-base dark:focus:ring-brand-primary dark:ring-offset-surface"
                     disabled={isSubmittingEdit} />
-                    <label htmlFor="edit_es_activo" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                    <label htmlFor="edit_es_activo" className="ml-2 block text-sm text-text-base">
                         Área Activa {/* <--- Cambiado texto */}
                     </label>
                 </div>
@@ -517,17 +517,17 @@ const AreaManagementPage: React.FC = () => {
 
       {/* --- MODAL DE CONFIRMACIÓN DE DESACTIVACIÓN --- */}
       {isDeactivateConfirmOpen && deactivatingArea && ( // <--- Cambiado
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center px-4">
-          <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
-            <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-2">Confirmar Desactivación</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">¿Estás seguro de que deseas desactivar el área <strong>{deactivatingArea.nombre}</strong>?</p> {/* <--- Cambiado texto */}
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center px-4">
+          <div className="relative mx-auto p-6 border border-border-base w-full max-w-md shadow-lg rounded-md bg-surface">
+            <h3 className="text-lg font-medium leading-6 text-text-base mb-2">Confirmar Desactivación</h3>
+            <p className="text-sm text-text-soft mb-4">¿Estás seguro de que deseas desactivar el área <strong>{deactivatingArea.nombre}</strong>?</p> {/* <--- Cambiado texto */}
             <div className="mt-6 flex justify-end space-x-3">
               <button type="button" onClick={handleCloseDeactivateConfirm} disabled={isDeactivating}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50" >
+                className="px-4 py-2 border border-border-base bg-surface text-text-soft rounded-md hover:bg-overlay dark:hover:bg-overlay focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50" >
                 Cancelar
               </button>
               <button type="button" onClick={handleConfirmDeactivate} disabled={isDeactivating}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 flex items-center justify-center" >
+                className="px-4 py-2 bg-error text-white rounded-md hover:bg-error/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error disabled:opacity-50 flex items-center justify-center" >
                 {isDeactivating && <Loader className="animate-spin h-4 w-4 mr-2" />}
                 {isDeactivating ? 'Desactivando...' : 'Sí, Desactivar'}
               </button>
@@ -538,17 +538,17 @@ const AreaManagementPage: React.FC = () => {
 
       {/* --- MODAL DE CONFIRMACIÓN DE REACTIVACIÓN --- */}
       {isReactivateConfirmOpen && reactivatingArea && ( // <--- Cambiado
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center px-4">
-          <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
-            <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-2">Confirmar Reactivación</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">¿Estás seguro de que deseas reactivar el área <strong>{reactivatingArea.nombre}</strong>?</p> {/* <--- Cambiado texto */}
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center px-4">
+          <div className="relative mx-auto p-6 border border-border-base w-full max-w-md shadow-lg rounded-md bg-surface">
+            <h3 className="text-lg font-medium leading-6 text-text-base mb-2">Confirmar Reactivación</h3>
+            <p className="text-sm text-text-soft mb-4">¿Estás seguro de que deseas reactivar el área <strong>{reactivatingArea.nombre}</strong>?</p> {/* <--- Cambiado texto */}
             <div className="mt-6 flex justify-end space-x-3">
               <button type="button" onClick={handleCloseReactivateConfirm} disabled={isReactivating}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50" >
+                className="px-4 py-2 border border-border-base bg-surface text-text-soft rounded-md hover:bg-overlay dark:hover:bg-overlay focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50" >
                 Cancelar
               </button>
               <button type="button" onClick={handleConfirmReactivate} disabled={isReactivating}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 flex items-center justify-center" >
+                className="px-4 py-2 bg-success text-white rounded-md hover:bg-success/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-success disabled:opacity-50 flex items-center justify-center" >
                 {isReactivating && <Loader className="animate-spin h-4 w-4 mr-2" />}
                 {isReactivating ? 'Reactivando...' : 'Sí, Reactivar'}
               </button>

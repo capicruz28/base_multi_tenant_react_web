@@ -2,7 +2,7 @@
  * Utilidades para aplicar branding dinámico
  * Actualiza CSS variables, favicon y tema personalizado
  */
-import { BrandingRead, TemaPersonalizado } from '../types/branding.types';
+import { BrandingRead, TemaPersonalizado } from '../features/tenant/types/branding.types';
 
 /**
  * Convierte color HEX a RGB
@@ -131,44 +131,19 @@ const generateColorVariations = (hex: string, isPrimary: boolean = true) => {
 };
 
 /**
- * Aplica los colores de branding como variables CSS con tokens derivados
- * ✅ MEJORADO: Prioriza tema_personalizado.colors sobre color_primario/secundario
+ * Aplica los colores de branding como variables CSS con tokens derivados.
+ * Fuente única de marca en Capa 2: color_primario / color_secundario (API).
  */
 export const applyBrandingColors = (branding: BrandingRead): void => {
   const root = document.documentElement;
 
-  // ✅ NUEVO: Priorizar colores de tema_personalizado si existen
-  // Si existe tema_personalizado.colors.blue, usarlo como primario
-  // Si existe tema_personalizado.colors.navy, usarlo como secundario
-  // Si no, usar color_primario y color_secundario como fallback
-  
-  let primaryColor = '#1976D2'; // Valor por defecto
-  let secondaryColor = '#424242'; // Valor por defecto
-  
-  if (branding.tema_personalizado?.colors) {
-    // Priorizar blue del tema_personalizado para primario
-    if (branding.tema_personalizado.colors.blue && isValidHexColor(branding.tema_personalizado.colors.blue)) {
-      primaryColor = branding.tema_personalizado.colors.blue;
-    } else if (isValidHexColor(branding.color_primario)) {
-      primaryColor = branding.color_primario;
-    }
-    
-    // Priorizar navy del tema_personalizado para secundario
-    if (branding.tema_personalizado.colors.navy && isValidHexColor(branding.tema_personalizado.colors.navy)) {
-      secondaryColor = branding.tema_personalizado.colors.navy;
-    } else if (isValidHexColor(branding.color_secundario)) {
-      secondaryColor = branding.color_secundario;
-    }
-  } else {
-    // Si no hay tema_personalizado, usar los campos directos
-    primaryColor = isValidHexColor(branding.color_primario) 
-      ? branding.color_primario 
-      : '#1976D2';
-    
-    secondaryColor = isValidHexColor(branding.color_secundario) 
-      ? branding.color_secundario 
-      : '#424242';
-  }
+  const primaryColor = isValidHexColor(branding.color_primario)
+    ? branding.color_primario
+    : '#1976D2';
+
+  const secondaryColor = isValidHexColor(branding.color_secundario)
+    ? branding.color_secundario
+    : '#424242';
   
   // Generar variaciones de colores
   const primaryVariations = generateColorVariations(primaryColor, true);
@@ -178,7 +153,10 @@ export const applyBrandingColors = (branding: BrandingRead): void => {
   root.style.setProperty('--color-primary', primaryColor);
   root.style.setProperty('--color-primary-hsl', primaryVariations.base.hsl);
   if (primaryVariations.base.rgb) {
-    root.style.setProperty('--color-primary-rgb', `${primaryVariations.base.rgb.r}, ${primaryVariations.base.rgb.g}, ${primaryVariations.base.rgb.b}`);
+    root.style.setProperty(
+      '--color-primary-rgb',
+      `${primaryVariations.base.rgb.r}, ${primaryVariations.base.rgb.g}, ${primaryVariations.base.rgb.b}`
+    );
   }
   
   // Variaciones primario
@@ -186,12 +164,7 @@ export const applyBrandingColors = (branding: BrandingRead): void => {
   root.style.setProperty('--color-primary-active-hsl', primaryVariations.active.hsl);
   root.style.setProperty('--color-primary-light-hsl', primaryVariations.light.hsl);
   root.style.setProperty('--color-primary-dark-hsl', primaryVariations.dark.hsl);
-  
-  // ✅ NUEVO: Si NO hay tema_personalizado, también establecer --caxis-blue con color_primario
-  // Esto asegura que los componentes que usan bg-brand-primary (que usa --caxis-blue como fallback) funcionen
-  if (!branding.tema_personalizado?.colors?.blue) {
-    root.style.setProperty('--caxis-blue', primaryColor);
-  }
+  root.style.setProperty('--caxis-blue', primaryColor);
   
   // ===== TOKENS SECUNDARIOS =====
   root.style.setProperty('--color-secondary', secondaryColor);
@@ -205,12 +178,7 @@ export const applyBrandingColors = (branding: BrandingRead): void => {
   root.style.setProperty('--color-secondary-active-hsl', secondaryVariations.active.hsl);
   root.style.setProperty('--color-secondary-light-hsl', secondaryVariations.light.hsl);
   root.style.setProperty('--color-secondary-dark-hsl', secondaryVariations.dark.hsl);
-  
-  // ✅ NUEVO: Si NO hay tema_personalizado, también establecer --caxis-navy con color_secundario
-  // Esto asegura que los componentes que usan bg-brand-secondary (que usa --caxis-navy como fallback) funcionen
-  if (!branding.tema_personalizado?.colors?.navy) {
-    root.style.setProperty('--caxis-navy', secondaryColor);
-  }
+  root.style.setProperty('--caxis-navy', secondaryColor);
   
   // ===== TOKENS PARA DARK MODE =====
   // Estos se aplicarán cuando exista la clase .dark
@@ -223,6 +191,11 @@ export const applyBrandingColors = (branding: BrandingRead): void => {
   if (secondaryVariations.darkMode.rgb) {
     root.style.setProperty('--color-secondary-dark-mode-rgb', `${secondaryVariations.darkMode.rgb.r}, ${secondaryVariations.darkMode.rgb.g}, ${secondaryVariations.darkMode.rgb.b}`);
   }
+
+  // Sincronizar shadcn --primary con el tenant (fix modo claro)
+  root.style.setProperty('--primary', 'var(--color-primary-hsl)');
+  root.style.setProperty('--primary-foreground', '0 0% 100%');
+  root.style.setProperty('--ring', 'var(--color-primary-hsl)');
 
   // Solo log en desarrollo
   if (import.meta.env.DEV) {
@@ -279,21 +252,28 @@ export const updateFavicon = (faviconUrl: string | null): void => {
 
 
 /**
- * Valida la estructura del tema personalizado
+ * Valida tema_personalizado recibido del API (solo usa campos contractuales).
  */
-const validateTemaPersonalizado = (tema: any): tema is TemaPersonalizado => {
+const validateTemaPersonalizado = (tema: unknown): tema is TemaPersonalizado => {
   if (!tema || typeof tema !== 'object') return false;
-  
-  // Validar tipos básicos
-  if (tema.fontFamily && typeof tema.fontFamily !== 'string') return false;
-  if (tema.fonts && typeof tema.fonts !== 'object') return false;
-  if (tema.borderRadius && typeof tema.borderRadius !== 'string') return false;
-  if (tema.spacing && typeof tema.spacing !== 'object') return false;
-  if (tema.shadows && typeof tema.shadows !== 'object') return false;
-  if (tema.colors && typeof tema.colors !== 'object') return false;
-  if (tema.grays && typeof tema.grays !== 'object') return false;
-  if (tema.gradients && typeof tema.gradients !== 'object') return false;
-  
+  const t = tema as Record<string, unknown>;
+
+  if (t.appName !== undefined && typeof t.appName !== 'string') return false;
+
+  if (t.fonts !== undefined) {
+    if (typeof t.fonts !== 'object' || t.fonts === null) return false;
+    const fonts = t.fonts as Record<string, unknown>;
+    for (const k of ['display', 'body', 'mono'] as const) {
+      if (fonts[k] !== undefined && typeof fonts[k] !== 'string') return false;
+    }
+  }
+
+  if (t.shape !== undefined) {
+    if (typeof t.shape !== 'object' || t.shape === null) return false;
+    const shape = t.shape as Record<string, unknown>;
+    if (shape.borderRadius !== undefined && typeof shape.borderRadius !== 'string') return false;
+  }
+
   return true;
 };
 
@@ -350,7 +330,7 @@ export const applyTemaPersonalizado = (tema: TemaPersonalizado | null): void => 
     return;
   }
 
-  // ✅ NUEVO: Aplicar fuentes tipográficas estructuradas
+  // ✅ Fuentes tipográficas
   if (tema.fonts && typeof tema.fonts === 'object') {
     if (tema.fonts.display && typeof tema.fonts.display === 'string') {
       root.style.setProperty('--font-display', tema.fonts.display);
@@ -373,21 +353,11 @@ export const applyTemaPersonalizado = (tema: TemaPersonalizado | null): void => 
       }
     }
   }
-  
-  // ✅ COMPATIBILIDAD: Aplicar fuente personalizada (retrocompatibilidad)
-  if (tema.fontFamily && typeof tema.fontFamily === 'string' && !tema.fonts?.body) {
-    root.style.setProperty('--font-family', tema.fontFamily);
-    document.body.style.fontFamily = tema.fontFamily;
-    if (import.meta.env.DEV) {
-      console.log('✅ Fuente personalizada aplicada (legacy):', tema.fontFamily);
-    }
-  }
 
-  // Aplicar border radius personalizado
-  if (tema.borderRadius && typeof tema.borderRadius === 'string') {
-    root.style.setProperty('--border-radius', tema.borderRadius);
+  if (typeof tema.shape?.borderRadius === 'string') {
+    root.style.setProperty('--border-radius', tema.shape.borderRadius);
     if (import.meta.env.DEV) {
-      console.log('✅ Border radius personalizado aplicado:', tema.borderRadius);
+      console.log('✅ Border radius personalizado aplicado:', tema.shape.borderRadius);
     }
   }
 
@@ -399,155 +369,14 @@ export const applyTemaPersonalizado = (tema: TemaPersonalizado | null): void => 
       console.log('✅ Nombre de aplicación aplicado:', tema.appName);
     }
   }
-
-  // Aplicar spacing personalizado
-  if (tema.spacing && typeof tema.spacing === 'object') {
-    Object.entries(tema.spacing).forEach(([key, value]) => {
-      if (value && typeof value === 'string') {
-        root.style.setProperty(`--spacing-${key}`, value);
-        if (import.meta.env.DEV) {
-          console.log(`✅ Spacing ${key} aplicado:`, value);
-        }
-      }
-    });
-  }
-
-  // Aplicar sombras personalizadas
-  if (tema.shadows && typeof tema.shadows === 'object') {
-    Object.entries(tema.shadows).forEach(([key, value]) => {
-      if (value && typeof value === 'string') {
-        root.style.setProperty(`--shadow-${key}`, value);
-        if (import.meta.env.DEV) {
-          console.log(`✅ Sombra ${key} aplicada:`, value);
-        }
-      }
-    });
-  }
-
-  // ✅ MEJORADO: Aplicar colores de la paleta completa con prefijo caxis-
-  // También actualizar --color-primary y --color-secondary para que los componentes los usen
-  if (tema.colors && typeof tema.colors === 'object') {
-    Object.entries(tema.colors).forEach(([key, value]) => {
-      if (value && typeof value === 'string' && isValidHexColor(value)) {
-        // Aplicar con prefijo caxis- para los colores de la paleta
-        root.style.setProperty(`--caxis-${key}`, value);
-        
-        // ✅ NUEVO: Actualizar --color-primary y --color-secondary cuando se aplican blue y navy
-        if (key === 'blue') {
-          // Actualizar color primario y regenerar variaciones
-          const primaryVariations = generateColorVariations(value, true);
-          root.style.setProperty('--color-primary', value);
-          root.style.setProperty('--color-primary-hsl', primaryVariations.base.hsl);
-          if (primaryVariations.base.rgb) {
-            root.style.setProperty('--color-primary-rgb', `${primaryVariations.base.rgb.r}, ${primaryVariations.base.rgb.g}, ${primaryVariations.base.rgb.b}`);
-          }
-          root.style.setProperty('--color-primary-hover-hsl', primaryVariations.hover.hsl);
-          root.style.setProperty('--color-primary-active-hsl', primaryVariations.active.hsl);
-          root.style.setProperty('--color-primary-light-hsl', primaryVariations.light.hsl);
-          root.style.setProperty('--color-primary-dark-hsl', primaryVariations.dark.hsl);
-          root.style.setProperty('--color-primary-dark-mode-hsl', primaryVariations.darkMode.hsl);
-          if (primaryVariations.darkMode.rgb) {
-            root.style.setProperty('--color-primary-dark-mode-rgb', `${primaryVariations.darkMode.rgb.r}, ${primaryVariations.darkMode.rgb.g}, ${primaryVariations.darkMode.rgb.b}`);
-          }
-        }
-        
-        if (key === 'navy') {
-          // Actualizar color secundario y regenerar variaciones
-          const secondaryVariations = generateColorVariations(value, false);
-          root.style.setProperty('--color-secondary', value);
-          root.style.setProperty('--color-secondary-hsl', secondaryVariations.base.hsl);
-          if (secondaryVariations.base.rgb) {
-            root.style.setProperty('--color-secondary-rgb', `${secondaryVariations.base.rgb.r}, ${secondaryVariations.base.rgb.g}, ${secondaryVariations.base.rgb.b}`);
-          }
-          root.style.setProperty('--color-secondary-hover-hsl', secondaryVariations.hover.hsl);
-          root.style.setProperty('--color-secondary-active-hsl', secondaryVariations.active.hsl);
-          root.style.setProperty('--color-secondary-light-hsl', secondaryVariations.light.hsl);
-          root.style.setProperty('--color-secondary-dark-hsl', secondaryVariations.dark.hsl);
-          root.style.setProperty('--color-secondary-dark-mode-hsl', secondaryVariations.darkMode.hsl);
-          if (secondaryVariations.darkMode.rgb) {
-            root.style.setProperty('--color-secondary-dark-mode-rgb', `${secondaryVariations.darkMode.rgb.r}, ${secondaryVariations.darkMode.rgb.g}, ${secondaryVariations.darkMode.rgb.b}`);
-          }
-        }
-        
-        // También mantener compatibilidad con --color- para colores personalizados adicionales
-        if (!['navy', 'blue', 'cyan', 'mint', 'slate', 'amber', 'red', 'green', 'indigo', 'purple', 'orange'].includes(key)) {
-          root.style.setProperty(`--color-${key}`, value);
-        }
-        if (import.meta.env.DEV) {
-          console.log(`✅ Color ${key} aplicado:`, value);
-        }
-      }
-    });
-  }
-
-  // ✅ NUEVO: Aplicar escala de grises personalizada
-  if (tema.grays && typeof tema.grays === 'object') {
-    Object.entries(tema.grays).forEach(([key, value]) => {
-      if (value && typeof value === 'string' && isValidHexColor(value)) {
-        root.style.setProperty(`--caxis-gray-${key}`, value);
-        if (import.meta.env.DEV) {
-          console.log(`✅ Gray ${key} aplicado:`, value);
-        }
-      }
-    });
-  }
-
-  // ✅ NUEVO: Aplicar gradientes personalizados
-  if (tema.gradients && typeof tema.gradients === 'object') {
-    Object.entries(tema.gradients).forEach(([key, value]) => {
-      if (value && typeof value === 'string') {
-        root.style.setProperty(`--gradient-${key}`, value);
-        if (import.meta.env.DEV) {
-          console.log(`✅ Gradiente ${key} aplicado:`, value);
-        }
-      }
-    });
-  }
-
-  // ✅ MEJORADO: Aplicar sombras mejoradas del design system
-  if (tema.shadows && typeof tema.shadows === 'object') {
-    Object.entries(tema.shadows).forEach(([key, value]) => {
-      if (value && typeof value === 'string') {
-        root.style.setProperty(`--shadow-${key}`, value);
-        if (import.meta.env.DEV) {
-          console.log(`✅ Sombra ${key} aplicada:`, value);
-        }
-      }
-    });
-  }
-
-  // Aplicar otras propiedades personalizadas (genérico)
-  Object.entries(tema).forEach(([key, value]) => {
-    if (
-      key !== 'fontFamily' &&
-      key !== 'fonts' &&
-      key !== 'borderRadius' &&
-      key !== 'spacing' &&
-      key !== 'shadows' &&
-      key !== 'appName' &&
-      key !== 'colors' &&
-      key !== 'grays' &&
-      key !== 'gradients' &&
-      typeof value === 'string'
-    ) {
-      const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-      root.style.setProperty(`--${cssKey}`, value);
-      if (import.meta.env.DEV) {
-        console.log(`✅ Propiedad personalizada ${key} aplicada:`, value);
-      }
-    }
-  });
 };
 
 /**
- * Aplica todo el branding (colores, favicon, tema)
- * ✅ MEJORADO: Aplica tema_personalizado primero para que los colores se prioricen correctamente
+ * Aplica todo el branding (colores, favicon, tema).
+ * tema_personalizado solo ajusta fonts, shape y appName; colores van en BrandingRead.
  */
 export const applyBranding = (branding: BrandingRead): void => {
-  // ✅ IMPORTANTE: Aplicar tema_personalizado primero para que los colores de la paleta estén disponibles
-  // Luego applyBrandingColors puede usar esos colores si existen
   applyTemaPersonalizado(branding.tema_personalizado);
-  // Ahora aplicar colores de branding (que priorizará tema_personalizado si existe)
   applyBrandingColors(branding);
   updateFavicon(branding.favicon_url);
 };

@@ -1,42 +1,74 @@
-// src/shared/components/SmartRedirect.tsx
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import {
+  resolvePostLoginPath,
+  APP_SELECCIONAR_EMPRESA,
+  APP_ONBOARDING,
+} from '@/core/routing/post-login-path';
+import { useEmpresaSelectionStore } from '@/features/auth/stores/empresa-selection.store';
+import { shouldOnboardEmpresa } from '@/core/auth/utils/empresa-access';
 
 /**
- * Componente que redirige inteligentemente según el tipo de usuario
- * 
- * - Super Admin → /super-admin/dashboard
- * - Tenant Admin → /admin/usuarios
- * - Usuario Regular → /home
+ * Redirección según contexto de usuario (raíz `/`).
+ * Prioridad: selección empresa → onboarding → tipo de usuario.
  */
 const SmartRedirect: React.FC = () => {
-  const { isSuperAdmin, accessLevel, loading } = useAuth();
+  const {
+    isSuperAdmin,
+    accessLevel,
+    userType,
+    loading,
+    authInitialized,
+    mustSelectEmpresa,
+    esAdminCliente,
+    empresaActivaId,
+    requiereSeleccionEmpresa,
+    empresasDisponibles,
+    menuModulos,
+  } = useAuth();
+  const hasPendingSelection = useEmpresaSelectionStore((s) => s.hasPendingSelection());
 
-  // Mostrar loader mientras se determina el tipo de usuario
-  if (loading) {
+  if (loading || !authInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary" />
       </div>
     );
   }
 
-  // ✅ PRIORIDAD: Super Admin primero
-  if (isSuperAdmin) {
-    console.log('🔄 [SmartRedirect] Redirigiendo Super Admin a /super-admin/dashboard');
-    return <Navigate to="/super-admin/dashboard" replace />;
+  if (hasPendingSelection || mustSelectEmpresa) {
+    if (import.meta.env.DEV) {
+      console.log(`🔄 [SmartRedirect] → ${APP_SELECCIONAR_EMPRESA} (selección pendiente)`);
+    }
+    return <Navigate to={APP_SELECCIONAR_EMPRESA} replace />;
   }
 
-  // ✅ Tenant Admin segundo
-  if (accessLevel >= 4) {
-    console.log('🔄 [SmartRedirect] Redirigiendo Tenant Admin a /admin/usuarios');
-    return <Navigate to="/admin/usuarios" replace />;
+  if (
+    shouldOnboardEmpresa({
+      userType,
+      empresaActivaId,
+      esAdminCliente,
+      requiereSeleccionEmpresa,
+      empresasDisponiblesCount: empresasDisponibles.length,
+    })
+  ) {
+    if (import.meta.env.DEV) {
+      console.log(`🔄 [SmartRedirect] → ${APP_ONBOARDING} (onboarding admin)`);
+    }
+    return <Navigate to={APP_ONBOARDING} replace />;
   }
 
-  // ✅ Usuario regular por defecto
-  console.log('🔄 [SmartRedirect] Redirigiendo Usuario Regular a /home');
-  return <Navigate to="/home" replace />;
+  const target = resolvePostLoginPath({
+    isSuperAdmin,
+    userType,
+    menuModulos,
+  });
+
+  if (import.meta.env.DEV) {
+    console.log(`🔄 [SmartRedirect] → ${target}`);
+  }
+
+  return <Navigate to={target} replace />;
 };
 
 export default SmartRedirect;
-

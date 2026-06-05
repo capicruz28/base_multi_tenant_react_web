@@ -83,9 +83,8 @@ export default defineConfig({
         ws: true,  // ✅ Habilita WebSockets
         configure: (proxy) => {
           // ✅ CORRECCIÓN: Solo usar 'proxy', eliminar parámetros no usados
-          proxy.on('proxyReq', (proxyReq, req) => {
-            // ✅ Log para debugging (opcional, puedes comentar si no lo necesitas)
-            console.log(`[PROXY] ${req.method} ${req.url} → ${proxyReq.path}`);
+          proxy.on('proxyReq', (_proxyReq, req) => {
+            console.log(`[PROXY] ${req.method} ${req.url}`);
           });
         },
       }

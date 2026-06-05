@@ -1,0 +1,72 @@
+:root {
+  /* FONDOS — Capa 1, nunca modificar desde branding */
+  --bg-page: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-subtle: #F1F5F9;
+  --bg-overlay: #E2E8F0;
+
+  /* TEXTOS */
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+
+  /* BORDES */
+  --border-default: #E2E8F0;
+  --border-strong: #CBD5E1;
+
+  /* SEMÁNTICOS — invariables por tenant */
+  --color-success: #10B981;
+  --color-error: #EF4444;
+  --color-warning: #F59E0B;
+  --color-info: #3B82F6;
+}
+
+.dark {
+  --bg-page: #0F172A;
+  --bg-surface: #1E293B;
+  --bg-subtle: #162032;
+  --bg-overlay: #263548;
+
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #475569;
+
+  --border-default: #334155;
+  --border-strong: #475569;
+
+  /* Semánticos en dark — mismos valores, ajuste de luminosidad */
+  --color-success: #34D399;
+  --color-error: #F87171;
+  --color-warning: #FCD34D;
+  --color-info: #60A5FA;
+}
+
+/*
+ * Alias en componentes H S% L% (hsl(var(--…))) — equivalentes a los hex de Capa 1.
+ * Sustituye la inyección JS de syncBrandShellTokensStylesheet.
+ */
+:root {
+  --brand-surface: 210 40% 98%;
+  --brand-surface-secondary: 210 40% 96%;
+  --brand-border: 214 32% 91%;
+  --brand-text-primary: 222 47% 11%;
+  --brand-text-secondary: 215 16% 47%;
+  --color-surface: var(--brand-surface);
+  --color-surface-alt: var(--brand-surface-secondary);
+  --color-border: var(--brand-border);
+  --color-text-primary: var(--brand-text-primary);
+  --color-text-secondary: var(--brand-text-secondary);
+}
+
+.dark {
+  --brand-surface: 222 47% 11%;
+  --brand-surface-secondary: 217 33% 17%;
+  --brand-border: 215 25% 27%;
+  --brand-text-primary: 210 40% 98%;
+  --brand-text-secondary: 215 20% 65%;
+  --color-surface: var(--brand-surface);
+  --color-surface-alt: var(--brand-surface-secondary);
+  --color-border: var(--brand-border);
+  --color-text-primary: var(--brand-text-primary);
+  --color-text-secondary: var(--brand-text-secondary);
+}

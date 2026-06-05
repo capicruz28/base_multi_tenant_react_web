@@ -163,11 +163,11 @@ const ActiveSessionsPage: React.FC = () => {
   const getClientTypeIcon = (clientType: string) => {
     switch (clientType.toLowerCase()) {
       case 'web':
-        return <Monitor className="h-5 w-5 text-blue-500" />;
+        return <Monitor className="h-5 w-5 text-info" />;
       case 'mobile':
-        return <Smartphone className="h-5 w-5 text-green-500" />;
+        return <Smartphone className="h-5 w-5 text-success" />;
       default:
-        return <Globe className="h-5 w-5 text-gray-500" />;
+        return <Globe className="h-5 w-5 text-text-soft" />;
     }
   };
 
@@ -181,7 +181,7 @@ const ActiveSessionsPage: React.FC = () => {
 
     if (diffHours < 24) {
       return (
-        <span className="px-2 py-1 text-xs font-semibold bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 rounded-full flex items-center gap-1">
+        <span className="px-2 py-1 text-xs font-semibold bg-warning/10 text-warning rounded-full flex items-center gap-1">
           <AlertTriangle className="h-3 w-3" />
           Expira pronto
         </span>
@@ -189,7 +189,7 @@ const ActiveSessionsPage: React.FC = () => {
     }
 
     return (
-      <span className="px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full">
+      <span className="px-2 py-1 text-xs font-semibold bg-success/10 text-success rounded-full">
         Activo
       </span>
     );
@@ -228,9 +228,9 @@ const ActiveSessionsPage: React.FC = () => {
             placeholder="Buscar por usuario, nombre o IP..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-3 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+            className="pl-10 pr-3 py-2 w-full border border-border-base bg-surface rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-text-base placeholder:text-text-faint dark:bg-subtle"
           />
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-text-soft" />
         </div>
 
         {/* Acciones */}
@@ -241,7 +241,7 @@ const ActiveSessionsPage: React.FC = () => {
             className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors ${
               autoRefreshEnabled
                 ? 'bg-brand-primary text-white hover:bg-brand-primary-hover'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                : 'border border-border-base bg-subtle text-text-base hover:bg-overlay dark:bg-subtle dark:text-text-soft dark:hover:bg-overlay'
             }`}
             title={autoRefreshEnabled ? 'Desactivar auto-actualización' : 'Activar auto-actualización'}
           >
@@ -266,37 +266,37 @@ const ActiveSessionsPage: React.FC = () => {
       {/* Estadísticas rápidas */}
       {!isLoading && !error && (
         <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+          <div className="bg-surface p-4 rounded-lg shadow border border-border-base">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Sesiones</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{sessions.length}</p>
+                <p className="text-sm font-medium text-text-soft">Total Sesiones</p>
+                <p className="text-2xl font-bold text-text-base">{sessions.length}</p>
               </div>
               <Shield className="h-8 w-8 text-brand-primary" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+          <div className="bg-surface p-4 rounded-lg shadow border border-border-base">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Sesiones Web</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-text-soft">Sesiones Web</p>
+                <p className="text-2xl font-bold text-text-base">
                   {sessions.filter(s => s.client_type.toLowerCase() === 'web').length}
                 </p>
               </div>
-              <Monitor className="h-8 w-8 text-blue-500" />
+              <Monitor className="h-8 w-8 text-info" />
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+          <div className="bg-surface p-4 rounded-lg shadow border border-border-base">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Sesiones Móvil</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-text-soft">Sesiones Móvil</p>
+                <p className="text-2xl font-bold text-text-base">
                   {sessions.filter(s => s.client_type.toLowerCase() === 'mobile').length}
                 </p>
               </div>
-              <Smartphone className="h-8 w-8 text-green-500" />
+              <Smartphone className="h-8 w-8 text-success" />
             </div>
           </div>
         </div>
@@ -306,7 +306,7 @@ const ActiveSessionsPage: React.FC = () => {
       {isLoading && (
         <div className="flex justify-center items-center py-10">
           <Loader className="animate-spin h-8 w-8 text-brand-primary" />
-          <p className="ml-3 text-gray-500 dark:text-gray-400">
+          <p className="ml-3 text-text-soft">
             Cargando sesiones activas...
           </p>
         </div>
@@ -314,7 +314,7 @@ const ActiveSessionsPage: React.FC = () => {
 
       {/* Error General */}
       {error && !isLoading && (
-        <div className="text-center text-red-600 bg-red-100 dark:bg-red-900 dark:text-red-200 p-4 rounded-md flex items-center justify-center gap-2">
+        <div className="text-center text-error bg-error/10 p-4 rounded-md flex items-center justify-center gap-2">
           <AlertTriangle className="h-5 w-5" />
           {error}
         </div>
@@ -331,16 +331,16 @@ const ActiveSessionsPage: React.FC = () => {
                 return (
                   <div
                     key={session.token_id}
-                    className={`bg-white dark:bg-gray-800 rounded-lg shadow border p-5 transition-all hover:shadow-lg ${
+                    className={`bg-surface rounded-lg shadow border p-5 transition-all hover:shadow-lg ${
                       isOwnSession
                         ? 'border-brand-primary dark:border-brand-primary ring-2 ring-brand-primary/20 dark:ring-brand-primary/30'
-                        : 'border-gray-200 dark:border-gray-700'
+                        : 'border-border-base'
                     }`}
                   >
                     {/* Header: Usuario y Badge */}
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate flex items-center gap-2">
+                        <h3 className="text-base font-semibold text-text-base truncate flex items-center gap-2">
                           {session.nombre_usuario}
                           {isOwnSession && (
                             <span className="text-xs bg-brand-primary/10 text-brand-primary dark:bg-brand-primary/20 dark:text-brand-primary/80 px-2 py-0.5 rounded-full">
@@ -348,7 +348,7 @@ const ActiveSessionsPage: React.FC = () => {
                             </span>
                           )}
                         </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                        <p className="text-sm text-text-soft truncate">
                           {session.nombre} {session.apellido}
                         </p>
                       </div>
@@ -357,22 +357,22 @@ const ActiveSessionsPage: React.FC = () => {
 
                     {/* Info: Cliente */}
                     <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-2 text-sm text-text-soft">
                         {getClientTypeIcon(session.client_type)}
                         <span className="capitalize">{session.client_type}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-2 text-sm text-text-soft">
                         <Globe className="h-4 w-4" />
                         <span className="truncate">{session.ip_address || 'IP no disponible'}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-2 text-sm text-text-soft">
                         <Calendar className="h-4 w-4" />
                         <span>Creada: {formatDate(session.created_at)}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-2 text-sm text-text-soft">
                         <Calendar className="h-4 w-4" />
                         <span>Expira: {formatDate(session.expires_at)}</span>
                       </div>
@@ -384,8 +384,8 @@ const ActiveSessionsPage: React.FC = () => {
                       disabled={isOwnSession}
                       className={`w-full px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
                         isOwnSession
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-600'
-                          : 'bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
+                          ? 'bg-subtle text-text-soft cursor-not-allowed opacity-60 dark:bg-subtle'
+                          : 'bg-error text-white hover:bg-error/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error'
                       }`}
                       title={isOwnSession ? 'No puedes revocar tu propia sesión' : 'Revocar sesión'}
                     >
@@ -398,8 +398,8 @@ const ActiveSessionsPage: React.FC = () => {
             </div>
           ) : (
             <div className="text-center py-12">
-              <Shield className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-600 mb-4" />
-              <p className="text-gray-500 dark:text-gray-400 text-lg">
+              <Shield className="mx-auto h-12 w-12 text-text-soft mb-4" />
+              <p className="text-text-soft text-lg">
                 {searchTerm
                   ? 'No se encontraron sesiones que coincidan con la búsqueda.'
                   : 'No hay sesiones activas en este momento.'}
@@ -411,21 +411,21 @@ const ActiveSessionsPage: React.FC = () => {
 
       {/* Modal de Confirmación de Revocación */}
       {isRevokeConfirmOpen && revokingSession && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center px-4">
-          <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800">
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center px-4">
+          <div className="relative mx-auto p-6 border border-border-base w-full max-w-md shadow-lg rounded-md bg-surface">
             <div className="flex items-start mb-4">
               <div className="flex-shrink-0">
-                <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                <AlertTriangle className="h-6 w-6 text-error" />
               </div>
               <div className="ml-3 flex-1">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                <h3 className="text-lg font-medium text-text-base">
                   Confirmar Revocación de Sesión
                 </h3>
-                <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                <div className="mt-2 text-sm text-text-soft">
                   <p className="mb-2">
                     Estás a punto de revocar la sesión de:
                   </p>
-                  <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md space-y-1">
+                  <div className="bg-subtle p-3 rounded-md space-y-1">
                     <p className="font-semibold">
                       {revokingSession.nombre_usuario}
                     </p>
@@ -437,7 +437,7 @@ const ActiveSessionsPage: React.FC = () => {
                       {revokingSession.client_type} • {revokingSession.ip_address}
                     </p>
                   </div>
-                  <p className="mt-3 text-yellow-700 dark:text-yellow-400">
+                  <p className="mt-3 text-warning">
                     ⚠️ Esta acción cerrará inmediatamente la sesión del usuario.
                   </p>
                 </div>
@@ -457,7 +457,7 @@ const ActiveSessionsPage: React.FC = () => {
                 type="button"
                 onClick={handleConfirmRevoke}
                 disabled={isRevoking}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 flex items-center justify-center"
+                className="px-4 py-2 bg-error text-white rounded-md hover:bg-error/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error disabled:opacity-50 flex items-center justify-center"
               >
                 {isRevoking && <Loader className="animate-spin h-4 w-4 mr-2" />}
                 {isRevoking ? 'Revocando...' : 'Sí, Revocar Sesión'}

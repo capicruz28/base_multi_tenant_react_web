@@ -12,7 +12,7 @@
           "INV - Categorías"
         ],
         "summary": "Listar categorías",
-        "description": "Lista categorías del tenant. Filtro por cliente_id del token.",
+        "description": "Lista categorías de la empresa activa en sesión.",
         "operationId": "listar_categorias_api_v1_inv_categorias_get",
         "security": [
           {
@@ -20,25 +20,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filtrar por empresa",
-              "title": "Empresa Id"
-            },
-            "description": "Filtrar por empresa"
-          },
           {
             "name": "solo_activos",
             "in": "query",
@@ -85,7 +66,7 @@
           "INV - Categorías"
         ],
         "summary": "Crear categoría",
-        "description": "Crea una categoría. cliente_id se asigna desde el contexto (tenant), no desde el body.",
+        "description": "Crea una categoría. empresa_id del body debe coincidir con la sesión.",
         "operationId": "crear_categoria_api_v1_inv_categorias_post",
         "security": [
           {
@@ -133,7 +114,7 @@
           "INV - Categorías"
         ],
         "summary": "Detalle categoría",
-        "description": "Detalle de una categoría. Solo del tenant del usuario.",
+        "description": "Detalle de una categoría de la empresa activa.",
         "operationId": "detalle_categoria_api_v1_inv_categorias__categoria_id__get",
         "security": [
           {
@@ -181,7 +162,7 @@
           "INV - Categorías"
         ],
         "summary": "Actualizar categoría",
-        "description": "Actualiza una categoría. Solo del tenant del usuario.",
+        "description": "Actualiza una categoría de la empresa activa.",
         "operationId": "actualizar_categoria_api_v1_inv_categorias__categoria_id__put",
         "security": [
           {
@@ -239,7 +220,7 @@
           "INV - Categorías"
         ],
         "summary": "Eliminar (baja lógica) categoría",
-        "description": "Marca una categoría como inactiva (es_activo = 0) dentro del tenant.",
+        "description": "Marca una categoría como inactiva (es_activo = 0) en la empresa activa.",
         "operationId": "eliminar_categoria_api_v1_inv_categorias__categoria_id__delete",
         "security": [
           {
@@ -282,7 +263,7 @@
           "INV - Categorías"
         ],
         "summary": "Reactivar categoría",
-        "description": "Reactiva una categoría previamente dada de baja dentro del tenant.",
+        "description": "Reactiva una categoría de la empresa activa.",
         "operationId": "reactivar_categoria_api_v1_inv_categorias__categoria_id__reactivar_post",
         "security": [
           {
@@ -332,7 +313,7 @@
           "INV - Unidades de Medida"
         ],
         "summary": "Listar unidades de medida",
-        "description": "Lista unidades de medida del tenant. Filtro por cliente_id del token.",
+        "description": "Lista unidades de medida de la empresa activa en sesión.",
         "operationId": "listar_unidades_medida_api_v1_inv_unidades_medida_get",
         "security": [
           {
@@ -340,25 +321,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filtrar por empresa",
-              "title": "Empresa Id"
-            },
-            "description": "Filtrar por empresa"
-          },
           {
             "name": "solo_activos",
             "in": "query",
@@ -405,7 +367,7 @@
           "INV - Unidades de Medida"
         ],
         "summary": "Crear unidad de medida",
-        "description": "Crea una unidad de medida. cliente_id se asigna desde el contexto (tenant), no desde el body.",
+        "description": "Crea una unidad de medida. empresa_id del body debe coincidir con la sesión.",
         "operationId": "crear_unidad_medida_api_v1_inv_unidades_medida_post",
         "security": [
           {
@@ -453,7 +415,7 @@
           "INV - Unidades de Medida"
         ],
         "summary": "Detalle unidad de medida",
-        "description": "Detalle de una unidad de medida. Solo del tenant del usuario.",
+        "description": "Detalle de una unidad de medida de la empresa activa.",
         "operationId": "detalle_unidad_medida_api_v1_inv_unidades_medida__unidad_medida_id__get",
         "security": [
           {
@@ -501,7 +463,7 @@
           "INV - Unidades de Medida"
         ],
         "summary": "Actualizar unidad de medida",
-        "description": "Actualiza una unidad de medida. Solo del tenant del usuario.",
+        "description": "Actualiza una unidad de medida de la empresa activa.",
         "operationId": "actualizar_unidad_medida_api_v1_inv_unidades_medida__unidad_medida_id__put",
         "security": [
           {
@@ -559,7 +521,7 @@
           "INV - Unidades de Medida"
         ],
         "summary": "Eliminar (baja lógica) unidad de medida",
-        "description": "Marca una unidad de medida como inactiva (es_activo = 0) dentro del tenant.",
+        "description": "Marca una unidad de medida como inactiva en la empresa activa.",
         "operationId": "eliminar_unidad_medida_api_v1_inv_unidades_medida__unidad_medida_id__delete",
         "security": [
           {
@@ -602,7 +564,7 @@
           "INV - Unidades de Medida"
         ],
         "summary": "Reactivar unidad de medida",
-        "description": "Reactiva una unidad de medida previamente dada de baja dentro del tenant.",
+        "description": "Reactiva una unidad de medida de la empresa activa.",
         "operationId": "reactivar_unidad_medida_api_v1_inv_unidades_medida__unidad_medida_id__reactivar_post",
         "security": [
           {
@@ -652,7 +614,7 @@
           "INV - Productos"
         ],
         "summary": "Listar productos",
-        "description": "Lista productos del tenant. Filtro por cliente_id del token.",
+        "description": "Lista productos de la empresa activa en sesión.",
         "operationId": "listar_productos_api_v1_inv_productos_get",
         "security": [
           {
@@ -660,25 +622,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filtrar por empresa",
-              "title": "Empresa Id"
-            },
-            "description": "Filtrar por empresa"
-          },
           {
             "name": "categoria_id",
             "in": "query",
@@ -780,7 +723,7 @@
           "INV - Productos"
         ],
         "summary": "Crear producto",
-        "description": "Crea un producto. cliente_id se asigna desde el contexto (tenant), no desde el body.",
+        "description": "Crea un producto. empresa_id del body debe coincidir con la sesión.",
         "operationId": "crear_producto_api_v1_inv_productos_post",
         "security": [
           {
@@ -828,7 +771,7 @@
           "INV - Productos"
         ],
         "summary": "Detalle producto",
-        "description": "Detalle de un producto. Solo del tenant del usuario.",
+        "description": "Detalle de un producto de la empresa activa.",
         "operationId": "detalle_producto_api_v1_inv_productos__producto_id__get",
         "security": [
           {
@@ -876,7 +819,7 @@
           "INV - Productos"
         ],
         "summary": "Actualizar producto",
-        "description": "Actualiza un producto. Solo del tenant del usuario.",
+        "description": "Actualiza un producto de la empresa activa.",
         "operationId": "actualizar_producto_api_v1_inv_productos__producto_id__put",
         "security": [
           {
@@ -934,7 +877,7 @@
           "INV - Productos"
         ],
         "summary": "Eliminar (baja lógica) producto",
-        "description": "Marca un producto como inactivo (es_activo = 0) dentro del tenant.",
+        "description": "Marca un producto como inactivo en la empresa activa.",
         "operationId": "eliminar_producto_api_v1_inv_productos__producto_id__delete",
         "security": [
           {
@@ -977,7 +920,7 @@
           "INV - Productos"
         ],
         "summary": "Reactivar producto",
-        "description": "Reactiva un producto previamente dado de baja dentro del tenant.",
+        "description": "Reactiva un producto de la empresa activa.",
         "operationId": "reactivar_producto_api_v1_inv_productos__producto_id__reactivar_post",
         "security": [
           {
@@ -1027,7 +970,7 @@
           "INV - Almacenes"
         ],
         "summary": "Listar almacenes",
-        "description": "Lista almacenes del tenant. Filtro por cliente_id del token.",
+        "description": "Lista almacenes de la empresa activa en sesión.",
         "operationId": "listar_almacenes_api_v1_inv_almacenes_get",
         "security": [
           {
@@ -1035,25 +978,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filtrar por empresa",
-              "title": "Empresa Id"
-            },
-            "description": "Filtrar por empresa"
-          },
           {
             "name": "sucursal_id",
             "in": "query",
@@ -1119,7 +1043,7 @@
           "INV - Almacenes"
         ],
         "summary": "Crear almacén",
-        "description": "Crea un almacén. cliente_id se asigna desde el contexto (tenant), no desde el body.",
+        "description": "Crea un almacén. empresa_id del body debe coincidir con la sesión.",
         "operationId": "crear_almacen_api_v1_inv_almacenes_post",
         "security": [
           {
@@ -1167,7 +1091,7 @@
           "INV - Almacenes"
         ],
         "summary": "Detalle almacén",
-        "description": "Detalle de un almacén. Solo del tenant del usuario.",
+        "description": "Detalle de un almacén de la empresa activa.",
         "operationId": "detalle_almacen_api_v1_inv_almacenes__almacen_id__get",
         "security": [
           {
@@ -1215,7 +1139,7 @@
           "INV - Almacenes"
         ],
         "summary": "Actualizar almacén",
-        "description": "Actualiza un almacén. Solo del tenant del usuario.",
+        "description": "Actualiza un almacén de la empresa activa.",
         "operationId": "actualizar_almacen_api_v1_inv_almacenes__almacen_id__put",
         "security": [
           {
@@ -1273,7 +1197,7 @@
           "INV - Almacenes"
         ],
         "summary": "Eliminar (baja lógica) almacén",
-        "description": "Marca un almacén como inactivo (es_activo = 0) dentro del tenant.",
+        "description": "Marca un almacén como inactivo en la empresa activa.",
         "operationId": "eliminar_almacen_api_v1_inv_almacenes__almacen_id__delete",
         "security": [
           {
@@ -1316,7 +1240,7 @@
           "INV - Almacenes"
         ],
         "summary": "Reactivar almacén",
-        "description": "Reactiva un almacén previamente dado de baja dentro del tenant.",
+        "description": "Reactiva un almacén de la empresa activa.",
         "operationId": "reactivar_almacen_api_v1_inv_almacenes__almacen_id__reactivar_post",
         "security": [
           {
@@ -1366,7 +1290,7 @@
           "INV - Stock"
         ],
         "summary": "Listar stocks",
-        "description": "Lista stocks del tenant. Filtro por cliente_id del token.",
+        "description": "Lista stocks de la empresa activa en sesión.",
         "operationId": "listar_stocks_api_v1_inv_stock_get",
         "security": [
           {
@@ -1374,25 +1298,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filtrar por empresa",
-              "title": "Empresa Id"
-            },
-            "description": "Filtrar por empresa"
-          },
           {
             "name": "producto_id",
             "in": "query",
@@ -1465,7 +1370,7 @@
           "INV - Stock"
         ],
         "summary": "Crear stock (Interno)",
-        "description": "(Interno) Crea un stock. Normalmente se actualiza por procesos (movimientos).",
+        "description": "(Interno) Crea un stock. empresa_id del body debe coincidir con la sesión.",
         "operationId": "crear_stock_api_v1_inv_stock_post",
         "deprecated": true,
         "security": [
@@ -1514,7 +1419,7 @@
           "INV - Stock"
         ],
         "summary": "Detalle stock",
-        "description": "Detalle de un stock. Solo del tenant del usuario.",
+        "description": "Detalle de un stock de la empresa activa.",
         "operationId": "detalle_stock_api_v1_inv_stock__stock_id__get",
         "security": [
           {
@@ -1562,7 +1467,7 @@
           "INV - Stock"
         ],
         "summary": "Actualizar stock (Interno)",
-        "description": "(Interno) Actualiza un stock. Normalmente se actualiza por procesos (movimientos).",
+        "description": "(Interno) Actualiza un stock de la empresa activa.",
         "operationId": "actualizar_stock_api_v1_inv_stock__stock_id__put",
         "deprecated": true,
         "security": [
@@ -1623,7 +1528,7 @@
           "INV - Stock"
         ],
         "summary": "Stock por producto y almacén",
-        "description": "Obtiene stock por producto y almacén. Útil para consultas rápidas.",
+        "description": "Stock por producto y almacén en la empresa activa. Sin fila → null.",
         "operationId": "stock_por_producto_almacen_api_v1_inv_stock_producto__producto_id__almacen__almacen_id__get",
         "security": [
           {
@@ -1691,6 +1596,7 @@
           "INV - Stock Alertas"
         ],
         "summary": "Alertas: stock bajo mínimo (por disponible)",
+        "description": "Alertas de stock bajo mínimo para la empresa activa en sesión.",
         "operationId": "alertas_stock_bajo_minimo_api_v1_inv_stock_alertas_get",
         "security": [
           {
@@ -1698,25 +1604,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filtrar por empresa",
-              "title": "Empresa Id"
-            },
-            "description": "Filtrar por empresa"
-          },
           {
             "name": "almacen_id",
             "in": "query",
@@ -1772,7 +1659,7 @@
           "INV - Tipos de Movimiento"
         ],
         "summary": "Listar tipos de movimiento",
-        "description": "Lista tipos de movimiento del tenant. Filtro por cliente_id del token.",
+        "description": "Lista tipos de movimiento de la empresa activa en sesión.",
         "operationId": "listar_tipos_movimiento_api_v1_inv_tipos_movimiento_get",
         "security": [
           {
@@ -1780,25 +1667,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filtrar por empresa",
-              "title": "Empresa Id"
-            },
-            "description": "Filtrar por empresa"
-          },
           {
             "name": "solo_activos",
             "in": "query",
@@ -1845,7 +1713,7 @@
           "INV - Tipos de Movimiento"
         ],
         "summary": "Crear tipo de movimiento",
-        "description": "Crea un tipo de movimiento. cliente_id se asigna desde el contexto (tenant), no desde el body.",
+        "description": "Crea un tipo de movimiento. empresa_id del body debe coincidir con la sesión.",
         "operationId": "crear_tipo_movimiento_api_v1_inv_tipos_movimiento_post",
         "security": [
           {
@@ -1893,7 +1761,7 @@
           "INV - Tipos de Movimiento"
         ],
         "summary": "Detalle tipo de movimiento",
-        "description": "Detalle de un tipo de movimiento. Solo del tenant del usuario.",
+        "description": "Detalle de un tipo de movimiento de la empresa activa.",
         "operationId": "detalle_tipo_movimiento_api_v1_inv_tipos_movimiento__tipo_movimiento_id__get",
         "security": [
           {
@@ -1941,7 +1809,7 @@
           "INV - Tipos de Movimiento"
         ],
         "summary": "Actualizar tipo de movimiento",
-        "description": "Actualiza un tipo de movimiento. Solo del tenant del usuario.",
+        "description": "Actualiza un tipo de movimiento de la empresa activa.",
         "operationId": "actualizar_tipo_movimiento_api_v1_inv_tipos_movimiento__tipo_movimiento_id__put",
         "security": [
           {
@@ -1999,7 +1867,7 @@
           "INV - Tipos de Movimiento"
         ],
         "summary": "Eliminar (baja lógica) tipo de movimiento",
-        "description": "Marca un tipo de movimiento como inactivo (es_activo = 0) dentro del tenant.",
+        "description": "Marca un tipo de movimiento como inactivo en la empresa activa.",
         "operationId": "eliminar_tipo_movimiento_api_v1_inv_tipos_movimiento__tipo_movimiento_id__delete",
         "security": [
           {
@@ -2042,7 +1910,7 @@
           "INV - Tipos de Movimiento"
         ],
         "summary": "Reactivar tipo de movimiento",
-        "description": "Reactiva un tipo de movimiento previamente dado de baja dentro del tenant.",
+        "description": "Reactiva un tipo de movimiento de la empresa activa.",
         "operationId": "reactivar_tipo_movimiento_api_v1_inv_tipos_movimiento__tipo_movimiento_id__reactivar_post",
         "security": [
           {
@@ -2092,7 +1960,7 @@
           "INV - Movimientos"
         ],
         "summary": "Listar movimientos",
-        "description": "Lista movimientos del tenant. Filtro por cliente_id del token.",
+        "description": "Lista movimientos de la empresa activa en sesión.",
         "operationId": "listar_movimientos_api_v1_inv_movimientos_get",
         "security": [
           {
@@ -2100,25 +1968,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filtrar por empresa",
-              "title": "Empresa Id"
-            },
-            "description": "Filtrar por empresa"
-          },
           {
             "name": "tipo_movimiento_id",
             "in": "query",
@@ -2247,7 +2096,7 @@
           "INV - Movimientos"
         ],
         "summary": "Crear movimiento",
-        "description": "Crea un movimiento. cliente_id se asigna desde el contexto (tenant), no desde el body.",
+        "description": "Crea un movimiento. empresa_id del body debe coincidir con la sesión.",
         "operationId": "crear_movimiento_api_v1_inv_movimientos_post",
         "security": [
           {
@@ -2295,7 +2144,7 @@
           "INV - Movimientos"
         ],
         "summary": "Detalle movimiento",
-        "description": "Detalle de un movimiento. Solo del tenant del usuario.",
+        "description": "Detalle de un movimiento de la empresa activa.",
         "operationId": "detalle_movimiento_api_v1_inv_movimientos__movimiento_id__get",
         "security": [
           {
@@ -2343,7 +2192,7 @@
           "INV - Movimientos"
         ],
         "summary": "Actualizar movimiento",
-        "description": "Actualiza un movimiento. Solo del tenant del usuario.",
+        "description": "Actualiza un movimiento de la empresa activa (solo borrador).",
         "operationId": "actualizar_movimiento_api_v1_inv_movimientos__movimiento_id__put",
         "security": [
           {
@@ -2396,15 +2245,15 @@
         }
       }
     },
-    "/api/v1/inv/inventario-fisico": {
+    "/api/v1/inv/movimientos/{movimiento_id}/con-detalle": {
       "get": {
         "tags": [
           "INV - Inventarios",
-          "INV - Inventario Físico"
+          "INV - Movimientos"
         ],
-        "summary": "Listar inventarios físicos",
-        "description": "Lista inventarios físicos del tenant. Filtro por cliente_id del token.",
-        "operationId": "listar_inventarios_fisicos_api_v1_inv_inventario_fisico_get",
+        "summary": "Detalle de movimiento con líneas embebidas",
+        "description": "Cabecera + detalles de la empresa activa.",
+        "operationId": "detalle_movimiento_con_detalles_api_v1_inv_movimientos__movimiento_id__con_detalle_get",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -2412,24 +2261,161 @@
         ],
         "parameters": [
           {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
+            "name": "movimiento_id",
+            "in": "path",
+            "required": true,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
+              "type": "string",
+              "format": "uuid",
+              "title": "Movimiento Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovimientoConDetalleRead"
                 }
-              ],
-              "description": "Filtrar por empresa",
-              "title": "Empresa Id"
-            },
-            "description": "Filtrar por empresa"
+              }
+            }
           },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "INV - Inventarios",
+          "INV - Movimientos"
+        ],
+        "summary": "Actualizar movimiento con reemplazo opcional de líneas",
+        "description": "Actualiza movimiento en borrador; detalles opcionales replace-all.",
+        "operationId": "actualizar_movimiento_con_detalles_api_v1_inv_movimientos__movimiento_id__con_detalle_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "movimiento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Movimiento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MovimientoConDetalleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovimientoConDetalleRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inv/movimientos/con-detalle": {
+      "post": {
+        "tags": [
+          "INV - Inventarios",
+          "INV - Movimientos"
+        ],
+        "summary": "Crear movimiento con líneas embebidas (recomendado)",
+        "description": "Crea movimiento + detalles en transacción atómica.",
+        "operationId": "crear_movimiento_con_detalles_api_v1_inv_movimientos_con_detalle_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MovimientoConDetalleCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovimientoConDetalleRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/inv/inventario-fisico": {
+      "get": {
+        "tags": [
+          "INV - Inventarios",
+          "INV - Inventario Físico"
+        ],
+        "summary": "Listar inventarios físicos",
+        "description": "Lista inventarios físicos de la empresa activa en sesión.",
+        "operationId": "listar_inventarios_fisicos_api_v1_inv_inventario_fisico_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
           {
             "name": "almacen_id",
             "in": "query",
@@ -2539,7 +2525,7 @@
           "INV - Inventario Físico"
         ],
         "summary": "Crear inventario físico",
-        "description": "Crea un inventario físico. cliente_id se asigna desde el contexto (tenant), no desde el body.",
+        "description": "Crea un inventario físico. empresa_id debe coincidir con la sesión.",
         "operationId": "crear_inventario_fisico_api_v1_inv_inventario_fisico_post",
         "security": [
           {
@@ -2587,7 +2573,7 @@
           "INV - Inventario Físico"
         ],
         "summary": "Detalle inventario físico",
-        "description": "Detalle de un inventario físico. Solo del tenant del usuario.",
+        "description": "Detalle de un inventario físico de la empresa activa en sesión.",
         "operationId": "detalle_inventario_fisico_api_v1_inv_inventario_fisico__inventario_fisico_id__get",
         "security": [
           {
@@ -2635,7 +2621,7 @@
           "INV - Inventario Físico"
         ],
         "summary": "Actualizar inventario físico",
-        "description": "Actualiza un inventario físico. Solo del tenant del usuario.",
+        "description": "Actualiza un inventario físico de la empresa activa en sesión.",
         "operationId": "actualizar_inventario_fisico_api_v1_inv_inventario_fisico__inventario_fisico_id__put",
         "security": [
           {
@@ -2695,7 +2681,7 @@
           "INV - Inventario Físico"
         ],
         "summary": "Anular inventario físico",
-        "description": "Anula un inventario físico dentro del tenant (cambia estado a 'anulado').",
+        "description": "Anula un inventario físico de la empresa activa en sesión.",
         "operationId": "anular_inventario_fisico_api_v1_inv_inventario_fisico__inventario_fisico_id__anular_post",
         "security": [
           {
@@ -2738,6 +2724,210 @@
         }
       }
     },
+    "/api/v1/inv/inventario-fisico/{inventario_fisico_id}/finalizar": {
+      "post": {
+        "tags": [
+          "INV - Inventarios",
+          "INV - Inventario Físico"
+        ],
+        "summary": "Finalizar conteo de inventario físico",
+        "description": "Finaliza el conteo de un inventario físico de la empresa activa en sesión.",
+        "operationId": "finalizar_inventario_fisico_api_v1_inv_inventario_fisico__inventario_fisico_id__finalizar_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "inventario_fisico_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Inventario Fisico Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventarioFisicoRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inv/inventario-fisico/{inventario_fisico_id}/con-detalle": {
+      "get": {
+        "tags": [
+          "INV - Inventarios",
+          "INV - Inventario Físico"
+        ],
+        "summary": "Detalle de inventario físico con líneas de conteo embebidas",
+        "description": "Retorna cabecera + detalles de la empresa activa en sesión.",
+        "operationId": "detalle_inventario_fisico_con_detalles_api_v1_inv_inventario_fisico__inventario_fisico_id__con_detalle_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "inventario_fisico_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Inventario Fisico Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventarioFisicoConDetalleRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "INV - Inventarios",
+          "INV - Inventario Físico"
+        ],
+        "summary": "Actualizar inventario físico con reemplazo opcional de líneas de conteo",
+        "operationId": "actualizar_inventario_fisico_con_detalles_api_v1_inv_inventario_fisico__inventario_fisico_id__con_detalle_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "inventario_fisico_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Inventario Fisico Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventarioFisicoConDetalleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventarioFisicoConDetalleRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inv/inventario-fisico/con-detalle": {
+      "post": {
+        "tags": [
+          "INV - Inventarios",
+          "INV - Inventario Físico"
+        ],
+        "summary": "Crear inventario físico con líneas de conteo embebidas (recomendado)",
+        "operationId": "crear_inventario_fisico_con_detalles_api_v1_inv_inventario_fisico_con_detalle_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventarioFisicoConDetalleCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventarioFisicoConDetalleRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/inv/inventario-fisico/{inventario_fisico_id}/aprobar": {
       "post": {
         "tags": [
@@ -2745,6 +2935,7 @@
           "INV - Inventario Físico Proceso"
         ],
         "summary": "Aprobar inventario físico (genera ajuste y actualiza stock)",
+        "description": "Aprueba un inventario físico de la empresa activa en sesión.",
         "operationId": "aprobar_inventario_fisico_api_v1_inv_inventario_fisico__inventario_fisico_id__aprobar_post",
         "security": [
           {
@@ -2804,6 +2995,7 @@
           "INV - Movimientos Detalle"
         ],
         "summary": "Listar detalle de movimientos",
+        "description": "Lista líneas de detalle de la empresa activa.",
         "operationId": "listar_movimientos_detalle_api_v1_inv_movimientos_detalle_get",
         "security": [
           {
@@ -2811,25 +3003,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filtrar por empresa",
-              "title": "Empresa Id"
-            },
-            "description": "Filtrar por empresa"
-          },
           {
             "name": "movimiento_id",
             "in": "query",
@@ -2903,6 +3076,7 @@
         ],
         "summary": "Crear línea de movimiento",
         "operationId": "crear_movimiento_detalle_api_v1_inv_movimientos_detalle_post",
+        "deprecated": true,
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -2997,6 +3171,7 @@
         ],
         "summary": "Actualizar línea de movimiento",
         "operationId": "actualizar_movimiento_detalle_api_v1_inv_movimientos_detalle__movimiento_detalle_id__put",
+        "deprecated": true,
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -3062,25 +3237,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filtrar por empresa",
-              "title": "Empresa Id"
-            },
-            "description": "Filtrar por empresa"
-          },
           {
             "name": "inventario_fisico_id",
             "in": "query",
@@ -3154,6 +3310,7 @@
         ],
         "summary": "Crear línea de inventario físico",
         "operationId": "crear_inventario_fisico_detalle_api_v1_inv_inventario_fisico_detalle_post",
+        "deprecated": true,
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -3248,6 +3405,7 @@
         ],
         "summary": "Actualizar línea de inventario físico",
         "operationId": "actualizar_inventario_fisico_detalle_api_v1_inv_inventario_fisico_detalle__inventario_fisico_detalle_id__put",
+        "deprecated": true,
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -3306,6 +3464,7 @@
           "INV - Movimientos Proceso"
         ],
         "summary": "Procesar movimiento (actualiza stock)",
+        "description": "Procesa un movimiento de la empresa activa en sesión.",
         "operationId": "procesar_movimiento_api_v1_inv__movimiento_id__procesar_post",
         "security": [
           {
@@ -3355,6 +3514,7 @@
           "INV - Movimientos Proceso"
         ],
         "summary": "Autorizar movimiento",
+        "description": "Autoriza un movimiento de la empresa activa en sesión.",
         "operationId": "autorizar_movimiento_api_v1_inv__movimiento_id__autorizar_post",
         "security": [
           {
@@ -3404,6 +3564,7 @@
           "INV - Movimientos Proceso"
         ],
         "summary": "Anular movimiento (solo si no está procesado)",
+        "description": "Anula un movimiento de la empresa activa en sesión.",
         "operationId": "anular_movimiento_api_v1_inv__movimiento_id__anular_post",
         "security": [
           {
@@ -3463,6 +3624,7 @@
           "INV - Kardex"
         ],
         "summary": "Kardex (líneas por producto/almacén)",
+        "description": "Kardex de la empresa activa en sesión (sin mezclar otras empresas del tenant).",
         "operationId": "obtener_kardex_api_v1_inv_kardex_get",
         "security": [
           {
@@ -3470,25 +3632,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filtrar por empresa",
-              "title": "Empresa Id"
-            },
-            "description": "Filtrar por empresa"
-          },
           {
             "name": "producto_id",
             "in": "query",
@@ -8376,6 +8519,636 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "InventarioFisicoConDetalleCreate": {
+        "properties": {
+          "empresa_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Empresa Id"
+          },
+          "numero_inventario": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Numero Inventario"
+          },
+          "fecha_inventario": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Inventario"
+          },
+          "almacen_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Almacen Id"
+          },
+          "tipo_inventario": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Tipo Inventario"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "categoria_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria Id"
+          },
+          "ubicacion_almacen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion Almacen"
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado",
+            "default": "en_proceso"
+          },
+          "supervisor_usuario_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supervisor Usuario Id"
+          },
+          "supervisor_nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supervisor Nombre"
+          },
+          "total_productos_contados": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Productos Contados",
+            "default": 0
+          },
+          "total_diferencias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Diferencias",
+            "default": 0
+          },
+          "valor_diferencias": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Diferencias",
+            "default": 0
+          },
+          "movimiento_ajuste_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Movimiento Ajuste Id"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          },
+          "detalles": {
+            "items": {
+              "$ref": "#/components/schemas/InventarioFisicoDetalleCreateEmbebido"
+            },
+            "type": "array",
+            "title": "Detalles",
+            "description": "Líneas de conteo. Se pueden añadir al crear o en PUT posterior."
+          }
+        },
+        "type": "object",
+        "required": [
+          "empresa_id",
+          "numero_inventario",
+          "fecha_inventario",
+          "almacen_id",
+          "tipo_inventario"
+        ],
+        "title": "InventarioFisicoConDetalleCreate",
+        "description": "Inventario físico completo: cabecera + líneas opcionales al crear\n(se pueden agregar durante el conteo)."
+      },
+      "InventarioFisicoConDetalleRead": {
+        "properties": {
+          "inventario_fisico_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Inventario Fisico Id"
+          },
+          "cliente_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cliente Id"
+          },
+          "empresa_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Empresa Id"
+          },
+          "numero_inventario": {
+            "type": "string",
+            "title": "Numero Inventario"
+          },
+          "fecha_inventario": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Inventario"
+          },
+          "almacen_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Almacen Id"
+          },
+          "tipo_inventario": {
+            "type": "string",
+            "title": "Tipo Inventario"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "categoria_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria Id"
+          },
+          "ubicacion_almacen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion Almacen"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "supervisor_usuario_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supervisor Usuario Id"
+          },
+          "supervisor_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supervisor Nombre"
+          },
+          "total_productos_contados": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Productos Contados"
+          },
+          "total_diferencias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Diferencias"
+          },
+          "valor_diferencias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Diferencias"
+          },
+          "movimiento_ajuste_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Movimiento Ajuste Id"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          },
+          "fecha_creacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Creacion"
+          },
+          "fecha_finalizacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Finalizacion"
+          },
+          "fecha_ajuste": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Ajuste"
+          },
+          "usuario_creacion_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Creacion Id"
+          },
+          "detalles": {
+            "items": {
+              "$ref": "#/components/schemas/InventarioFisicoDetalleRead"
+            },
+            "type": "array",
+            "title": "Detalles"
+          }
+        },
+        "type": "object",
+        "required": [
+          "inventario_fisico_id",
+          "cliente_id",
+          "empresa_id",
+          "numero_inventario",
+          "fecha_inventario",
+          "almacen_id",
+          "tipo_inventario",
+          "estado"
+        ],
+        "title": "InventarioFisicoConDetalleRead",
+        "description": "Inventario físico con sus líneas de conteo embebidas en la respuesta."
+      },
+      "InventarioFisicoConDetalleUpdate": {
+        "properties": {
+          "numero_inventario": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Numero Inventario"
+          },
+          "fecha_inventario": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inventario"
+          },
+          "almacen_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Almacen Id"
+          },
+          "tipo_inventario": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Inventario"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "categoria_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria Id"
+          },
+          "ubicacion_almacen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion Almacen"
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado"
+          },
+          "supervisor_usuario_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supervisor Usuario Id"
+          },
+          "supervisor_nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supervisor Nombre"
+          },
+          "total_productos_contados": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Productos Contados"
+          },
+          "total_diferencias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Diferencias"
+          },
+          "valor_diferencias": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Diferencias"
+          },
+          "movimiento_ajuste_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Movimiento Ajuste Id"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          },
+          "fecha_finalizacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Finalizacion"
+          },
+          "fecha_ajuste": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Ajuste"
+          },
+          "detalles": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/InventarioFisicoDetalleCreateEmbebido"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detalles",
+            "description": "Si se provee, reemplaza todas las líneas existentes."
+          }
+        },
+        "type": "object",
+        "title": "InventarioFisicoConDetalleUpdate",
+        "description": "Actualización de inventario físico + reemplazo opcional de líneas.\nSi 'detalles' se provee, reemplaza todas las líneas existentes."
+      },
       "InventarioFisicoCreate": {
         "properties": {
           "empresa_id": {
@@ -8725,6 +9498,173 @@
         ],
         "title": "InventarioFisicoDetalleCreate"
       },
+      "InventarioFisicoDetalleCreateEmbebido": {
+        "properties": {
+          "producto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Producto Id"
+          },
+          "cantidad_sistema": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Cantidad Sistema"
+          },
+          "cantidad_contada": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Contada"
+          },
+          "lote": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lote"
+          },
+          "fecha_vencimiento": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Vencimiento"
+          },
+          "ubicacion_almacen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion Almacen"
+          },
+          "costo_unitario": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo Unitario"
+          },
+          "estado_conteo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado Conteo",
+            "default": "pendiente"
+          },
+          "contador_usuario_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contador Usuario Id"
+          },
+          "contador_nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contador Nombre"
+          },
+          "fecha_conteo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Conteo"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          },
+          "motivo_diferencia": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Diferencia"
+          }
+        },
+        "type": "object",
+        "required": [
+          "producto_id",
+          "cantidad_sistema"
+        ],
+        "title": "InventarioFisicoDetalleCreateEmbebido",
+        "description": "Línea de inventario físico para crear embebida en la cabecera.\nNo incluye inventario_fisico_id ni empresa_id: se heredan de la cabecera."
+      },
       "InventarioFisicoDetalleRead": {
         "properties": {
           "inventario_fisico_detalle_id": {
@@ -8766,6 +9706,17 @@
               }
             ],
             "title": "Cantidad Contada"
+          },
+          "diferencia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia"
           },
           "lote": {
             "anyOf": [
@@ -8811,6 +9762,17 @@
               }
             ],
             "title": "Costo Unitario"
+          },
+          "valor_diferencia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Diferencia"
           },
           "estado_conteo": {
             "anyOf": [
@@ -9629,6 +10591,999 @@
         "type": "object",
         "title": "MotivoAnulacion"
       },
+      "MovimientoConDetalleCreate": {
+        "properties": {
+          "empresa_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Empresa Id"
+          },
+          "numero_movimiento": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Numero Movimiento"
+          },
+          "tipo_movimiento_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tipo Movimiento Id"
+          },
+          "fecha_movimiento": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Movimiento"
+          },
+          "fecha_contable": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Contable"
+          },
+          "almacen_origen_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Almacen Origen Id"
+          },
+          "almacen_destino_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Almacen Destino Id"
+          },
+          "modulo_origen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modulo Origen"
+          },
+          "documento_referencia_tipo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Referencia Tipo"
+          },
+          "documento_referencia_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Referencia Id"
+          },
+          "documento_referencia_numero": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Referencia Numero"
+          },
+          "tercero_tipo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tercero Tipo"
+          },
+          "tercero_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tercero Id"
+          },
+          "tercero_nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tercero Nombre"
+          },
+          "total_items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Items",
+            "default": 0
+          },
+          "total_cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Cantidad",
+            "default": 0
+          },
+          "total_costo": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Costo",
+            "default": 0
+          },
+          "moneda_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moneda Id",
+            "description": "ID de moneda (cat_moneda.moneda_id). Preferido."
+          },
+          "moneda": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moneda",
+            "description": "(Legacy) Código de moneda. Usar moneda_id.",
+            "default": "PEN"
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado",
+            "default": "borrador"
+          },
+          "requiere_autorizacion": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requiere Autorizacion",
+            "default": false
+          },
+          "autorizado_por_usuario_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autorizado Por Usuario Id"
+          },
+          "fecha_autorizacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Autorizacion"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          },
+          "motivo_anulacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Anulacion"
+          },
+          "centro_costo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Centro Costo Id"
+          },
+          "detalles": {
+            "items": {
+              "$ref": "#/components/schemas/MovimientoDetalleCreateEmbebido"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Detalles",
+            "description": "Líneas del movimiento. Mínimo 1."
+          }
+        },
+        "type": "object",
+        "required": [
+          "empresa_id",
+          "numero_movimiento",
+          "tipo_movimiento_id",
+          "fecha_contable",
+          "detalles"
+        ],
+        "title": "MovimientoConDetalleCreate",
+        "description": "Movimiento completo: cabecera + líneas obligatorias (mínimo 1)."
+      },
+      "MovimientoConDetalleRead": {
+        "properties": {
+          "movimiento_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Movimiento Id"
+          },
+          "cliente_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cliente Id"
+          },
+          "empresa_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Empresa Id"
+          },
+          "numero_movimiento": {
+            "type": "string",
+            "title": "Numero Movimiento"
+          },
+          "tipo_movimiento_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tipo Movimiento Id"
+          },
+          "fecha_movimiento": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha Movimiento"
+          },
+          "fecha_contable": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Contable"
+          },
+          "almacen_origen_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Almacen Origen Id"
+          },
+          "almacen_destino_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Almacen Destino Id"
+          },
+          "modulo_origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modulo Origen"
+          },
+          "documento_referencia_tipo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Referencia Tipo"
+          },
+          "documento_referencia_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Referencia Id"
+          },
+          "documento_referencia_numero": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Referencia Numero"
+          },
+          "tercero_tipo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tercero Tipo"
+          },
+          "tercero_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tercero Id"
+          },
+          "tercero_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tercero Nombre"
+          },
+          "total_items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Items"
+          },
+          "total_cantidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Cantidad"
+          },
+          "total_costo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Costo"
+          },
+          "moneda_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moneda Id"
+          },
+          "moneda": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moneda"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "requiere_autorizacion": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requiere Autorizacion"
+          },
+          "autorizado_por_usuario_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autorizado Por Usuario Id"
+          },
+          "fecha_autorizacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Autorizacion"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          },
+          "motivo_anulacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Anulacion"
+          },
+          "centro_costo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Centro Costo Id"
+          },
+          "fecha_creacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Creacion"
+          },
+          "fecha_actualizacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Actualizacion"
+          },
+          "fecha_procesado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Procesado"
+          },
+          "usuario_creacion_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Creacion Id"
+          },
+          "usuario_procesado_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Procesado Id"
+          },
+          "detalles": {
+            "items": {
+              "$ref": "#/components/schemas/MovimientoDetalleRead"
+            },
+            "type": "array",
+            "title": "Detalles"
+          }
+        },
+        "type": "object",
+        "required": [
+          "movimiento_id",
+          "cliente_id",
+          "empresa_id",
+          "numero_movimiento",
+          "tipo_movimiento_id",
+          "fecha_movimiento",
+          "fecha_contable",
+          "estado"
+        ],
+        "title": "MovimientoConDetalleRead",
+        "description": "Movimiento con sus líneas embebidas en la respuesta."
+      },
+      "MovimientoConDetalleUpdate": {
+        "properties": {
+          "numero_movimiento": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Numero Movimiento"
+          },
+          "tipo_movimiento_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Movimiento Id"
+          },
+          "fecha_movimiento": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Movimiento"
+          },
+          "fecha_contable": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Contable"
+          },
+          "almacen_origen_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Almacen Origen Id"
+          },
+          "almacen_destino_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Almacen Destino Id"
+          },
+          "modulo_origen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modulo Origen"
+          },
+          "documento_referencia_tipo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Referencia Tipo"
+          },
+          "documento_referencia_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Referencia Id"
+          },
+          "documento_referencia_numero": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento Referencia Numero"
+          },
+          "tercero_tipo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tercero Tipo"
+          },
+          "tercero_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tercero Id"
+          },
+          "tercero_nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tercero Nombre"
+          },
+          "total_items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Items"
+          },
+          "total_cantidad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Cantidad"
+          },
+          "total_costo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Costo"
+          },
+          "moneda_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moneda Id",
+            "description": "ID de moneda (cat_moneda.moneda_id). Preferido."
+          },
+          "moneda": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moneda",
+            "description": "(Legacy) Código de moneda. Usar moneda_id."
+          },
+          "estado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado"
+          },
+          "requiere_autorizacion": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requiere Autorizacion"
+          },
+          "autorizado_por_usuario_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autorizado Por Usuario Id"
+          },
+          "fecha_autorizacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Autorizacion"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          },
+          "motivo_anulacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Anulacion"
+          },
+          "centro_costo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Centro Costo Id"
+          },
+          "detalles": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MovimientoDetalleCreateEmbebido"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detalles",
+            "description": "Si se provee, reemplaza todas las líneas existentes."
+          }
+        },
+        "type": "object",
+        "title": "MovimientoConDetalleUpdate",
+        "description": "Actualización de movimiento (solo en borrador) + reemplazo opcional de líneas.\nSi 'detalles' se provee, reemplaza todas las líneas existentes."
+      },
       "MovimientoCreate": {
         "properties": {
           "empresa_id": {
@@ -10093,6 +12048,155 @@
         ],
         "title": "MovimientoDetalleCreate"
       },
+      "MovimientoDetalleCreateEmbebido": {
+        "properties": {
+          "producto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Producto Id"
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "unidad_medida_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unidad Medida Id"
+          },
+          "cantidad_base": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Cantidad Base"
+          },
+          "costo_unitario": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo Unitario"
+          },
+          "moneda_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moneda Id",
+            "description": "ID de moneda (cat_moneda.moneda_id). Preferido."
+          },
+          "moneda": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moneda",
+            "description": "(Legacy) Código de moneda. Usar moneda_id.",
+            "default": "PEN"
+          },
+          "lote": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lote"
+          },
+          "fecha_vencimiento": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Vencimiento"
+          },
+          "numero_serie": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Numero Serie"
+          },
+          "ubicacion_almacen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ubicacion Almacen"
+          },
+          "observaciones": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observaciones"
+          }
+        },
+        "type": "object",
+        "required": [
+          "producto_id",
+          "cantidad",
+          "unidad_medida_id",
+          "cantidad_base"
+        ],
+        "title": "MovimientoDetalleCreateEmbebido",
+        "description": "Línea de movimiento para crear embebida en la cabecera.\nNo incluye movimiento_id ni empresa_id: se heredan de la cabecera."
+      },
       "MovimientoDetalleRead": {
         "properties": {
           "movimiento_detalle_id": {
@@ -10143,6 +12247,17 @@
               }
             ],
             "title": "Costo Unitario"
+          },
+          "costo_total": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo Total"
           },
           "moneda_id": {
             "anyOf": [

@@ -1,7 +1,7 @@
 /**
  * Servicio del módulo ORG (Organización)
  * Base URL: /api/v1/org/
- * Autenticación: Bearer token (header enviado por la instancia axios).
+ * Contrato Etapa B: company-scoped sin ?empresa_id (ámbito solo JWT).
  */
 import api from '@/core/api/api';
 import type {
@@ -23,12 +23,28 @@ import type {
   Parametro,
   ParametroCreate,
   ParametroUpdate,
-  OrgListParams,
+  OrgCompanyListParams,
+  OrgParametroListParams,
 } from '../types/org.types';
 
 const BASE = '/org';
 
-// ─── Empresa ─────────────────────────────────────────────────────────────
+function buildListQuery(
+  params?: OrgCompanyListParams & { buscar?: string; modulo_codigo?: string },
+): Record<string, string | boolean> {
+  const q: Record<string, string | boolean> = { solo_activos: params?.solo_activos ?? true };
+  if (params?.buscar) q.buscar = params.buscar;
+  if (params?.modulo_codigo) q.modulo_codigo = params.modulo_codigo;
+  return q;
+}
+
+function buildParametroListQuery(params?: OrgParametroListParams): Record<string, string | boolean> {
+  const q = buildListQuery(params);
+  if (params?.vista) q.vista = params.vista;
+  return q;
+}
+
+// ─── Empresa (tenant-scoped) ─────────────────────────────────────────────
 
 export const empresaService = {
   list: async (params?: { solo_activos?: boolean; buscar?: string }): Promise<Empresa[]> => {
@@ -63,21 +79,18 @@ export const empresaService = {
   },
 };
 
-// ─── Sucursales ───────────────────────────────────────────────────────────
+// ─── Sucursales (company-scoped, JWT) ─────────────────────────────────────
 
 export const sucursalService = {
-  list: async (params?: OrgListParams & { buscar?: string }): Promise<Sucursal[]> => {
-    const q: Record<string, string | boolean> = { solo_activos: params?.solo_activos ?? true };
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    if (params?.buscar) q.buscar = params.buscar;
-    const { data } = await api.get<Sucursal[]>(`${BASE}/sucursales`, { params: q });
+  list: async (params?: OrgCompanyListParams & { buscar?: string }): Promise<Sucursal[]> => {
+    const { data } = await api.get<Sucursal[]>(`${BASE}/sucursales`, {
+      params: buildListQuery(params),
+    });
     return Array.isArray(data) ? data : [];
   },
 
-  getById: async (sucursalId: string, params?: { empresa_id?: string }): Promise<Sucursal> => {
-    const { data } = await api.get<Sucursal>(`${BASE}/sucursales/${sucursalId}`, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  getById: async (sucursalId: string): Promise<Sucursal> => {
+    const { data } = await api.get<Sucursal>(`${BASE}/sucursales/${sucursalId}`);
     return data;
   },
 
@@ -86,42 +99,33 @@ export const sucursalService = {
     return data;
   },
 
-  update: async (sucursalId: string, payload: SucursalUpdate, params?: { empresa_id?: string }): Promise<Sucursal> => {
-    const { data } = await api.put<Sucursal>(`${BASE}/sucursales/${sucursalId}`, payload, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  update: async (sucursalId: string, payload: SucursalUpdate): Promise<Sucursal> => {
+    const { data } = await api.put<Sucursal>(`${BASE}/sucursales/${sucursalId}`, payload);
     return data;
   },
 
-  delete: async (sucursalId: string, params?: { empresa_id?: string }): Promise<void> => {
-    await api.delete(`${BASE}/sucursales/${sucursalId}`, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  delete: async (sucursalId: string): Promise<void> => {
+    await api.delete(`${BASE}/sucursales/${sucursalId}`);
   },
 
-  reactivar: async (sucursalId: string, params?: { empresa_id?: string }): Promise<Sucursal> => {
-    const { data } = await api.post<Sucursal>(`${BASE}/sucursales/${sucursalId}/reactivar`, null, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  reactivar: async (sucursalId: string): Promise<Sucursal> => {
+    const { data } = await api.post<Sucursal>(`${BASE}/sucursales/${sucursalId}/reactivar`);
     return data;
   },
 };
 
-// ─── Centros de costo ─────────────────────────────────────────────────────
+// ─── Centros de costo (company-scoped, JWT) ───────────────────────────────
 
 export const centroCostoService = {
-  list: async (params?: OrgListParams & { buscar?: string }): Promise<CentroCosto[]> => {
-    const q: Record<string, string | boolean> = { solo_activos: params?.solo_activos ?? true };
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    if (params?.buscar) q.buscar = params.buscar;
-    const { data } = await api.get<CentroCosto[]>(`${BASE}/centros-costo`, { params: q });
+  list: async (params?: OrgCompanyListParams & { buscar?: string }): Promise<CentroCosto[]> => {
+    const { data } = await api.get<CentroCosto[]>(`${BASE}/centros-costo`, {
+      params: buildListQuery(params),
+    });
     return Array.isArray(data) ? data : [];
   },
 
-  getById: async (centroCostoId: string, params?: { empresa_id?: string }): Promise<CentroCosto> => {
-    const { data } = await api.get<CentroCosto>(`${BASE}/centros-costo/${centroCostoId}`, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  getById: async (centroCostoId: string): Promise<CentroCosto> => {
+    const { data } = await api.get<CentroCosto>(`${BASE}/centros-costo/${centroCostoId}`);
     return data;
   },
 
@@ -130,42 +134,35 @@ export const centroCostoService = {
     return data;
   },
 
-  update: async (centroCostoId: string, payload: CentroCostoUpdate, params?: { empresa_id?: string }): Promise<CentroCosto> => {
-    const { data } = await api.put<CentroCosto>(`${BASE}/centros-costo/${centroCostoId}`, payload, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  update: async (centroCostoId: string, payload: CentroCostoUpdate): Promise<CentroCosto> => {
+    const { data } = await api.put<CentroCosto>(`${BASE}/centros-costo/${centroCostoId}`, payload);
     return data;
   },
 
-  delete: async (centroCostoId: string, params?: { empresa_id?: string }): Promise<void> => {
-    await api.delete(`${BASE}/centros-costo/${centroCostoId}`, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  delete: async (centroCostoId: string): Promise<void> => {
+    await api.delete(`${BASE}/centros-costo/${centroCostoId}`);
   },
 
-  reactivar: async (centroCostoId: string, params?: { empresa_id?: string }): Promise<CentroCosto> => {
-    const { data } = await api.post<CentroCosto>(`${BASE}/centros-costo/${centroCostoId}/reactivar`, null, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  reactivar: async (centroCostoId: string): Promise<CentroCosto> => {
+    const { data } = await api.post<CentroCosto>(
+      `${BASE}/centros-costo/${centroCostoId}/reactivar`,
+    );
     return data;
   },
 };
 
-// ─── Departamentos ────────────────────────────────────────────────────────
+// ─── Departamentos (company-scoped, JWT) ──────────────────────────────────
 
 export const departamentoService = {
-  list: async (params?: OrgListParams & { buscar?: string }): Promise<Departamento[]> => {
-    const q: Record<string, string | boolean> = { solo_activos: params?.solo_activos ?? true };
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    if (params?.buscar) q.buscar = params.buscar;
-    const { data } = await api.get<Departamento[]>(`${BASE}/departamentos`, { params: q });
+  list: async (params?: OrgCompanyListParams & { buscar?: string }): Promise<Departamento[]> => {
+    const { data } = await api.get<Departamento[]>(`${BASE}/departamentos`, {
+      params: buildListQuery(params),
+    });
     return Array.isArray(data) ? data : [];
   },
 
-  getById: async (departamentoId: string, params?: { empresa_id?: string }): Promise<Departamento> => {
-    const { data } = await api.get<Departamento>(`${BASE}/departamentos/${departamentoId}`, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  getById: async (departamentoId: string): Promise<Departamento> => {
+    const { data } = await api.get<Departamento>(`${BASE}/departamentos/${departamentoId}`);
     return data;
   },
 
@@ -174,46 +171,36 @@ export const departamentoService = {
     return data;
   },
 
-  update: async (
-    departamentoId: string,
-    payload: DepartamentoUpdate,
-    params?: { empresa_id?: string }
-  ): Promise<Departamento> => {
-    const { data } = await api.put<Departamento>(`${BASE}/departamentos/${departamentoId}`, payload, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  update: async (departamentoId: string, payload: DepartamentoUpdate): Promise<Departamento> => {
+    const { data } = await api.put<Departamento>(
+      `${BASE}/departamentos/${departamentoId}`,
+      payload,
+    );
     return data;
   },
 
-  delete: async (departamentoId: string, params?: { empresa_id?: string }): Promise<void> => {
-    await api.delete(`${BASE}/departamentos/${departamentoId}`, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  delete: async (departamentoId: string): Promise<void> => {
+    await api.delete(`${BASE}/departamentos/${departamentoId}`);
   },
 
-  reactivar: async (departamentoId: string, params?: { empresa_id?: string }): Promise<Departamento> => {
-    const { data } = await api.post<Departamento>(`${BASE}/departamentos/${departamentoId}/reactivar`, null, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  reactivar: async (departamentoId: string): Promise<Departamento> => {
+    const { data } = await api.post<Departamento>(
+      `${BASE}/departamentos/${departamentoId}/reactivar`,
+    );
     return data;
   },
 };
 
-// ─── Cargos ──────────────────────────────────────────────────────────────
+// ─── Cargos (company-scoped, JWT) ─────────────────────────────────────────
 
 export const cargoService = {
-  list: async (params?: OrgListParams & { buscar?: string }): Promise<Cargo[]> => {
-    const q: Record<string, string | boolean> = { solo_activos: params?.solo_activos ?? true };
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    if (params?.buscar) q.buscar = params.buscar;
-    const { data } = await api.get<Cargo[]>(`${BASE}/cargos`, { params: q });
+  list: async (params?: OrgCompanyListParams & { buscar?: string }): Promise<Cargo[]> => {
+    const { data } = await api.get<Cargo[]>(`${BASE}/cargos`, { params: buildListQuery(params) });
     return Array.isArray(data) ? data : [];
   },
 
-  getById: async (cargoId: string, params?: { empresa_id?: string }): Promise<Cargo> => {
-    const { data } = await api.get<Cargo>(`${BASE}/cargos/${cargoId}`, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  getById: async (cargoId: string): Promise<Cargo> => {
+    const { data } = await api.get<Cargo>(`${BASE}/cargos/${cargoId}`);
     return data;
   },
 
@@ -222,43 +209,33 @@ export const cargoService = {
     return data;
   },
 
-  update: async (cargoId: string, payload: CargoUpdate, params?: { empresa_id?: string }): Promise<Cargo> => {
-    const { data } = await api.put<Cargo>(`${BASE}/cargos/${cargoId}`, payload, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  update: async (cargoId: string, payload: CargoUpdate): Promise<Cargo> => {
+    const { data } = await api.put<Cargo>(`${BASE}/cargos/${cargoId}`, payload);
     return data;
   },
 
-  delete: async (cargoId: string, params?: { empresa_id?: string }): Promise<void> => {
-    await api.delete(`${BASE}/cargos/${cargoId}`, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  delete: async (cargoId: string): Promise<void> => {
+    await api.delete(`${BASE}/cargos/${cargoId}`);
   },
 
-  reactivar: async (cargoId: string, params?: { empresa_id?: string }): Promise<Cargo> => {
-    const { data } = await api.post<Cargo>(`${BASE}/cargos/${cargoId}/reactivar`, null, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  reactivar: async (cargoId: string): Promise<Cargo> => {
+    const { data } = await api.post<Cargo>(`${BASE}/cargos/${cargoId}/reactivar`);
     return data;
   },
 };
 
-// ─── Parámetros ──────────────────────────────────────────────────────────
+// ─── Parámetros (hybrid, JWT — sin ?empresa_id en query) ───────────────────
 
 export const parametroService = {
-  list: async (params?: OrgListParams & { modulo_codigo?: string; buscar?: string }): Promise<Parametro[]> => {
-    const q: Record<string, string | boolean> = { solo_activos: params?.solo_activos ?? true };
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    if (params?.modulo_codigo) q.modulo_codigo = params.modulo_codigo;
-    if (params?.buscar) q.buscar = params.buscar;
-    const { data } = await api.get<Parametro[]>(`${BASE}/parametros`, { params: q });
+  list: async (params?: OrgParametroListParams): Promise<Parametro[]> => {
+    const { data } = await api.get<Parametro[]>(`${BASE}/parametros`, {
+      params: buildParametroListQuery(params),
+    });
     return Array.isArray(data) ? data : [];
   },
 
-  getById: async (parametroId: string, params?: { empresa_id?: string }): Promise<Parametro> => {
-    const { data } = await api.get<Parametro>(`${BASE}/parametros/${parametroId}`, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  getById: async (parametroId: string): Promise<Parametro> => {
+    const { data } = await api.get<Parametro>(`${BASE}/parametros/${parametroId}`);
     return data;
   },
 
@@ -267,23 +244,17 @@ export const parametroService = {
     return data;
   },
 
-  update: async (parametroId: string, payload: ParametroUpdate, params?: { empresa_id?: string }): Promise<Parametro> => {
-    const { data } = await api.put<Parametro>(`${BASE}/parametros/${parametroId}`, payload, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  update: async (parametroId: string, payload: ParametroUpdate): Promise<Parametro> => {
+    const { data } = await api.put<Parametro>(`${BASE}/parametros/${parametroId}`, payload);
     return data;
   },
 
-  delete: async (parametroId: string, params?: { empresa_id?: string }): Promise<void> => {
-    await api.delete(`${BASE}/parametros/${parametroId}`, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  delete: async (parametroId: string): Promise<void> => {
+    await api.delete(`${BASE}/parametros/${parametroId}`);
   },
 
-  reactivar: async (parametroId: string, params?: { empresa_id?: string }): Promise<Parametro> => {
-    const { data } = await api.post<Parametro>(`${BASE}/parametros/${parametroId}/reactivar`, null, {
-      params: params?.empresa_id ? { empresa_id: params.empresa_id } : undefined,
-    });
+  reactivar: async (parametroId: string): Promise<Parametro> => {
+    const { data } = await api.post<Parametro>(`${BASE}/parametros/${parametroId}/reactivar`);
     return data;
   },
 };

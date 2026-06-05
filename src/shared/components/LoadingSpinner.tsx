@@ -21,7 +21,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     <div className={containerClass}>
       <div className="text-center">
         <RefreshCw className="animate-spin h-8 w-8 text-brand-primary mx-auto mb-4" />
-        <p className="text-gray-600 dark:text-gray-400">{message}</p>
+        <p className="text-brand-text-secondary">{message}</p>
       </div>
     </div>
   );

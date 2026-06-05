@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <defs>
+    <linearGradient id="gcore-id" x1="15" y1="15" x2="65" y2="65" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4338CA"/>
+      <stop offset="50%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#818CF8"/>
+    </linearGradient>
+    <radialGradient id="gglow-id" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#6366F1" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#4338CA" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gaxis-id" x1="8" y1="40" x2="72" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4338CA" stop-opacity="0.4"/>
+      <stop offset="50%" stop-color="#818CF8" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#4338CA" stop-opacity="0.4"/>
+    </linearGradient>
+  </defs>
+  <circle cx="40" cy="40" r="38" fill="url(#gglow-id)"/>
+  <circle cx="40" cy="40" r="35" fill="none" stroke="#4338CA" stroke-width="1" opacity="0.4"/>
+  <line x1="8" y1="40" x2="72" y2="40" stroke="url(#gaxis-id)" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="40" y1="8" x2="40" y2="72" stroke="url(#gaxis-id)" stroke-width="1.5" stroke-linecap="round"/>
+  <ellipse cx="40" cy="40" rx="34" ry="13" fill="none" stroke="#4338CA" stroke-width="2.5"/>
+  <ellipse cx="40" cy="40" rx="34" ry="13" fill="none" stroke="#6366F1" stroke-width="2.5" transform="rotate(60 40 40)"/>
+  <ellipse cx="40" cy="40" rx="34" ry="13" fill="none" stroke="#818CF8" stroke-width="2.5" transform="rotate(120 40 40)"/>
+  <!-- Nodos órbita 1: #4338CA -->
+  <circle cx="74" cy="40" r="5" fill="#4338CA" fill-opacity="0.25" stroke="#4338CA" stroke-width="1"/>
+  <circle cx="74" cy="40" r="3" fill="#4338CA"/>
+  <circle cx="6" cy="40" r="5" fill="#4338CA" fill-opacity="0.25" stroke="#4338CA" stroke-width="1"/>
+  <circle cx="6" cy="40" r="3" fill="#4338CA"/>
+  <!-- Nodos órbita 2: #6366F1 -->
+  <circle cx="57" cy="69" r="5" fill="#6366F1" fill-opacity="0.25" stroke="#6366F1" stroke-width="1"/>
+  <circle cx="57" cy="69" r="3" fill="#6366F1"/>
+  <circle cx="23" cy="11" r="5" fill="#6366F1" fill-opacity="0.25" stroke="#6366F1" stroke-width="1"/>
+  <circle cx="23" cy="11" r="3" fill="#6366F1"/>
+  <!-- Nodos órbita 3: #818CF8 -->
+  <circle cx="23" cy="69" r="5" fill="#818CF8" fill-opacity="0.25" stroke="#818CF8" stroke-width="1"/>
+  <circle cx="23" cy="69" r="3" fill="#818CF8"/>
+  <circle cx="57" cy="11" r="5" fill="#818CF8" fill-opacity="0.25" stroke="#818CF8" stroke-width="1"/>
+  <circle cx="57" cy="11" r="3" fill="#818CF8"/>
+  <!-- Núcleo -->
+  <circle cx="40" cy="40" r="11" fill="url(#gcore-id)"/>
+  <circle cx="40" cy="40" r="5.5" fill="#080e1f"/>
+  <circle cx="40" cy="40" r="2.5" fill="#A5B4FC"/>
+</svg>

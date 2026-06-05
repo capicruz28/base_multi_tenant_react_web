@@ -1,8 +1,18 @@
 /**
  * Tipos del módulo INV (Inventarios)
- * Alineados con la documentación del backend: /api/v1/inv/
- * Incluye TODOS los campos esenciales para funcionamiento completo del sistema
+ * Alineados con el contrato API: /api/v1/inv/ (`docs/api/INV_API.json`).
+ *
+ * Bloque 1 (Fase 2): request/response separados, sin `any`; cabecera+detalle embebido
+ * en `MovimientoConDetalleCreate` / `InventarioFisicoConDetalleCreate` como `detalles[]`.
+ *
+ * Última revisión contrato: 2026-05-14
  */
+
+/**
+ * Decimal API (Pydantic): suele serializarse como `string`; el cliente puede normalizar a `number`.
+ * Usar en lecturas donde el OpenAPI declare `string` para cantidades importes.
+ */
+export type InvApiDecimal = string | number;
 
 // ─── Categoría de Producto ─────────────────────────────────────────────────
 
@@ -50,7 +60,7 @@ export interface UnidadMedida {
   codigo: string;
   nombre: string;
   simbolo?: string | null;
-  tipo_unidad: string; // 'cantidad', 'peso', 'volumen', 'longitud', 'area', 'tiempo'
+  tipo_unidad: string; // 'cantidad' | 'peso' | 'volumen' | 'longitud' | 'area' | 'tiempo'
   es_unidad_base?: boolean;
   factor_conversion_base?: number | null;
   decimales_permitidos?: number | null;
@@ -93,7 +103,7 @@ export interface Producto {
   marca?: string | null;
   modelo?: string | null;
   linea_producto?: string | null;
-  tipo_producto: string; // 'bien', 'servicio', 'materia_prima', 'producto_terminado', 'semi_elaborado', 'insumo'
+  tipo_producto: string; // 'bien' | 'servicio' | 'materia_prima' | 'producto_terminado' | 'semi_elaborado' | 'insumo'
   subtipo_producto?: string | null;
   unidad_medida_base_id: string;
   unidad_medida_compra_id?: string | null;
@@ -232,7 +242,7 @@ export interface Almacen {
   codigo: string;
   nombre: string;
   descripcion?: string | null;
-  tipo_almacen: string; // 'general', 'materia_prima', 'producto_terminado', 'transito', 'consignacion', 'cuarentena'
+  tipo_almacen: string; // 'general' | 'materia_prima' | 'producto_terminado' | 'transito' | 'consignacion' | 'cuarentena'
   direccion?: string | null;
   responsable_usuario_id?: string | null;
   responsable_nombre?: string | null;
@@ -274,6 +284,9 @@ export interface AlmacenCreate {
 export interface AlmacenUpdate extends Partial<AlmacenCreate> {}
 
 // ─── Stock ──────────────────────────────────────────────────────────────────
+// Stock es solo lectura desde el frontend (create/update son deprecated).
+// Se actualiza exclusivamente mediante movimientos de inventario.
+// OpenAPI `StockRead` usa strings para decimales; `stockService` (Bloque 2) normaliza a `number` al recibir.
 
 export interface Stock {
   stock_id: string;
@@ -287,6 +300,7 @@ export interface Stock {
   cantidad_transito?: number | null;
   costo_promedio?: number | null;
   valor_total?: number | null;
+  moneda_id?: string;
   moneda?: string | null;
   stock_minimo?: number | null;
   stock_maximo?: number | null;
@@ -298,23 +312,6 @@ export interface Stock {
   fecha_actualizacion?: string | null;
 }
 
-export interface StockCreate {
-  empresa_id: string;
-  producto_id: string;
-  almacen_id: string;
-  cantidad_actual: number;
-  cantidad_reservada?: number | null;
-  cantidad_transito?: number | null;
-  costo_promedio?: number | null;
-  moneda?: string | null;
-  stock_minimo?: number | null;
-  stock_maximo?: number | null;
-  punto_reorden?: number | null;
-  ubicacion_almacen?: string | null;
-}
-
-export interface StockUpdate extends Partial<StockCreate> {}
-
 // ─── Tipo de Movimiento ────────────────────────────────────────────────────
 
 export interface TipoMovimiento {
@@ -324,7 +321,7 @@ export interface TipoMovimiento {
   codigo: string;
   nombre: string;
   descripcion?: string | null;
-  clase_movimiento: string; // 'entrada', 'salida', 'transferencia', 'ajuste'
+  clase_movimiento: string; // 'entrada' | 'salida' | 'transferencia' | 'ajuste'
   afecta_costo?: boolean;
   requiere_autorizacion?: boolean;
   genera_asiento_contable?: boolean;
@@ -359,6 +356,8 @@ export interface TipoMovimientoCreate {
 export interface TipoMovimientoUpdate extends Partial<TipoMovimientoCreate> {}
 
 // ─── Movimiento ────────────────────────────────────────────────────────────
+// Campos numéricos (total_cantidad, total_costo) vienen como string|null
+// desde el backend (serialización Decimal).
 
 export interface Movimiento {
   movimiento_id: string;
@@ -378,11 +377,12 @@ export interface Movimiento {
   tercero_id?: string | null;
   tercero_nombre?: string | null;
   total_items?: number | null;
-  total_cantidad?: number | null;
-  total_costo?: number | null;
+  total_cantidad?: string | null;
+  total_costo?: string | null;
+  moneda_id?: string | null;
   moneda?: string | null;
-  estado?: string | null; // 'borrador', 'autorizado', 'procesado', 'anulado'
-  requiere_autorizacion?: boolean;
+  estado: string; // 'borrador' | 'autorizado' | 'procesado' | 'anulado'
+  requiere_autorizacion?: boolean | null;
   autorizado_por_usuario_id?: string | null;
   fecha_autorizacion?: string | null;
   observaciones?: string | null;
@@ -411,18 +411,130 @@ export interface MovimientoCreate {
   tercero_id?: string | null;
   tercero_nombre?: string | null;
   total_items?: number | null;
-  total_cantidad?: number | null;
-  total_costo?: number | null;
+  total_cantidad?: number | string | null;
+  total_costo?: number | string | null;
+  moneda_id?: string | null;
   moneda?: string | null;
   estado?: string | null;
-  requiere_autorizacion?: boolean;
+  requiere_autorizacion?: boolean | null;
   observaciones?: string | null;
   centro_costo_id?: string | null;
 }
 
 export interface MovimientoUpdate extends Partial<MovimientoCreate> {}
 
+// ─── Movimiento Detalle (línea) ────────────────────────────────────────────
+// Campos numéricos vienen como string en responses (backend serializa Decimal).
+
+export interface MovimientoDetalleRead {
+  movimiento_detalle_id: string;
+  cliente_id: string;
+  empresa_id: string;
+  movimiento_id: string;
+  producto_id: string;
+  cantidad: string;
+  unidad_medida_id: string;
+  cantidad_base: string;
+  costo_unitario?: string | null;
+  costo_total?: string | null;
+  moneda_id?: string | null;
+  moneda?: string | null;
+  lote?: string | null;
+  fecha_vencimiento?: string | null;
+  numero_serie?: string | null;
+  ubicacion_almacen?: string | null;
+  observaciones?: string | null;
+  fecha_creacion?: string | null;
+}
+
+/**
+ * Línea embebida para POST/PUT /movimientos/con-detalle.
+ * No incluye empresa_id ni movimiento_id — van en la cabecera.
+ */
+export interface MovimientoDetalleCreateEmbebido {
+  producto_id: string;
+  cantidad: number | string;
+  unidad_medida_id: string;
+  cantidad_base: number | string;
+  costo_unitario?: number | string | null;
+  moneda_id?: string | null;
+  moneda?: string | null;
+  lote?: string | null;
+  fecha_vencimiento?: string | null;
+  numero_serie?: string | null;
+  ubicacion_almacen?: string | null;
+  observaciones?: string | null;
+}
+
+// ─── Movimiento con Detalle (cabecera + líneas en una sola operación) ──────
+
+export interface MovimientoConDetalle extends Movimiento {
+  detalles?: MovimientoDetalleRead[];
+}
+
+/** POST /api/v1/inv/movimientos/con-detalle */
+export interface MovimientoConDetalleCreate {
+  empresa_id: string;
+  numero_movimiento: string;
+  tipo_movimiento_id: string;
+  fecha_movimiento?: string | null;
+  fecha_contable: string;
+  almacen_origen_id?: string | null;
+  almacen_destino_id?: string | null;
+  modulo_origen?: string | null;
+  documento_referencia_tipo?: string | null;
+  documento_referencia_id?: string | null;
+  documento_referencia_numero?: string | null;
+  tercero_tipo?: string | null;
+  tercero_id?: string | null;
+  tercero_nombre?: string | null;
+  total_items?: number | null;
+  total_cantidad?: number | string | null;
+  total_costo?: number | string | null;
+  moneda_id?: string | null;
+  moneda?: string | null;
+  estado?: string | null;
+  requiere_autorizacion?: boolean | null;
+  autorizado_por_usuario_id?: string | null;
+  fecha_autorizacion?: string | null;
+  observaciones?: string | null;
+  motivo_anulacion?: string | null;
+  centro_costo_id?: string | null;
+  detalles: MovimientoDetalleCreateEmbebido[];
+}
+
+/** PUT /api/v1/inv/movimientos/{id}/con-detalle */
+export interface MovimientoConDetalleUpdate {
+  numero_movimiento?: string | null;
+  tipo_movimiento_id?: string | null;
+  fecha_movimiento?: string | null;
+  fecha_contable?: string | null;
+  almacen_origen_id?: string | null;
+  almacen_destino_id?: string | null;
+  modulo_origen?: string | null;
+  documento_referencia_tipo?: string | null;
+  documento_referencia_id?: string | null;
+  documento_referencia_numero?: string | null;
+  tercero_tipo?: string | null;
+  tercero_id?: string | null;
+  tercero_nombre?: string | null;
+  total_items?: number | null;
+  total_cantidad?: number | string | null;
+  total_costo?: number | string | null;
+  moneda_id?: string | null;
+  moneda?: string | null;
+  estado?: string | null;
+  requiere_autorizacion?: boolean | null;
+  autorizado_por_usuario_id?: string | null;
+  fecha_autorizacion?: string | null;
+  observaciones?: string | null;
+  motivo_anulacion?: string | null;
+  centro_costo_id?: string | null;
+  detalles?: MovimientoDetalleCreateEmbebido[] | null;
+}
+
 // ─── Inventario Físico ─────────────────────────────────────────────────────
+// valor_diferencias viene como string|null desde el backend (serialización Decimal).
 
 export interface InventarioFisico {
   inventario_fisico_id: string;
@@ -431,16 +543,16 @@ export interface InventarioFisico {
   numero_inventario: string;
   fecha_inventario: string;
   almacen_id: string;
-  tipo_inventario: string; // 'total', 'ciclico', 'selectivo'
+  tipo_inventario: string; // 'total' | 'ciclico' | 'selectivo'
   descripcion?: string | null;
   categoria_id?: string | null;
   ubicacion_almacen?: string | null;
-  estado?: string | null; // 'en_proceso', 'finalizado', 'ajustado', 'anulado'
+  estado: string; // 'en_proceso' | 'finalizado' | 'ajustado' | 'anulado'
   supervisor_usuario_id?: string | null;
   supervisor_nombre?: string | null;
   total_productos_contados?: number | null;
   total_diferencias?: number | null;
-  valor_diferencias?: number | null;
+  valor_diferencias?: string | null;
   movimiento_ajuste_id?: string | null;
   observaciones?: string | null;
   fecha_creacion?: string | null;
@@ -466,76 +578,9 @@ export interface InventarioFisicoCreate {
 
 export interface InventarioFisicoUpdate extends Partial<InventarioFisicoCreate> {}
 
-// ─── Movimiento (Detalle) ────────────────────────────────────────────────────
+// ─── Inventario Físico Detalle (línea) ─────────────────────────────────────
+// Campos numéricos vienen como string en responses.
 
-/**
- * OpenAPI: components.schemas.MovimientoDetalleRead
- * Campos numéricos vienen como string en responses (backend serializa Decimal).
- */
-export interface MovimientoDetalleRead {
-  movimiento_detalle_id: string;
-  cliente_id: string;
-  empresa_id: string;
-  movimiento_id: string;
-  producto_id: string;
-  cantidad: string;
-  unidad_medida_id: string;
-  cantidad_base: string;
-  costo_unitario?: string | null;
-  moneda_id?: string | null;
-  moneda?: string | null;
-  lote?: string | null;
-  fecha_vencimiento?: string | null; // date
-  numero_serie?: string | null;
-  ubicacion_almacen?: string | null;
-  observaciones?: string | null;
-  fecha_creacion?: string | null; // date-time
-}
-
-/**
- * OpenAPI: components.schemas.MovimientoDetalleCreate
- * `cantidad` y `cantidad_base` aceptan number|string en request.
- */
-export interface MovimientoDetalleCreate {
-  empresa_id: string;
-  movimiento_id: string;
-  producto_id: string;
-  cantidad: number | string;
-  unidad_medida_id: string;
-  cantidad_base: number | string;
-  costo_unitario?: number | string | null;
-  moneda_id?: string | null;
-  moneda?: string | null;
-  lote?: string | null;
-  fecha_vencimiento?: string | null; // date
-  numero_serie?: string | null;
-  ubicacion_almacen?: string | null;
-  observaciones?: string | null;
-}
-
-/**
- * OpenAPI: components.schemas.MovimientoDetalleUpdate
- */
-export interface MovimientoDetalleUpdate {
-  cantidad?: number | string | null;
-  unidad_medida_id?: string | null;
-  cantidad_base?: number | string | null;
-  costo_unitario?: number | string | null;
-  moneda_id?: string | null;
-  moneda?: string | null;
-  lote?: string | null;
-  fecha_vencimiento?: string | null; // date
-  numero_serie?: string | null;
-  ubicacion_almacen?: string | null;
-  observaciones?: string | null;
-}
-
-// ─── Inventario Físico (Detalle) ────────────────────────────────────────────
-
-/**
- * OpenAPI: components.schemas.InventarioFisicoDetalleRead
- * Campos numéricos vienen como string en responses (backend serializa Decimal).
- */
 export interface InventarioFisicoDetalleRead {
   inventario_fisico_detalle_id: string;
   cliente_id: string;
@@ -544,103 +589,129 @@ export interface InventarioFisicoDetalleRead {
   producto_id: string;
   cantidad_sistema: string;
   cantidad_contada?: string | null;
+  diferencia?: string | null;
   lote?: string | null;
-  fecha_vencimiento?: string | null; // date
+  fecha_vencimiento?: string | null;
   ubicacion_almacen?: string | null;
   costo_unitario?: string | null;
+  valor_diferencia?: string | null;
   estado_conteo?: string | null;
   contador_usuario_id?: string | null;
   contador_nombre?: string | null;
-  fecha_conteo?: string | null; // date-time
+  fecha_conteo?: string | null;
   observaciones?: string | null;
   motivo_diferencia?: string | null;
-  fecha_creacion?: string | null; // date-time
+  fecha_creacion?: string | null;
 }
 
 /**
- * OpenAPI: components.schemas.InventarioFisicoDetalleCreate
+ * Línea embebida para POST/PUT /inventario-fisico/con-detalle.
+ * No incluye empresa_id ni inventario_fisico_id — van en la cabecera.
  */
-export interface InventarioFisicoDetalleCreate {
-  empresa_id: string;
-  inventario_fisico_id: string;
+export interface InventarioFisicoDetalleCreateEmbebido {
   producto_id: string;
   cantidad_sistema: number | string;
   cantidad_contada?: number | string | null;
   lote?: string | null;
-  fecha_vencimiento?: string | null; // date
+  fecha_vencimiento?: string | null;
   ubicacion_almacen?: string | null;
   costo_unitario?: number | string | null;
   estado_conteo?: string | null;
   contador_usuario_id?: string | null;
   contador_nombre?: string | null;
-  fecha_conteo?: string | null; // date-time
+  fecha_conteo?: string | null;
   observaciones?: string | null;
   motivo_diferencia?: string | null;
 }
 
-/**
- * OpenAPI: components.schemas.InventarioFisicoDetalleUpdate
- */
-export interface InventarioFisicoDetalleUpdate {
-  cantidad_sistema?: number | string | null;
-  cantidad_contada?: number | string | null;
-  lote?: string | null;
-  fecha_vencimiento?: string | null; // date
+// ─── Inventario Físico con Detalle (cabecera + líneas en una sola op.) ─────
+
+export interface InventarioFisicoConDetalle extends InventarioFisico {
+  detalles?: InventarioFisicoDetalleRead[];
+}
+
+/** POST /api/v1/inv/inventario-fisico/con-detalle */
+export interface InventarioFisicoConDetalleCreate {
+  empresa_id: string;
+  numero_inventario: string;
+  fecha_inventario: string;
+  almacen_id: string;
+  tipo_inventario: string;
+  descripcion?: string | null;
+  categoria_id?: string | null;
   ubicacion_almacen?: string | null;
-  costo_unitario?: number | string | null;
-  estado_conteo?: string | null;
-  contador_usuario_id?: string | null;
-  contador_nombre?: string | null;
-  fecha_conteo?: string | null; // date-time
+  estado?: string | null;
+  supervisor_usuario_id?: string | null;
+  supervisor_nombre?: string | null;
+  total_productos_contados?: number | null;
+  total_diferencias?: number | null;
+  valor_diferencias?: number | string | null;
+  movimiento_ajuste_id?: string | null;
   observaciones?: string | null;
-  motivo_diferencia?: string | null;
+  detalles?: InventarioFisicoDetalleCreateEmbebido[];
+}
+
+/** PUT /api/v1/inv/inventario-fisico/{id}/con-detalle */
+export interface InventarioFisicoConDetalleUpdate {
+  numero_inventario?: string | null;
+  fecha_inventario?: string | null;
+  almacen_id?: string | null;
+  tipo_inventario?: string | null;
+  descripcion?: string | null;
+  categoria_id?: string | null;
+  ubicacion_almacen?: string | null;
+  estado?: string | null;
+  supervisor_usuario_id?: string | null;
+  supervisor_nombre?: string | null;
+  total_productos_contados?: number | null;
+  total_diferencias?: number | null;
+  valor_diferencias?: number | string | null;
+  movimiento_ajuste_id?: string | null;
+  observaciones?: string | null;
+  fecha_finalizacion?: string | null;
+  fecha_ajuste?: string | null;
+  detalles?: InventarioFisicoDetalleCreateEmbebido[] | null;
 }
 
 // ─── Requests de acciones / flujos ──────────────────────────────────────────
 
-/**
- * OpenAPI: components.schemas.AprobarInventarioFisicoRequest
- */
+/** POST `/api/v1/inv/inventario-fisico/{id}/aprobar` — body con tipo de movimiento de ajuste. */
 export interface AprobarInventarioFisicoRequest {
   tipo_movimiento_id: string;
   observaciones?: string | null;
 }
 
-/**
- * OpenAPI: /api/v1/inv/{movimiento_id}/autorizar
- * No define requestBody en el contrato (solo path param).
- */
-export type AutorizarMovimientoRequest = Record<string, never>;
-
-/**
- * OpenAPI: /api/v1/inv/{movimiento_id}/anular
- * requestBody usa components.schemas.MotivoAnulacion.
- */
+/** POST `/api/v1/inv/{movimiento_id}/anular` — body opcional (`MotivoAnulacion` en OpenAPI). */
 export interface AnularMovimientoRequest {
   motivo?: string | null;
 }
 
+/** POST `/api/v1/inv/{movimiento_id}/autorizar` — sin cuerpo en el contrato OpenAPI. */
+export type AutorizarMovimientoRequest = Record<string, never>;
+
+/** POST `/api/v1/inv/{movimiento_id}/procesar` — sin cuerpo en el contrato OpenAPI. */
+export type ProcesarMovimientoRequest = Record<string, never>;
+
 // ─── Kardex ────────────────────────────────────────────────────────────────
+// Campos del response real de GET /api/v1/inv/kardex.
+// tipo_movimiento_id se resuelve a nombre en la vista cargando useTiposMovimiento
+// y haciendo join en memoria — decisión de diseño, no deuda técnica.
 
 export interface KardexLineaRead {
-  kardex_linea_id: string;
+  movimiento_id: string;
+  movimiento_detalle_id: string;
   empresa_id: string;
-  producto_id: string;
-  almacen_id?: string | null;
   fecha_movimiento: string;
-  numero_movimiento?: string | null;
-  tipo_movimiento_codigo?: string | null;
-  tipo_movimiento_nombre?: string | null;
-  documento_referencia_tipo?: string | null;
-  documento_referencia_numero?: string | null;
-  tercero_nombre?: string | null;
-  cantidad_entrada?: number | null;
-  cantidad_salida?: number | null;
-  saldo_cantidad?: number | null;
-  costo_unitario?: number | null;
-  costo_total?: number | null;
-  saldo_valorizado?: number | null;
+  tipo_movimiento_id: string;
+  producto_id: string;
+  almacen_origen_id?: string | null;
+  almacen_destino_id?: string | null;
+  cantidad_base: string;
+  costo_unitario?: string | null;
   moneda?: string | null;
+  lote?: string | null;
+  numero_serie?: string | null;
+  observaciones?: string | null;
 }
 
 // ─── Filtros de listado ────────────────────────────────────────────────────
@@ -653,9 +724,102 @@ export interface InvListParams {
   almacen_id?: string;
   producto_id?: string;
   tipo_movimiento_id?: string;
+  movimiento_id?: string;
+  inventario_fisico_id?: string;
   estado?: string;
   solo_activos?: boolean;
   buscar?: string;
   fecha_desde?: string;
   fecha_hasta?: string;
 }
+
+// ─── Tipos legacy mantenidos por compatibilidad interna ───────────────────
+// Usados por hooks existentes que no han sido migrados aún.
+// Serán eliminados en la siguiente iteración de limpieza.
+
+/** @deprecated Usar MovimientoDetalleCreateEmbebido en contexto con-detalle */
+export interface MovimientoDetalleCreate {
+  empresa_id: string;
+  movimiento_id: string;
+  producto_id: string;
+  cantidad: number | string;
+  unidad_medida_id: string;
+  cantidad_base: number | string;
+  costo_unitario?: number | string | null;
+  moneda_id?: string | null;
+  moneda?: string | null;
+  lote?: string | null;
+  fecha_vencimiento?: string | null;
+  numero_serie?: string | null;
+  ubicacion_almacen?: string | null;
+  observaciones?: string | null;
+}
+
+/** @deprecated Usar MovimientoConDetalleUpdate en contexto con-detalle */
+export interface MovimientoDetalleUpdate {
+  cantidad?: number | string | null;
+  unidad_medida_id?: string | null;
+  cantidad_base?: number | string | null;
+  costo_unitario?: number | string | null;
+  moneda_id?: string | null;
+  moneda?: string | null;
+  lote?: string | null;
+  fecha_vencimiento?: string | null;
+  numero_serie?: string | null;
+  ubicacion_almacen?: string | null;
+  observaciones?: string | null;
+}
+
+/** @deprecated Usar InventarioFisicoDetalleCreateEmbebido en contexto con-detalle */
+export interface InventarioFisicoDetalleCreate {
+  empresa_id: string;
+  inventario_fisico_id: string;
+  producto_id: string;
+  cantidad_sistema: number | string;
+  cantidad_contada?: number | string | null;
+  lote?: string | null;
+  fecha_vencimiento?: string | null;
+  ubicacion_almacen?: string | null;
+  costo_unitario?: number | string | null;
+  estado_conteo?: string | null;
+  contador_usuario_id?: string | null;
+  contador_nombre?: string | null;
+  fecha_conteo?: string | null;
+  observaciones?: string | null;
+  motivo_diferencia?: string | null;
+}
+
+/** @deprecated Usar InventarioFisicoConDetalleUpdate en contexto con-detalle */
+export interface InventarioFisicoDetalleUpdate {
+  cantidad_sistema?: number | string | null;
+  cantidad_contada?: number | string | null;
+  lote?: string | null;
+  fecha_vencimiento?: string | null;
+  ubicacion_almacen?: string | null;
+  costo_unitario?: number | string | null;
+  estado_conteo?: string | null;
+  contador_usuario_id?: string | null;
+  contador_nombre?: string | null;
+  fecha_conteo?: string | null;
+  observaciones?: string | null;
+  motivo_diferencia?: string | null;
+}
+
+/** @deprecated Sin uso activo; stock se gestiona mediante movimientos */
+export interface StockCreate {
+  empresa_id: string;
+  producto_id: string;
+  almacen_id: string;
+  cantidad_actual: number;
+  cantidad_reservada?: number | null;
+  cantidad_transito?: number | null;
+  costo_promedio?: number | null;
+  moneda?: string | null;
+  stock_minimo?: number | null;
+  stock_maximo?: number | null;
+  punto_reorden?: number | null;
+  ubicacion_almacen?: string | null;
+}
+
+/** @deprecated Sin uso activo; stock se gestiona mediante movimientos */
+export interface StockUpdate extends Partial<StockCreate> {}

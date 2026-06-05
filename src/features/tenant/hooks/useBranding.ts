@@ -51,7 +51,7 @@ export const useBranding = (autoLoad: boolean = true) => {
       // No loguear, es normal
       resetBranding();
     }
-  }, [branding, loading, error]);
+  }, [branding, loading, error, isAuthenticated, tenantId]);
 
   return {
     branding,

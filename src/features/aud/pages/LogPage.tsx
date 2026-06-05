@@ -95,12 +95,12 @@ export default function LogPage() {
   };
 
   const formatDateTime = (s: string | null | undefined) => (s ? new Date(s).toLocaleString() : '—');
-  const selectCls = 'mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm';
-  const inputCls = 'mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm';
+  const selectCls = 'mt-1 w-full px-3 py-2 border border-brand-border rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-brand-surface-secondary dark:text-brand-text-primary text-sm';
+  const inputCls = 'mt-1 w-full px-3 py-2 border border-brand-border rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-brand-surface-secondary dark:text-brand-text-primary text-sm';
 
   const accionBadge = (accion: string) => {
     const colors: Record<string, string> = { INSERT: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', UPDATE: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300', DELETE: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300', SELECT: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' };
-    return <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[accion] ?? 'bg-gray-100 dark:bg-gray-700'}`}>{accion}</span>;
+    return <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[accion] ?? 'bg-brand-surface-secondary'}`}>{accion}</span>;
   };
 
   return (
@@ -147,7 +147,7 @@ export default function LogPage() {
         <div className="flex-1 min-w-[180px]">
           <Label className="mr-2">Buscar</Label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-text-secondary" />
             <input type="text" placeholder="Usuario, descripción..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`pl-9 w-full ${inputCls}`} />
           </div>
         </div>
@@ -166,31 +166,31 @@ export default function LogPage() {
       {loading && <div className="flex justify-center py-12"><Loader className="h-8 w-8 animate-spin text-brand-primary" /></div>}
       {error && !loading && <p className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">{error}</p>}
       {!loading && !error && (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+        <div className="overflow-x-auto rounded-lg border border-brand-border shadow">
+          <table className="min-w-full divide-y divide-brand-border">
+            <thead className="bg-brand-surface-secondary">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Fecha</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Usuario</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Módulo</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Tabla</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Acción</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Registro</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Detalle</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase">Fecha</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase">Usuario</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase">Módulo</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase">Tabla</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase">Acción</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase">Registro</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-brand-text-secondary uppercase">Detalle</th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-brand-surface divide-y divide-brand-border">
               {list.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"><FileSearch className="h-10 w-10 mx-auto mb-2 opacity-50" />No hay registros en el log.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-brand-text-secondary"><FileSearch className="h-10 w-10 mx-auto mb-2 opacity-50" />No hay registros en el log.</td></tr>
               ) : (
                 list.map((row) => (
-                  <tr key={row.log_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">{formatDateTime(row.fecha_evento)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.usuario_nombre ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.modulo ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.tabla ?? '—'}</td>
+                  <tr key={row.log_id} className="hover:bg-brand-surface-secondary/50 dark:hover:bg-brand-surface-secondary/50">
+                    <td className="px-4 py-3 text-sm text-brand-text-secondary whitespace-nowrap">{formatDateTime(row.fecha_evento)}</td>
+                    <td className="px-4 py-3 text-sm text-brand-text-secondary">{row.usuario_nombre ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-brand-text-secondary">{row.modulo ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-brand-text-secondary">{row.tabla ?? '—'}</td>
                     <td className="px-4 py-3 text-sm">{accionBadge(row.accion)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 max-w-[200px] truncate" title={row.registro_descripcion ?? undefined}>{row.registro_descripcion ?? (row.registro_id ?? '—')}</td>
+                    <td className="px-4 py-3 text-sm text-brand-text-secondary max-w-[200px] truncate" title={row.registro_descripcion ?? undefined}>{row.registro_descripcion ?? (row.registro_id ?? '—')}</td>
                     <td className="px-4 py-3 text-center"><Button variant="ghost" size="icon" onClick={() => openDetail(row)} className="text-brand-primary hover:text-brand-primary/80"><Eye className="h-4 w-4" /></Button></td>
                   </tr>
                 ))
@@ -207,24 +207,24 @@ export default function LogPage() {
           {detail && !detailLoading && (
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-2">
-                <span className="text-gray-500 dark:text-gray-400">Fecha:</span><span>{formatDateTime(detail.fecha_evento)}</span>
-                <span className="text-gray-500 dark:text-gray-400">Usuario:</span><span>{detail.usuario_nombre ?? '—'}</span>
-                <span className="text-gray-500 dark:text-gray-400">Módulo / Tabla:</span><span>{detail.modulo} / {detail.tabla}</span>
-                <span className="text-gray-500 dark:text-gray-400">Acción:</span><span>{accionBadge(detail.accion)}</span>
-                <span className="text-gray-500 dark:text-gray-400">Registro ID:</span><span className="font-mono text-xs break-all">{detail.registro_id ?? '—'}</span>
-                <span className="text-gray-500 dark:text-gray-400">Descripción:</span><span>{detail.registro_descripcion ?? '—'}</span>
+                <span className="text-brand-text-secondary">Fecha:</span><span>{formatDateTime(detail.fecha_evento)}</span>
+                <span className="text-brand-text-secondary">Usuario:</span><span>{detail.usuario_nombre ?? '—'}</span>
+                <span className="text-brand-text-secondary">Módulo / Tabla:</span><span>{detail.modulo} / {detail.tabla}</span>
+                <span className="text-brand-text-secondary">Acción:</span><span>{accionBadge(detail.accion)}</span>
+                <span className="text-brand-text-secondary">Registro ID:</span><span className="font-mono text-xs break-all">{detail.registro_id ?? '—'}</span>
+                <span className="text-brand-text-secondary">Descripción:</span><span>{detail.registro_descripcion ?? '—'}</span>
               </div>
-              {detail.observaciones && <div><span className="text-gray-500 dark:text-gray-400">Observaciones:</span><p className="mt-1">{detail.observaciones}</p></div>}
+              {detail.observaciones && <div><span className="text-brand-text-secondary">Observaciones:</span><p className="mt-1">{detail.observaciones}</p></div>}
               {detail.valores_anteriores && (
                 <div>
-                  <Label className="text-gray-500 dark:text-gray-400">Valores anteriores</Label>
-                  <pre className="mt-1 p-3 bg-gray-100 dark:bg-gray-800 rounded text-xs overflow-x-auto max-h-40 overflow-y-auto">{typeof tryParseJson(detail.valores_anteriores) === 'object' ? JSON.stringify(tryParseJson(detail.valores_anteriores), null, 2) : detail.valores_anteriores}</pre>
+                  <Label className="text-brand-text-secondary">Valores anteriores</Label>
+                  <pre className="mt-1 p-3 bg-brand-surface-secondary rounded text-xs overflow-x-auto max-h-40 overflow-y-auto">{typeof tryParseJson(detail.valores_anteriores) === 'object' ? JSON.stringify(tryParseJson(detail.valores_anteriores), null, 2) : detail.valores_anteriores}</pre>
                 </div>
               )}
               {detail.valores_nuevos && (
                 <div>
-                  <Label className="text-gray-500 dark:text-gray-400">Valores nuevos</Label>
-                  <pre className="mt-1 p-3 bg-gray-100 dark:bg-gray-800 rounded text-xs overflow-x-auto max-h-40 overflow-y-auto">{typeof tryParseJson(detail.valores_nuevos) === 'object' ? JSON.stringify(tryParseJson(detail.valores_nuevos), null, 2) : detail.valores_nuevos}</pre>
+                  <Label className="text-brand-text-secondary">Valores nuevos</Label>
+                  <pre className="mt-1 p-3 bg-brand-surface-secondary rounded text-xs overflow-x-auto max-h-40 overflow-y-auto">{typeof tryParseJson(detail.valores_nuevos) === 'object' ? JSON.stringify(tryParseJson(detail.valores_nuevos), null, 2) : detail.valores_nuevos}</pre>
                 </div>
               )}
             </div>

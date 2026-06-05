@@ -1,162 +1,171 @@
-# AUDITORIA FRONTEND — Módulo INV (Inventarios y Almacenes)
+# Auditoría frontend — módulo INV (Inventarios y Almacenes)
 
-Fuente de verdad: `docs/api/INV_API.json` (paths bajo `/api/v1/inv/...`).
+**Contrato de referencia:** `docs/api/INV_API.json` (rutas `/api/v1/inv/`).  
+**Código auditado:** `src/features/inv/**` (y consumo desde router bajo `/inv`).  
+**Fecha de auditoría:** 2026-05-14.
 
-## Resumen ejecutivo
+---
 
-- **Contrato INV**: 58 operaciones (`/api/v1/inv/...`).
-- **Implementación frontend detectada**: existe estructura base del módulo en `src/features/inv/` con:
-  - **Rutas**: `src/features/inv/routes.tsx`
-  - **Páginas**: 9 páginas (categorías, unidades, productos, almacenes, stock, tipos movimiento, movimientos, inventario físico, kardex)
-  - **Service layer**: `src/features/inv/services/inv.service.ts` (Axios)
-  - **Types**: `src/features/inv/types/inv.types.ts`
-- **React Query hooks (por entidad)**: **no se detectaron** en INV (las páginas hacen llamadas directas desde componentes).
-- **RBAC**:
-  - Guard de ruta a nivel módulo: `PermissionGuard module="inv" action="ver"` en `src/app/router.tsx`.
-  - **Acciones** (crear/editar/eliminar/etc.) dentro de páginas: **sin** validación granular detectada.
+### DIAGNÓSTICO GENERAL
 
-## Inventario de implementación actual detectada
+**Semáforo: 🟡 AJUSTES**
 
-### Archivos principales
+El módulo cubre maestros, stock, kardex, movimientos e inventario físico con service layer alineado a endpoints activos, formularios transaccionales que envían **cabecera + detalle en una sola llamada** (`con-detalle`), y mutaciones con toast de éxito/error en hooks usando `getErrorMessage`. Quedan brechas de **UX corporativa** (confirmación antes de autorizar, skeletons frente a spinners genéricos), **RBAC ausente** en vistas solo lectura (Stock, Kardex), y **hooks/código muerto** (`useMovimiento`, `useStock`, `useMovimientosDetalle`, etc.) sin vista que los consuma. Tras esta sesión se unificaron fallbacks de FK a **"—"** (sin UUID en tablas) y se documentaron con `@deprecated` los hooks de cabecera sola de movimientos e inventario físico.
 
-- **Rutas**: `src/features/inv/routes.tsx`
-- **Páginas**:
-  - `src/features/inv/pages/CategoriasPage.tsx`
-  - `src/features/inv/pages/UnidadesMedidaPage.tsx`
-  - `src/features/inv/pages/ProductosPage.tsx`
-  - `src/features/inv/pages/AlmacenesPage.tsx`
-  - `src/features/inv/pages/StockPage.tsx`
-  - `src/features/inv/pages/TiposMovimientoPage.tsx`
-  - `src/features/inv/pages/MovimientosPage.tsx`
-  - `src/features/inv/pages/InventarioFisicoPage.tsx`
-  - `src/features/inv/pages/KardexPage.tsx`
-- **Servicios (Axios)**: `src/features/inv/services/inv.service.ts`
-- **Tipos**: `src/features/inv/types/inv.types.ts`
-- **Layout**: `src/features/inv/components/InvPageLayout.tsx`
+---
 
-### Observación técnica relevante (multi-tenant / API híbrida)
+### ENDPOINTS DEPRECATED CONSUMIDOS ACTUALMENTE
 
-- El service `src/features/inv/services/inv.service.ts` usa `api` desde `src/core/api/api.ts` (instancia central).
-- En el proyecto existe `useApi()` y `getApiInstance()` para seleccionar instancia central vs local (hybrid). INV aún no usa ese patrón en su service.
+**Ninguno detectado.**
 
-## Evaluación por endpoint (contrato vs implementación)
+`inv.service.ts` no invoca `POST/PUT` sobre `/inv/stock`, ni `POST/PUT` sobre `/inv/movimientos-detalle` ni `/inv/inventario-fisico-detalle` (métodos marcados `deprecated: true` en OpenAPI).
 
-Leyenda:
-- **✔ Completo**: existe service + consumo en UI (y types razonables)
-- **⚠ Parcial**: existe parcialmente (ej. falta delete/reactivar/acciones, falta hooks React Query, o no hay UI aunque exista service)
-- **✖ Faltante**: no se detectó implementación en service/ UI
+---
 
-| Endpoint | Método | Service | Hook | Componente | Estado |
-|---|---:|---|---|---|---|
-| `/api/v1/inv/categorias` | GET | `categoriaService.list` | ✖ | `CategoriasPage` | ⚠ |
-| `/api/v1/inv/categorias` | POST | `categoriaService.create` | ✖ | `CategoriasPage` | ⚠ |
-| `/api/v1/inv/categorias/{categoria_id}` | GET | `categoriaService.getById` | ✖ | `CategoriasPage` (solo lista; no vista detalle) | ⚠ |
-| `/api/v1/inv/categorias/{categoria_id}` | PUT | `categoriaService.update` | ✖ | `CategoriasPage` | ⚠ |
-| `/api/v1/inv/categorias/{categoria_id}` | DELETE | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/categorias/{categoria_id}/reactivar` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/unidades-medida` | GET | `unidadMedidaService.list` | ✖ | `UnidadesMedidaPage` | ⚠ |
-| `/api/v1/inv/unidades-medida` | POST | `unidadMedidaService.create` | ✖ | `UnidadesMedidaPage` | ⚠ |
-| `/api/v1/inv/unidades-medida/{unidad_medida_id}` | GET | `unidadMedidaService.getById` | ✖ | `UnidadesMedidaPage` (solo lista) | ⚠ |
-| `/api/v1/inv/unidades-medida/{unidad_medida_id}` | PUT | `unidadMedidaService.update` | ✖ | `UnidadesMedidaPage` | ⚠ |
-| `/api/v1/inv/unidades-medida/{unidad_medida_id}` | DELETE | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/unidades-medida/{unidad_medida_id}/reactivar` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/productos` | GET | `productoService.list` | ✖ | `ProductosPage` | ⚠ |
-| `/api/v1/inv/productos` | POST | `productoService.create` | ✖ | `ProductosPage` | ⚠ |
-| `/api/v1/inv/productos/{producto_id}` | GET | `productoService.getById` | ✖ | `KardexPage`, `StockPage` (lookup), `MovimientosPage` (detalle movimiento usa getById de movimiento, no de producto) | ⚠ |
-| `/api/v1/inv/productos/{producto_id}` | PUT | `productoService.update` | ✖ | `ProductosPage` | ⚠ |
-| `/api/v1/inv/productos/{producto_id}` | DELETE | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/productos/{producto_id}/reactivar` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/almacenes` | GET | `almacenService.list` | ✖ | `AlmacenesPage`, (filtros en otras páginas) | ⚠ |
-| `/api/v1/inv/almacenes` | POST | `almacenService.create` | ✖ | `AlmacenesPage` | ⚠ |
-| `/api/v1/inv/almacenes/{almacen_id}` | GET | `almacenService.getById` | ✖ | `AlmacenesPage` (no vista detalle) | ⚠ |
-| `/api/v1/inv/almacenes/{almacen_id}` | PUT | `almacenService.update` | ✖ | `AlmacenesPage` | ⚠ |
-| `/api/v1/inv/almacenes/{almacen_id}` | DELETE | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/almacenes/{almacen_id}/reactivar` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/stock` | GET | `stockService.list` | ✖ | `StockPage` | ⚠ |
-| `/api/v1/inv/stock` | POST | `stockService.create` | ✖ | ✖ | ⚠ |
-| `/api/v1/inv/stock/{stock_id}` | GET | `stockService.getById` | ✖ | ✖ | ⚠ |
-| `/api/v1/inv/stock/{stock_id}` | PUT | `stockService.update` | ✖ | ✖ | ⚠ |
-| `/api/v1/inv/stock/producto/{producto_id}/almacen/{almacen_id}` | GET | `stockService.getByProductoAlmacen` | ✖ | ✖ | ⚠ |
-| `/api/v1/inv/stock/alertas` | GET | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/tipos-movimiento` | GET | `tipoMovimientoService.list` | ✖ | `TiposMovimientoPage` | ⚠ |
-| `/api/v1/inv/tipos-movimiento` | POST | `tipoMovimientoService.create` | ✖ | `TiposMovimientoPage` | ⚠ |
-| `/api/v1/inv/tipos-movimiento/{tipo_movimiento_id}` | GET | `tipoMovimientoService.getById` | ✖ | `TiposMovimientoPage` (no vista detalle) | ⚠ |
-| `/api/v1/inv/tipos-movimiento/{tipo_movimiento_id}` | PUT | `tipoMovimientoService.update` | ✖ | `TiposMovimientoPage` | ⚠ |
-| `/api/v1/inv/tipos-movimiento/{tipo_movimiento_id}` | DELETE | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/tipos-movimiento/{tipo_movimiento_id}/reactivar` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/movimientos` | GET | `movimientoService.list` | ✖ | `MovimientosPage` | ⚠ |
-| `/api/v1/inv/movimientos` | POST | `movimientoService.create` | ✖ | ✖ (no UI creación detectada en lectura parcial) | ⚠ |
-| `/api/v1/inv/movimientos/{movimiento_id}` | GET | `movimientoService.getById` | ✖ | `MovimientosPage` (modal detalle) | ⚠ |
-| `/api/v1/inv/movimientos/{movimiento_id}` | PUT | `movimientoService.update` | ✖ | ✖ (no UI edición detectada en lectura parcial) | ⚠ |
-| `/api/v1/inv/{movimiento_id}/autorizar` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/{movimiento_id}/procesar` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/{movimiento_id}/anular` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/inventario-fisico` | GET | `inventarioFisicoService.list` | ✖ | `InventarioFisicoPage` | ⚠ |
-| `/api/v1/inv/inventario-fisico` | POST | `inventarioFisicoService.create` | ✖ | `InventarioFisicoPage` (crear cabecera) | ⚠ |
-| `/api/v1/inv/inventario-fisico/{inventario_fisico_id}` | GET | `inventarioFisicoService.getById` | ✖ | ✖ (no vista detalle detectada en lectura parcial) | ⚠ |
-| `/api/v1/inv/inventario-fisico/{inventario_fisico_id}` | PUT | `inventarioFisicoService.update` | ✖ | ✖ | ⚠ |
-| `/api/v1/inv/inventario-fisico/{inventario_fisico_id}/anular` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/inventario-fisico/{inventario_fisico_id}/aprobar` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/movimientos-detalle` | GET | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/movimientos-detalle` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/movimientos-detalle/{movimiento_detalle_id}` | GET | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/movimientos-detalle/{movimiento_detalle_id}` | PUT | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/inventario-fisico-detalle` | GET | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/inventario-fisico-detalle` | POST | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/inventario-fisico-detalle/{inventario_fisico_detalle_id}` | GET | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/inventario-fisico-detalle/{inventario_fisico_detalle_id}` | PUT | ✖ | ✖ | ✖ | ✖ |
-| `/api/v1/inv/kardex` | GET | `kardexService.list` | ✖ | `KardexPage` | ⚠ |
+### UUIDs EXPUESTOS EN UI
 
-## Brechas detectadas (principales)
+**Estado tras correcciones en código (2026-05-14):**
 
-### Brechas de services (endpoints sin función)
+- **Celdas de tabla y etiquetas de solo lectura:** no deben mostrarse UUID ni fragmentos; ante FK no resuelta se usa el texto neutro **"—"** en `StockPage`, `AlmacenesPage` (sucursal), `ProductosPage` (categoría), `MovimientosPage` (tipo, almacén, producto en detalle), `KardexPage` (producto mientras enriquece), `InventarioFisicoPage` (almacén, producto), `CategoriasPage` (empresa en listado si no hay match).
+- **Controles `<select>`:** siguen usando `value={..._id}` como valor HTML interno; es correcto y no cuenta como “mostrar UUID al usuario” si el texto visible es el nombre (`razon_social`, `nombre`, etc.).
 
-- **Baja lógica y reactivación (maestros)**: faltan en service y UI:
-  - `DELETE /categorias/{id}`, `POST /categorias/{id}/reactivar`
-  - `DELETE /unidades-medida/{id}`, `POST /unidades-medida/{id}/reactivar`
-  - `DELETE /productos/{id}`, `POST /productos/{id}/reactivar`
-  - `DELETE /almacenes/{id}`, `POST /almacenes/{id}/reactivar`
-  - `DELETE /tipos-movimiento/{id}`, `POST /tipos-movimiento/{id}/reactivar`
-- **Acciones de flujo (movimientos / inventario físico)**: faltan:
-  - Movimientos: `POST /inv/{movimiento_id}/autorizar`, `POST /inv/{movimiento_id}/procesar`, `POST /inv/{movimiento_id}/anular`
-  - Inventario físico: `POST /inventario-fisico/{id}/anular`, `POST /inventario-fisico/{id}/aprobar`
-- **Detalle (líneas)**: falta todo el conjunto:
-  - Movimientos detalle: GET/POST + GET/PUT por id
-  - Inventario físico detalle: GET/POST + GET/PUT por id
-- **Stock**:
-  - Falta `GET /stock/alertas`
-  - Existen endpoints “internos” (create/update/getById/getByProductoAlmacen) pero **sin UI** detectada.
+---
 
-### Brechas de hooks (React Query)
+### FLUJOS CABECERA+DETALLE MAL IMPLEMENTADOS
 
-- No se detectaron hooks tipo `useQuery/useMutation/useTenantQuery` en `src/features/inv`.
-- Las páginas usan `useEffect + service` con estado local; esto incumple la regla del prompt maestro (**usar React Query para server state**).
+**Ninguno detectado.**
 
-### Brechas de tipado
+- `MovimientoFormPage` usa `useCreateMovimientoConDetalle` / `useUpdateMovimientoConDetalle` (una llamada con detalle embebido).
+- `InventarioFisicoFormPage` usa `useCreateInventarioFisicoConDetalle` / `useUpdateInventarioFisicoConDetalle`.
 
-- Se detectó uso de **`any`** en INV:
-  - En páginas (params para filtros) y en `inv.service.ts` (catch).
-- No se detectaron types para:
-  - `MovimientoDetalle*` (Create/Read/Update)
-  - `InventarioFisicoDetalle*` (Create/Read/Update)
-  - `AprobarInventarioFisicoRequest` (existe en OpenAPI, no en types INV)
-- No se validó aquí el alineamiento 1:1 de campos vs OpenAPI (la auditoría de campos se hace en Fase 3 por bloque de Types).
+Los hooks `useCreateMovimiento`, `useUpdateMovimiento`, `useCreateInventarioFisico` y `useUpdateInventarioFisico` permanecen por compatibilidad pero están marcados con **`@deprecated`** en código, indicando preferencia por los hooks `*ConDetalle`.
 
-### Brechas de RBAC / tenant
+---
 
-- Existe guard a nivel ruta del módulo (ver), pero no se detectó:
-  - protección granular de botones/acciones (crear/editar/anular/procesar/reactivar)
-- `empresa_id` se usa como filtro en listados (OK), pero al estar en estado local debe vigilarse consistencia en todas las operaciones.
+### AUDITORÍA POR ENDPOINT
 
-## Componentes potencialmente desalineados
+Leyenda: **Svc** = `inv.service.ts`; **Hook** = hook en `hooks/`; **UI** = página o flujo que dispara la petición; **IDs** = ausencia de UUID en columnas/labels visibles; **L/E** = loading y mensaje de error razonables; **RBAC** = acciones mutables acotadas con `usePermissions` donde aplica.
 
-- No se detectaron rutas/endpoints hardcodeados fuera del service; las páginas consumen `*Service` del módulo.
-- El archivo `docs/api/INV_API.json` contiene también `/api/v1/inv-bill/...`; INV frontend no debería implementar esos endpoints (hay módulo `inv-bill` separado).
+| Endpoint (activo) | Método | Svc | Hook | UI | IDs | L/E | RBAC |
+|---------------------|--------|-----|------|----|-----|-----|------|
+| `/inv/categorias` | GET | ✅ | ✅ `useCategorias` | `CategoriasPage` | ✅ | ✅ | ✅ |
+| `/inv/categorias` | POST | ✅ | ✅ `useCreateCategoria` | `CategoriasPage` | — | ✅ | ✅ |
+| `/inv/categorias/{id}` | GET | ✅ | — | — | — | — | — |
+| `/inv/categorias/{id}` | PUT | ✅ | ✅ `useUpdateCategoria` | `CategoriasPage` | — | ✅ | ✅ |
+| `/inv/categorias/{id}` | DELETE | ✅ | ✅ `useDeleteCategoria` | `CategoriasPage` | — | ✅ | ✅ |
+| `/inv/categorias/{id}/reactivar` | POST | ✅ | ✅ `useReactivarCategoria` | `CategoriasPage` | — | ✅ | ✅ |
+| `/inv/unidades-medida` | GET | ✅ | ✅ `useUnidadesMedida` | `UnidadesMedidaPage`, formularios | ✅ | ✅ | ✅ |
+| `/inv/unidades-medida` | POST | ✅ | ✅ `useCreateUnidadMedida` | `UnidadesMedidaPage` | — | ✅ | ✅ |
+| `/inv/unidades-medida/{id}` | GET | ✅ | — | — | — | — | — |
+| `/inv/unidades-medida/{id}` | PUT | ✅ | ✅ `useUpdateUnidadMedida` | `UnidadesMedidaPage` | — | ✅ | ✅ |
+| `/inv/unidades-medida/{id}` | DELETE | ✅ | ✅ `useDeleteUnidadMedida` | `UnidadesMedidaPage` | — | ✅ | ✅ |
+| `/inv/unidades-medida/{id}/reactivar` | POST | ✅ | ✅ `useReactivarUnidadMedida` | `UnidadesMedidaPage` | — | ✅ | ✅ |
+| `/inv/productos` | GET | ✅ | ✅ `useProductos` | `ProductosPage`, selects en formularios | ✅ | ✅ | ✅ |
+| `/inv/productos` | POST | ✅ | ✅ `useCreateProducto` | `ProductosPage` | — | ✅ | ✅ |
+| `/inv/productos/{id}` | GET | ✅ | — | Vía `productoService.getById` en páginas (enriquecimiento) | ✅ | ⚠ | — |
+| `/inv/productos/{id}` | PUT | ✅ | ✅ `useUpdateProducto` | `ProductosPage` | — | ✅ | ✅ |
+| `/inv/productos/{id}` | DELETE | ✅ | ✅ `useDeleteProducto` | `ProductosPage` | — | ✅ | ✅ |
+| `/inv/productos/{id}/reactivar` | POST | ✅ | ✅ `useReactivarProducto` | `ProductosPage` | — | ✅ | ✅ |
+| `/inv/almacenes` | GET | ✅ | ✅ `useAlmacenes` | Varias páginas | ✅ | ✅ | ✅ |
+| `/inv/almacenes` | POST | ✅ | ✅ `useCreateAlmacen` | `AlmacenesPage` | — | ✅ | ✅ |
+| `/inv/almacenes/{id}` | GET | ✅ | — | — | — | — | — |
+| `/inv/almacenes/{id}` | PUT | ✅ | ✅ `useUpdateAlmacen` | `AlmacenesPage` | — | ✅ | ✅ |
+| `/inv/almacenes/{id}` | DELETE | ✅ | ✅ `useDeleteAlmacen` | `AlmacenesPage` | — | ✅ | ✅ |
+| `/inv/almacenes/{id}/reactivar` | POST | ✅ | ✅ `useReactivarAlmacen` | `AlmacenesPage` | — | ✅ | ✅ |
+| `/inv/stock` | GET | ✅ | ✅ `useStocks` | `StockPage` | ✅ | ✅ | ⚠ |
+| `/inv/stock/{stock_id}` | GET | ✅ | ✅ `useStock` | **Sin uso** | — | — | — |
+| `/inv/stock/producto/{producto_id}/almacen/{almacen_id}` | GET | ✅ | ✅ `useStockPorProductoAlmacen` | **Sin uso** | — | — | — |
+| `/inv/stock/alertas` | GET | ✅ | ✅ `useStockAlertas` | `StockPage` | ✅ | ✅ | ⚠ |
+| `/inv/tipos-movimiento` | GET | ✅ | ✅ `useTiposMovimiento` | `TiposMovimientoPage`, filtros | ✅ | ✅ | ✅ |
+| `/inv/tipos-movimiento` | POST | ✅ | ✅ `useCreateTipoMovimiento` | `TiposMovimientoPage` | — | ✅ | ✅ |
+| `/inv/tipos-movimiento/{id}` | GET/PUT/DELETE | ✅ | PUT/DELETE vía hooks | `TiposMovimientoPage` | — | ✅ | ✅ |
+| `/inv/tipos-movimiento/{id}/reactivar` | POST | ✅ | ✅ `useReactivarTipoMovimiento` | `TiposMovimientoPage` | — | ✅ | ✅ |
+| `/inv/movimientos` | GET | ✅ | ✅ `useMovimientos` | `MovimientosPage` | ✅ | ✅ | parcial |
+| `/inv/movimientos` | POST (cabecera) | ✅ | ✅ `useCreateMovimiento` **@deprecated** | **Sin uso en UI** | — | — | — |
+| `/inv/movimientos/{id}` | GET | ✅ | ✅ `useMovimiento` | **Sin uso en UI** | — | — | — |
+| `/inv/movimientos/{id}` | PUT (cabecera) | ✅ | ✅ `useUpdateMovimiento` **@deprecated** | **Sin uso en UI** | — | — | — |
+| `/inv/movimientos/{id}/con-detalle` | GET | ✅ | ✅ `useMovimientoConDetalle` | `MovimientosPage`, `MovimientoFormPage` | ✅ | ✅ | parcial |
+| `/inv/movimientos/{id}/con-detalle` | PUT | ✅ | ✅ `useUpdateMovimientoConDetalle` | `MovimientoFormPage` | — | ✅ | ✅ |
+| `/inv/movimientos/con-detalle` | POST | ✅ | ✅ `useCreateMovimientoConDetalle` | `MovimientoFormPage` | — | ✅ | ✅ |
+| `/inv/movimientos-detalle` | GET | ✅ | ✅ `useMovimientosDetalle` | **Sin uso** | — | — | — |
+| `/inv/movimientos-detalle/{id}` | GET | ✅ | ✅ `useMovimientoDetalle` | **Sin uso** | — | — | — |
+| `/inv/inventario-fisico` | GET | ✅ | ✅ `useInventariosFisicos` | `InventarioFisicoPage` | ✅ | ✅ | parcial |
+| `/inv/inventario-fisico` | POST (cabecera) | ✅ | ✅ `useCreateInventarioFisico` **@deprecated** | **Sin uso** | — | — | — |
+| `/inv/inventario-fisico/{id}` | GET | ✅ | ✅ `useInventarioFisico` | **Sin uso** | — | — | — |
+| `/inv/inventario-fisico/{id}` | PUT (cabecera) | ✅ | ✅ `useUpdateInventarioFisico` **@deprecated** | **Sin uso** | — | — | — |
+| `/inv/inventario-fisico/{id}/con-detalle` | GET | ✅ | ✅ `useInventarioFisicoConDetalle` | `InventarioFisicoPage`, `InventarioFisicoFormPage` | ✅ | ✅ | parcial |
+| `/inv/inventario-fisico/{id}/con-detalle` | PUT | ✅ | ✅ `useUpdateInventarioFisicoConDetalle` | `InventarioFisicoFormPage` | — | ✅ | ✅ |
+| `/inv/inventario-fisico/con-detalle` | POST | ✅ | ✅ `useCreateInventarioFisicoConDetalle` | `InventarioFisicoFormPage` | — | ✅ | ✅ |
+| `/inv/inventario-fisico/{id}/anular` | POST | ✅ | ✅ `useAnularInventarioFisico` | `InventarioFisicoPage` | — | ✅ | ✅ |
+| `/inv/inventario-fisico/{id}/finalizar` | POST | ✅ | ✅ `useFinalizarInventarioFisico` | `InventarioFisicoPage` | — | ✅ | ✅ |
+| `/inv/inventario-fisico/{id}/aprobar` | POST | ✅ | ✅ `useAprobarInventarioFisico` | `InventarioFisicoPage` | — | ✅ | ✅ |
+| `/inv/inventario-fisico-detalle` | GET | ✅ | ✅ `useInventariosFisicosDetalle` | **Sin uso** | — | — | — |
+| `/inv/inventario-fisico-detalle/{id}` | GET | ✅ | ✅ `useInventarioFisicoDetalle` | **Sin uso** | — | — | — |
+| `/inv/{movimiento_id}/procesar` | POST | ✅ | ✅ `useProcesarMovimiento` | `MovimientosPage` | — | ✅ | ✅ |
+| `/inv/{movimiento_id}/autorizar` | POST | ✅ | ✅ `useAutorizarMovimiento` | `MovimientosPage` | — | ✅ | ✅ |
+| `/inv/{movimiento_id}/anular` | POST | ✅ | ✅ `useAnularMovimiento` | `MovimientosPage` | — | ✅ | ✅ |
+| `/inv/kardex` | GET | ✅ | ✅ `useKardex` | `KardexPage` | ✅ | ✅ | ⚠ |
 
-## Recomendación de priorización (para Fase 3)
+**Notas rápidas**
 
-- **Bloque 1 (Types)**: agregar types faltantes para detalles y requests de acciones.
-- **Bloque 2 (Services)**: completar endpoints faltantes (delete/reactivar, acciones de flujo, detalle líneas, stock alertas).
-- **Bloque 3 (Hooks)**: migrar consumo a React Query por entidad (patrón ORG).
-- **Bloque 4 (UI)**: agregar vistas/acciones que faltan (detalle + líneas, autorizar/procesar/anular/aprobar, reactivar/baja lógica) y RBAC granular.
+- **RBAC “parcial”** en movimientos / inventario físico: existen permisos para crear/editar y acciones de flujo dependen de `can('inv','editar')`, pero no hay matriz explícita por permiso fino (p. ej. solo “procesar”).
+- **RBAC “⚠”** en Stock y Kardex: vistas de consulta sin ocultar navegación o acciones según permiso de lectura (si el menú ya restringe acceso, puede ser aceptable; documentar decisión de producto).
 
+---
+
+### AUDITORÍA DE VISTAS UX/UI
+
+| Vista | Existe | Paginación | Filtros | Empty state | Toast éxito/error | Confirmación modal | Badge estado |
+|-------|--------|------------|---------|-------------|-------------------|--------------------|--------------|
+| Categorías | ✅ | N/A (array) | Empresa, inactivos | ✅ | ✅ (hooks) | Baja/reactivar | ✅ |
+| Unidades de medida | ✅ | N/A | Empresa, inactivos | ✅ | ✅ | Baja/reactivar | ✅ |
+| Productos | ✅ | N/A | Empresa, búsqueda, inactivos | ✅ | ✅ | Baja/reactivar | ✅ |
+| Almacenes | ✅ | N/A | Empresa, inactivos | ✅ | ✅ | Baja/reactivar | ✅ |
+| Stock | ✅ | N/A | Empresa, almacén, toggle alertas | ✅ | ✅ queries / sin mutación | N/A | ⚠ (resalte filas bajo mínimo) |
+| Tipos de movimiento | ✅ | N/A | Empresa, inactivos | ✅ | ✅ | Baja/reactivar | ✅ |
+| Movimientos (lista) | ✅ | N/A | Empresa, almacén, tipo, estado, fechas | ✅ | ✅ | Procesar, anular | ✅ |
+| Movimientos (detalle modal) | ✅ | — | — | ✅ líneas vacías | ✅ | ⚠ **Autorizar sin confirmación** | ✅ |
+| Movimientos (formulario página) | ✅ | — | — | — | ✅ | Cancelar implícito | ✅ |
+| Inventario físico (lista) | ✅ | N/A | Empresa, almacén, estado, fechas | ✅ | ✅ | Aprobar / anular / finalizar | ✅ |
+| Inventario físico (formulario) | ✅ | — | — | — | ✅ | — | ✅ |
+| Kardex | ✅ | N/A | Empresa, almacén, producto, fechas | ✅ | N/A (solo lectura) | N/A | N/A |
+
+**Observaciones UX**
+
+- Varias listas usan **spinner** centrado en lugar de **skeleton de tabla** (recomendación `.cursorrules`).
+- **Reintentar** explícito ante error de query: no unificado (solo mensaje en rojo).
+
+---
+
+### CAMPOS FALTANTES EN UI
+
+Resumen por prioridad (el contrato expone más campos de los que la tabla muestra; muchos son opcionales u operativos solo en módulos contables/compras).
+
+| Prioridad | Vista / contexto | Campos del contrato no mostrados (ejemplos) | Comentario |
+|-----------|------------------|---------------------------------------------|-------------|
+| 🔴 CRÍTICO | — | — | No hay campo crítico de operación inventario completamente ausente en todas las vistas; los riesgos eran UUID (corregido) y flujos (OK). |
+| ⚠ IMPORTANTE | Lista productos | `costo_promedio`, `stock_minimo` / `stock_maximo` en tabla | Útiles para compras/almacén sin abrir modal. |
+| ⚠ IMPORTANTE | Lista movimientos | `observaciones` resumidas, `moneda` consistente en todas las filas | Ya aparece parcialmente en detalle. |
+| ⚠ IMPORTANTE | Stock | `fecha_valoracion` u otros metadatos de `StockRead` si existen en API | Valorar según contrato exacto de `StockRead`. |
+| ➕ MENOR | Maestros | Auditoría (`usuario_creacion_id`, fechas técnicas) | Correcto ocultar en tabla. |
+| ➕ MENOR | Kardex | Columnas adicionales de `KardexLineaRead` no mapeadas | Solo si el negocio las necesita a primera vista. |
+
+---
+
+### ARCHIVOS A REESCRIBIR
+
+**Ninguno que requiera reescritura total.** El alineamiento al contrato es bueno en service y formularios transaccionales. Mejoras incrementales: confirmación de autorización, skeletons, RBAC en consultas, y uso o eliminación documentada de hooks sin consumidor.
+
+---
+
+### ARCHIVOS NUEVOS A CREAR
+
+| Archivo / ámbito | Descripción |
+|-------------------|-------------|
+| Opcional: vistas o widgets que usen `useStock` / `useStockPorProductoAlmacen` | Exponer en UI el detalle puntual de stock por producto/almacén si el negocio lo requiere. |
+| Opcional: módulo `inv-bill` | Contrato bajo `/api/v1/inv-bill/` no está en `src/features/inv`; sería feature aparte. |
+| Opcional: tests E2E o de contrato | No solicitados en esta auditoría. |
+
+---
+
+*Fin de la Fase 1 (auditoría). Esperando confirmación para Fase 2.*

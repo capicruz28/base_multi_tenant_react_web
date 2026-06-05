@@ -3,33 +3,47 @@ import { toast } from 'react-hot-toast';
 import { useTenantQuery } from '@/core/hooks/useTenantQuery';
 import { getErrorMessage } from '@/core/services/error.service';
 import { movimientoService } from '../services/inv.service';
-import type { AnularMovimientoRequest, Movimiento, MovimientoCreate, MovimientoUpdate } from '../types/inv.types';
+import { INV_LIST_STALE_TIME_MS } from './inv-query-defaults';
+import { useInvCompanyQueryGate } from './inv-company-query-gate';
+import type {
+  AnularMovimientoRequest,
+  Movimiento,
+  MovimientoConDetalle,
+  MovimientoConDetalleCreate,
+  MovimientoConDetalleUpdate,
+  MovimientoCreate,
+  MovimientoUpdate,
+} from '../types/inv.types';
 
 const qk = {
   list: (
-    empresaId?: string,
-    tipoMovimientoId?: string,
-    almacenId?: string,
-    estado?: string,
-    fechaDesde?: string,
-    fechaHasta?: string
+    scopeEmpresaId: string,
+    tipoMovimientoId: string,
+    almacenId: string,
+    estado: string,
+    fechaDesde: string,
+    fechaHasta: string,
   ) =>
     [
       'inv',
       'movimiento',
       'list',
-      empresaId ?? '',
-      tipoMovimientoId ?? '',
-      almacenId ?? '',
-      estado ?? '',
-      fechaDesde ?? '',
-      fechaHasta ?? '',
+      scopeEmpresaId,
+      tipoMovimientoId,
+      almacenId,
+      estado,
+      fechaDesde,
+      fechaHasta,
     ] as const,
-  detail: (movimientoId: string) => ['inv', 'movimiento', 'detail', movimientoId] as const,
+  detail: (movimientoId: string, scopeEmpresaId: string) =>
+    ['inv', 'movimiento', 'detail', movimientoId, scopeEmpresaId] as const,
+  conDetalle: (movimientoId: string, scopeEmpresaId: string) =>
+    ['inv', 'movimiento', 'con-detalle', movimientoId, scopeEmpresaId] as const,
 };
 
+// ── Queries ───────────────────────────────────────────────────────────────
+
 export function useMovimientos(options?: {
-  empresa_id?: string;
   tipo_movimiento_id?: string;
   almacen_id?: string;
   estado?: string;
@@ -37,39 +51,65 @@ export function useMovimientos(options?: {
   fecha_hasta?: string;
   enabled?: boolean;
 }) {
-  const enabled = options?.enabled ?? true;
+  const { scopeEmpresaId, enabled: gateEnabled } = useInvCompanyQueryGate(options);
+  const enabled = gateEnabled && (options?.enabled ?? true);
+
   return useTenantQuery<Movimiento[], Error>({
     queryKey: qk.list(
-      options?.empresa_id,
-      options?.tipo_movimiento_id,
-      options?.almacen_id,
-      options?.estado,
-      options?.fecha_desde,
-      options?.fecha_hasta
+      scopeEmpresaId ?? '',
+      options?.tipo_movimiento_id ?? '',
+      options?.almacen_id ?? '',
+      options?.estado ?? '',
+      options?.fecha_desde ?? '',
+      options?.fecha_hasta ?? '',
     ),
     queryFn: () =>
       movimientoService.list({
-        empresa_id: options?.empresa_id,
+        empresa_id: scopeEmpresaId ?? undefined,
         tipo_movimiento_id: options?.tipo_movimiento_id,
         almacen_id: options?.almacen_id,
         estado: options?.estado,
         fecha_desde: options?.fecha_desde,
         fecha_hasta: options?.fecha_hasta,
       }),
+    staleTime: INV_LIST_STALE_TIME_MS,
     enabled,
   });
 }
 
 export function useMovimiento(movimientoId: string | null | undefined, options?: { enabled?: boolean }) {
-  const enabled = (options?.enabled ?? true) && !!movimientoId;
+  const { scopeEmpresaId, enabled: gateEnabled } = useInvCompanyQueryGate(options);
+  const enabled = gateEnabled && (options?.enabled ?? true) && !!movimientoId;
 
   return useTenantQuery<Movimiento, Error>({
-    queryKey: qk.detail(movimientoId ?? ''),
+    queryKey: qk.detail(movimientoId ?? '', scopeEmpresaId ?? ''),
     queryFn: () => movimientoService.getById(movimientoId ?? ''),
+    staleTime: INV_LIST_STALE_TIME_MS,
     enabled,
   });
 }
 
+/** Carga cabecera + líneas en una sola query usando GET /movimientos/{id}/con-detalle */
+export function useMovimientoConDetalle(
+  movimientoId: string | null | undefined,
+  options?: { enabled?: boolean },
+) {
+  const { scopeEmpresaId, enabled: gateEnabled } = useInvCompanyQueryGate(options);
+  const enabled = gateEnabled && (options?.enabled ?? true) && !!movimientoId;
+
+  return useTenantQuery<MovimientoConDetalle, Error>({
+    queryKey: qk.conDetalle(movimientoId ?? '', scopeEmpresaId ?? ''),
+    queryFn: () => movimientoService.getConDetalle(movimientoId ?? ''),
+    staleTime: INV_LIST_STALE_TIME_MS,
+    enabled,
+  });
+}
+
+// ── Mutations ─────────────────────────────────────────────────────────────
+
+/**
+ * @deprecated Preferir {@link useCreateMovimientoConDetalle}: el flujo operativo envía cabecera + líneas en POST `/movimientos/con-detalle`. Este hook solo crea cabecera vía POST `/movimientos`.
+ */
 export function useCreateMovimiento() {
   const qc = useQueryClient();
 
@@ -83,14 +123,52 @@ export function useCreateMovimiento() {
   });
 }
 
+/**
+ * @deprecated Preferir {@link useUpdateMovimientoConDetalle}: el flujo operativo actualiza cabecera + líneas en PUT `/movimientos/{id}/con-detalle`. Este hook solo actualiza cabecera vía PUT `/movimientos/{id}`.
+ */
 export function useUpdateMovimiento() {
   const qc = useQueryClient();
+  const { scopeEmpresaId } = useInvCompanyQueryGate();
 
   return useMutation<Movimiento, Error, { movimientoId: string; payload: MovimientoUpdate }>({
     mutationFn: ({ movimientoId, payload }) => movimientoService.update(movimientoId, payload),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['inv', 'movimiento', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.movimientoId) });
+      qc.invalidateQueries({ queryKey: qk.detail(vars.movimientoId, scopeEmpresaId ?? '') });
+      qc.invalidateQueries({ queryKey: qk.conDetalle(vars.movimientoId, scopeEmpresaId ?? '') });
+      toast.success('Movimiento actualizado.');
+    },
+    onError: (err) => toast.error(getErrorMessage(err).message),
+  });
+}
+
+/** Crea movimiento + líneas en una sola llamada (POST /movimientos/con-detalle) */
+export function useCreateMovimientoConDetalle() {
+  const qc = useQueryClient();
+
+  return useMutation<MovimientoConDetalle, Error, MovimientoConDetalleCreate>({
+    mutationFn: (payload) => movimientoService.createConDetalle(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inv', 'movimiento', 'list'] });
+      qc.invalidateQueries({ queryKey: ['inv', 'stock', 'list'] });
+      toast.success('Movimiento creado con líneas.');
+    },
+    onError: (err) => toast.error(getErrorMessage(err).message),
+  });
+}
+
+/** Actualiza movimiento + líneas en una sola llamada (PUT /movimientos/{id}/con-detalle) */
+export function useUpdateMovimientoConDetalle() {
+  const qc = useQueryClient();
+  const { scopeEmpresaId } = useInvCompanyQueryGate();
+
+  return useMutation<MovimientoConDetalle, Error, { movimientoId: string; payload: MovimientoConDetalleUpdate }>({
+    mutationFn: ({ movimientoId, payload }) => movimientoService.updateConDetalle(movimientoId, payload),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['inv', 'movimiento', 'list'] });
+      qc.invalidateQueries({ queryKey: qk.detail(vars.movimientoId, scopeEmpresaId ?? '') });
+      qc.invalidateQueries({ queryKey: qk.conDetalle(vars.movimientoId, scopeEmpresaId ?? '') });
+      qc.invalidateQueries({ queryKey: ['inv', 'stock', 'list'] });
       toast.success('Movimiento actualizado.');
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
@@ -99,12 +177,15 @@ export function useUpdateMovimiento() {
 
 export function useAutorizarMovimiento() {
   const qc = useQueryClient();
+  const { scopeEmpresaId } = useInvCompanyQueryGate();
 
   return useMutation<Movimiento, Error, { movimientoId: string }>({
     mutationFn: ({ movimientoId }) => movimientoService.autorizar(movimientoId),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['inv', 'movimiento', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.movimientoId) });
+      qc.invalidateQueries({ queryKey: qk.detail(vars.movimientoId, scopeEmpresaId ?? '') });
+      qc.invalidateQueries({ queryKey: qk.conDetalle(vars.movimientoId, scopeEmpresaId ?? '') });
+      void qc.invalidateQueries({ queryKey: ['inv', 'kardex'] });
       toast.success('Movimiento autorizado.');
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
@@ -113,13 +194,18 @@ export function useAutorizarMovimiento() {
 
 export function useProcesarMovimiento() {
   const qc = useQueryClient();
+  const { scopeEmpresaId } = useInvCompanyQueryGate();
 
   return useMutation<Movimiento, Error, { movimientoId: string }>({
     mutationFn: ({ movimientoId }) => movimientoService.procesar(movimientoId),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['inv', 'movimiento', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.movimientoId) });
-      toast.success('Movimiento procesado.');
+      qc.invalidateQueries({ queryKey: qk.detail(vars.movimientoId, scopeEmpresaId ?? '') });
+      qc.invalidateQueries({ queryKey: qk.conDetalle(vars.movimientoId, scopeEmpresaId ?? '') });
+      qc.invalidateQueries({ queryKey: ['inv', 'stock', 'list'] });
+      qc.invalidateQueries({ queryKey: ['inv', 'stock', 'alertas'] });
+      void qc.invalidateQueries({ queryKey: ['inv', 'kardex'] });
+      toast.success('Movimiento procesado y stock actualizado.');
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });
@@ -127,15 +213,17 @@ export function useProcesarMovimiento() {
 
 export function useAnularMovimiento() {
   const qc = useQueryClient();
+  const { scopeEmpresaId } = useInvCompanyQueryGate();
 
   return useMutation<Movimiento, Error, { movimientoId: string; payload?: AnularMovimientoRequest }>({
     mutationFn: ({ movimientoId, payload }) => movimientoService.anular(movimientoId, payload),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['inv', 'movimiento', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.movimientoId) });
+      qc.invalidateQueries({ queryKey: qk.detail(vars.movimientoId, scopeEmpresaId ?? '') });
+      qc.invalidateQueries({ queryKey: qk.conDetalle(vars.movimientoId, scopeEmpresaId ?? '') });
+      void qc.invalidateQueries({ queryKey: ['inv', 'kardex'] });
       toast.success('Movimiento anulado.');
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });
 }
-

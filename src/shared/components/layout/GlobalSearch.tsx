@@ -11,8 +11,27 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useLayoutShell } from './LayoutShellContext';
+import { normalizeNavRoute } from './sidebar-menu.utils';
 import { searchMenuItems } from '../../utils/menuSearch';
 import type { MenuSearchResult } from '../../utils/menuSearch';
+import {
+  navItemActiveBg,
+  navItemTextActive,
+  navItemTextIdle,
+  navItemTransition,
+} from './nav-item-classes';
+
+/** Layout de resultado: alineación izquierda (navItemBox usa items-center — no aplica aquí) */
+const searchResultLayout =
+  'box-border flex w-full min-h-10 items-start justify-start gap-2 px-3 py-2 rounded-md text-left relative';
+
+const searchResultBar =
+  'before:pointer-events-none before:content-[""] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-[60%] before:w-[3px] before:rounded-r-sm before:bg-brand-primary before:z-10';
+
+const searchResultIdle = `${navItemTransition} ${searchResultLayout} ${navItemTextIdle} hover:bg-brand-surface-secondary dark:hover:bg-brand-surface-secondary`;
+
+const searchResultActive = `${navItemTransition} ${searchResultLayout} ${navItemActiveBg} ${navItemTextActive} font-semibold ${searchResultBar}`;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,7 +66,7 @@ function highlightText(text: string, query: string): React.ReactNode {
   return (
     <>
       {text.slice(0, idx)}
-      <mark className="bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 rounded-sm px-0.5 not-italic font-inherit">
+      <mark className="bg-warning/10 text-warning rounded-sm px-0.5 not-italic font-inherit">
         {text.slice(idx, idx + query.length)}
       </mark>
       {text.slice(idx + query.length)}
@@ -58,7 +77,8 @@ function highlightText(text: string, query: string): React.ReactNode {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const GlobalSearch: React.FC = () => {
-  const { menuModulos, userType } = useAuth();
+  const shell = useLayoutShell();
+  const { menuModulos } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -114,8 +134,8 @@ const GlobalSearch: React.FC = () => {
 
   // ─── Resultados (memoizados) ──────────────────────────────────────────────
   const results: MenuSearchResult[] = useMemo(
-    () => searchMenuItems(menuModulos ?? [], debouncedQuery, currentPath, userType),
-    [menuModulos, debouncedQuery, currentPath, userType],
+    () => searchMenuItems(menuModulos ?? [], debouncedQuery, currentPath, shell),
+    [menuModulos, debouncedQuery, currentPath, shell],
   );
 
   const totalItems = useMemo(
@@ -170,11 +190,11 @@ const GlobalSearch: React.FC = () => {
 
   const handleItemClick = useCallback(
     (ruta: string) => {
-      const normalized = ruta.startsWith('/') ? ruta : `/${ruta}`;
-      navigate(normalized);
+      const raw = ruta.startsWith('/') ? ruta : `/${ruta}`;
+      navigate(normalizeNavRoute(raw, shell) ?? raw);
       setIsOpen(false);
     },
-    [navigate],
+    [navigate, shell],
   );
 
   const showDropdown = isOpen && debouncedQuery.trim().length > 0;
@@ -184,7 +204,7 @@ const GlobalSearch: React.FC = () => {
     <div ref={containerRef} className="relative">
       {/* ── Input ────────────────────────────────────────────────────────── */}
       <div className="relative flex items-center" style={{ width: 280 }}>
-        <Search className="absolute left-2.5 w-3.5 h-3.5 text-gray-400 dark:text-gray-500 pointer-events-none flex-shrink-0" />
+        <Search className="absolute left-2.5 w-3.5 h-3.5 text-brand-text-secondary pointer-events-none flex-shrink-0" />
         <input
           ref={inputRef}
           type="text"
@@ -200,10 +220,10 @@ const GlobalSearch: React.FC = () => {
           placeholder="Buscar en el menú..."
           className="
             w-full h-8 pl-8 pr-16 text-sm rounded-lg
-            bg-gray-50 dark:bg-gray-700/60
-            border border-gray-200 dark:border-gray-600
-            text-gray-900 dark:text-white
-            placeholder-gray-400 dark:placeholder-gray-500
+            bg-brand-surface-secondary/80 dark:bg-brand-surface-secondary
+            border border-brand-border
+            text-brand-text-primary
+            placeholder:text-brand-text-secondary
             focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent
             transition-colors duration-150
           "
@@ -213,14 +233,14 @@ const GlobalSearch: React.FC = () => {
         {inputValue ? (
           <button
             onClick={handleClear}
-            className="absolute right-2 flex items-center justify-center w-5 h-5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 dark:text-gray-500 transition-colors"
+            className="absolute right-2 flex items-center justify-center w-5 h-5 rounded hover:bg-brand-surface-secondary text-brand-text-secondary transition-colors"
             title="Limpiar (Esc)"
           >
             <X className="w-3 h-3" />
           </button>
         ) : (
           <span className="absolute right-2 flex items-center pointer-events-none">
-            <kbd className="inline-flex items-center h-5 px-1.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-400 border border-gray-300 dark:border-gray-500 leading-none">
+            <kbd className="inline-flex items-center h-5 px-1.5 rounded text-[10px] font-medium bg-brand-surface-secondary text-brand-text-secondary border border-brand-border leading-none">
               ⌘K
             </kbd>
           </span>
@@ -231,14 +251,14 @@ const GlobalSearch: React.FC = () => {
       {showDropdown && createPortal(
         <div
           ref={dropdownRef}
-          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden"
+          className="bg-brand-surface border border-brand-border rounded-lg shadow-xl overflow-hidden"
           style={{ ...dropdownStyle, maxHeight: '70vh' }}
         >
           {results.length === 0 ? (
             /* ── Sin resultados ─────────────────────────────────────────── */
             <div className="px-4 py-6 text-center">
-              <Search className="w-6 h-6 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <Search className="w-6 h-6 mx-auto mb-2 text-brand-text-secondary opacity-70" />
+              <p className="text-sm text-brand-text-secondary">
                 Sin resultados para{' '}
                 <span className="font-medium">"{debouncedQuery}"</span>
               </p>
@@ -252,14 +272,14 @@ const GlobalSearch: React.FC = () => {
               {results.map((result) => (
                 <div
                   key={result.modulo.modulo_id}
-                  className="min-w-0 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
+                  className="min-w-0 border-b border-brand-border last:border-b-0"
                 >
                   {/* Cabecera del módulo — no clickeable */}
-                  <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1 sticky top-0 bg-white dark:bg-gray-900 z-10">
-                    <span className="text-gray-400 dark:text-gray-500 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1 sticky top-0 bg-brand-surface z-10">
+                    <span className="text-brand-text-secondary flex-shrink-0">
                       {resolveIcon(result.modulo.icono, 'w-3 h-3')}
                     </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 truncate">
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-brand-text-secondary truncate">
                       {result.modulo.nombre}
                     </span>
                   </div>
@@ -271,39 +291,21 @@ const GlobalSearch: React.FC = () => {
                       onClick={() => menu.ruta && handleItemClick(menu.ruta)}
                       disabled={!menu.ruta}
                       className={[
-                        'w-full flex items-start gap-2 px-3 py-2 text-left transition-colors duration-100',
-                        'border-l-[3px]',
-                        menu.isActive
-                          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 dark:border-blue-400'
-                          : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-800',
+                        menu.isActive ? searchResultActive : searchResultIdle,
                         !menu.ruta ? 'opacity-40 cursor-default' : 'cursor-pointer',
                       ].join(' ')}
                     >
-                      {/* Ícono */}
-                      <span
-                        className={`flex-shrink-0 mt-0.5 ${
-                          menu.isActive
-                            ? 'text-blue-500 dark:text-blue-400'
-                            : 'text-gray-400 dark:text-gray-500'
-                        }`}
-                      >
+                      <span className="mt-0.5 shrink-0 text-inherit">
                         {resolveIcon(menu.icono, 'w-4 h-4')}
                       </span>
 
-                      {/* Texto */}
-                      <div className="min-w-0 flex-1">
-                        <div
-                          className={`text-[13px] font-semibold leading-snug ${
-                            menu.isActive
-                              ? 'text-blue-700 dark:text-blue-300'
-                              : 'text-gray-800 dark:text-gray-200'
-                          }`}
-                        >
+                      <div className="min-w-0 flex-1 text-left">
+                        <div className="text-[13px] leading-snug">
                           {highlightText(menu.nombre, debouncedQuery)}
                         </div>
                         {menu.descripcion && (
                           <div
-                            className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5"
+                            className="text-[11px] text-brand-text-secondary mt-0.5"
                             style={{
                               whiteSpace: 'normal',
                               wordBreak: 'break-word',

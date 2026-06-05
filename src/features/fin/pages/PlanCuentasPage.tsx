@@ -249,7 +249,7 @@ export default function PlanCuentasPage() {
               <div className="flex items-center gap-2"><input type="checkbox" checked={form.requiere_centro_costo ?? false} onChange={(e) => setForm((p) => ({ ...p, requiere_centro_costo: e.target.checked }))} className="rounded" /><Label>Requiere Centro Costo</Label></div>
               <div className="flex items-center gap-2"><input type="checkbox" checked={form.aparece_balance ?? true} onChange={(e) => setForm((p) => ({ ...p, aparece_balance: e.target.checked }))} className="rounded" /><Label>Aparece en Balance</Label></div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Crear</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -262,7 +262,7 @@ export default function PlanCuentasPage() {
               <div className="md:col-span-2"><Label>Nombre *</Label><input type="text" value={editForm.nombre_cuenta ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre_cuenta: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" required /></div>
               <div className="flex items-center gap-2"><input type="checkbox" checked={editForm.es_activo ?? false} onChange={(e) => setEditForm((p) => ({ ...p, es_activo: e.target.checked }))} className="rounded" /><Label>Activo</Label></div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

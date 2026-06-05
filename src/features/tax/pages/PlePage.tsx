@@ -8,6 +8,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toAppPath } from '@/core/routing/post-login-path';
 import { Loader, FileText, Plus, Pencil, CheckCircle, Send, XCircle, Eye } from 'lucide-react';
 import { empresaService } from '@/features/org/services/org.service';
 import { periodoContableService } from '@/features/fin/services/fin.service';
@@ -461,7 +462,7 @@ export default function PlePage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => navigate(`/tax/ple/${row.libro_id}`)}
+                          onClick={() => navigate(toAppPath(`/tax/ple/${row.libro_id}`))}
                           title="Ver detalle"
                           className="text-gray-500 hover:text-brand-primary"
                         >

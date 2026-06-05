@@ -4,82 +4,19 @@
  */
 
 /**
- * Configuración avanzada de tema personalizado
- * Estructura flexible para permitir diferentes parámetros de UI
+ * tema_personalizado — solo estos campos son contractuales en frontend.
+ * (El backend puede devolver JSON con claves ignoradas.)
  */
 export interface TemaPersonalizado {
-  // ✅ NUEVO: Fuentes tipográficas estructuradas
+  appName?: string;
   fonts?: {
-    display?: string; // Fuente para títulos y elementos destacados
-    body?: string;    // Fuente para texto general
-    mono?: string;    // Fuente monoespaciada para código
+    display?: string;
+    body?: string;
+    mono?: string;
   };
-  // ✅ COMPATIBILIDAD: Mantener fontFamily para retrocompatibilidad
-  fontFamily?: string;
-  borderRadius?: string;
-  appName?: string; // Nombre de la aplicación
-  spacing?: {
-    small?: string;
-    medium?: string;
-    large?: string;
-    [key: string]: string | undefined;
+  shape?: {
+    borderRadius?: string;
   };
-  /** Sombras: small/medium/large (legacy) y xs/sm/base/md/lg/xl/2xl/inner/focus-* (design system) */
-  shadows?: {
-    small?: string;
-    medium?: string;
-    large?: string;
-    xs?: string;
-    sm?: string;
-    base?: string;
-    md?: string;
-    lg?: string;
-    xl?: string;
-    '2xl'?: string;
-    inner?: string;
-    'focus-blue'?: string;
-    'focus-cyan'?: string;
-    'focus-red'?: string;
-    [key: string]: string | undefined;
-  };
-  colors?: {
-    navy?: string;   // #0A1628 - Fondos oscuros, headers
-    blue?: string;   // #1E56A0 - Primario: botones, links
-    cyan?: string;   // #1FB6E8 - Hover, acentos
-    mint?: string;   // #00D4AA - Success, métricas +
-    slate?: string;  // #64748B - Textos secundarios, iconos
-    amber?: string;  // #F59E0B - Warnings, alertas moderadas
-    red?: string;    // #EF4444 - Errores, acciones destructivas
-    green?: string;  // #10B981 - Confirmaciones, success
-    indigo?: string; // #4F46E5 - Premium features, highlights
-    purple?: string; // #8B5CF6 - Notificaciones especiales
-    orange?: string; // #F97316 - En progreso, actualizaciones
-    [key: string]: string | undefined; // Permitir colores adicionales
-  };
-  // ✅ NUEVO: Escala de grises personalizada
-  grays?: {
-    '50'?: string;
-    '100'?: string;
-    '200'?: string;
-    '300'?: string;
-    '400'?: string;
-    '500'?: string;
-    '600'?: string;
-    '700'?: string;
-    '800'?: string;
-    '900'?: string;
-    white?: string;
-    black?: string;
-    [key: string]: string | undefined;
-  };
-  gradients?: {
-    primary?: string;
-    success?: string;
-    dark?: string;
-    subtle?: string;
-    [key: string]: string | undefined;
-  };
-  [key: string]: any;
 }
 
 /**
@@ -104,4 +41,3 @@ export interface BrandingState {
   error: string | null;
   lastUpdated: number | null;
 }
-

@@ -277,8 +277,9 @@ export interface Cargo {
   area_funcional?: string | null;
   departamento_id?: string | null;
   cargo_jefe_id?: string | null;
-  rango_salarial_min?: number | null;
-  rango_salarial_max?: number | null;
+  /** OpenAPI CargoRead devuelve estos campos como string | null (representación decimal del backend). */
+  rango_salarial_min?: string | null;
+  rango_salarial_max?: string | null;
   moneda_salarial: string;
   nivel_educacion_minimo?: string | null;
   experiencia_minima_meses?: number | null;
@@ -298,8 +299,10 @@ export interface CargoCreate {
   area_funcional?: string | null;
   departamento_id?: string | null;
   cargo_jefe_id?: string | null;
-  rango_salarial_min?: number | null;
-  rango_salarial_max?: number | null;
+  /** OpenAPI CargoCreate acepta number | string | null para compatibilidad con distintos formatos decimales. */
+  rango_salarial_min?: number | string | null;
+  rango_salarial_max?: number | string | null;
+  /** UUID de cat_moneda — requerido por el contrato. */
   moneda_salarial: string;
   nivel_educacion_minimo?: string | null;
   experiencia_minima_meses?: number | null;
@@ -354,10 +357,33 @@ export interface ParametroCreate {
 
 export interface ParametroUpdate extends Partial<ParametroCreate> {}
 
-// ─── Filtros de listado ──────────────────────────────────────────────────
+// ─── Filtros de listado (Etapa B: sin empresa_id en query; ámbito JWT) ─────
 
-export interface OrgListParams {
-  empresa_id?: string;
+/** Listados company-scoped: solo_activos, buscar. */
+export interface OrgCompanyListParams {
   solo_activos?: boolean;
-  modulo_codigo?: string; // solo para parámetros
+  buscar?: string;
 }
+
+/** Vista de listado híbrido (backend ORG multiempresa). */
+export type ParametroVista = 'efectivo' | 'global' | 'override';
+
+/** Parámetro con valor efectivo resuelto (precedencia override > global). */
+export interface ParametroEfectivo extends Parametro {
+  alcance_efectivo: 'override' | 'global';
+}
+
+/** Listados híbridos /org/parametros. */
+export interface OrgParametroListParams {
+  solo_activos?: boolean;
+  buscar?: string;
+  modulo_codigo?: string;
+  /** Resolución de alcance en backend; sin query empresa_id. */
+  vista?: ParametroVista;
+}
+
+/**
+ * @deprecated Usar OrgCompanyListParams u OrgParametroListParams.
+ * El campo empresa_id en query fue eliminado (contrato multiempresa JWT).
+ */
+export type OrgListParams = OrgCompanyListParams;

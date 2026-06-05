@@ -212,7 +212,7 @@ export default function ListaPrecioDetallePage() {
       }
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Button variant="outline" onClick={() => navigate('/prc/listas-precio')} className="mb-0">
+        <Button variant="outline" onClick={() => navigate('/app/prc/listas-precio')} className="mb-0">
           <ArrowLeft className="h-4 w-4 mr-2" /> Volver a listas
         </Button>
         {headerErrorMessage && (
@@ -452,7 +452,7 @@ export default function ListaPrecioDetallePage() {
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting || !canCrear} className="bg-brand-primary hover:bg-brand-primary-hover">
+              <Button type="submit" disabled={submitting || !canCrear} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
                 Agregar
               </Button>
             </DialogFooter>
@@ -551,7 +551,7 @@ export default function ListaPrecioDetallePage() {
               <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting || !canEditar} className="bg-brand-primary hover:bg-brand-primary-hover">
+              <Button type="submit" disabled={submitting || !canEditar} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
                 Guardar
               </Button>
             </DialogFooter>

@@ -1,14 +1,18 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
+/**
+ * Hooks de Movimiento Detalle (solo lectura directa).
+ * Las mutaciones de creación/edición de líneas se gestionan desde
+ * movimientos.hooks.ts usando los endpoints con-detalle.
+ */
 import { useTenantQuery } from '@/core/hooks/useTenantQuery';
-import { getErrorMessage } from '@/core/services/error.service';
 import { movimientoDetalleService } from '../services/inv.service';
-import type { MovimientoDetalleCreate, MovimientoDetalleRead, MovimientoDetalleUpdate } from '../types/inv.types';
+import type { MovimientoDetalleRead } from '../types/inv.types';
+import { INV_LIST_STALE_TIME_MS } from './inv-query-defaults';
 
 const qk = {
   list: (empresaId?: string, movimientoId?: string, productoId?: string) =>
     ['inv', 'movimiento-detalle', 'list', empresaId ?? '', movimientoId ?? '', productoId ?? ''] as const,
-  detail: (movimientoDetalleId: string) => ['inv', 'movimiento-detalle', 'detail', movimientoDetalleId] as const,
+  detail: (movimientoDetalleId: string) =>
+    ['inv', 'movimiento-detalle', 'detail', movimientoDetalleId] as const,
 };
 
 export function useMovimientosDetalle(options?: {
@@ -27,50 +31,21 @@ export function useMovimientosDetalle(options?: {
         movimiento_id: options?.movimiento_id,
         producto_id: options?.producto_id,
       }),
+    staleTime: INV_LIST_STALE_TIME_MS,
     enabled,
   });
 }
 
-export function useMovimientoDetalle(movimientoDetalleId: string | null | undefined, options?: { enabled?: boolean }) {
+export function useMovimientoDetalle(
+  movimientoDetalleId: string | null | undefined,
+  options?: { enabled?: boolean }
+) {
   const enabled = (options?.enabled ?? true) && !!movimientoDetalleId;
 
   return useTenantQuery<MovimientoDetalleRead, Error>({
     queryKey: qk.detail(movimientoDetalleId ?? ''),
     queryFn: () => movimientoDetalleService.getById(movimientoDetalleId ?? ''),
+    staleTime: INV_LIST_STALE_TIME_MS,
     enabled,
   });
 }
-
-export function useCreateMovimientoDetalle() {
-  const qc = useQueryClient();
-
-  return useMutation<MovimientoDetalleRead, Error, MovimientoDetalleCreate>({
-    mutationFn: (payload) => movimientoDetalleService.create(payload),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: ['inv', 'movimiento-detalle', 'list'] });
-      qc.invalidateQueries({ queryKey: ['inv', 'movimiento', 'detail', vars.movimiento_id] });
-      toast.success('Línea agregada.');
-    },
-    onError: (err) => toast.error(getErrorMessage(err).message),
-  });
-}
-
-export function useUpdateMovimientoDetalle() {
-  const qc = useQueryClient();
-
-  return useMutation<
-    MovimientoDetalleRead,
-    Error,
-    { movimientoDetalleId: string; payload: MovimientoDetalleUpdate; movimientoId?: string }
-  >({
-    mutationFn: ({ movimientoDetalleId, payload }) => movimientoDetalleService.update(movimientoDetalleId, payload),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: ['inv', 'movimiento-detalle', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.movimientoDetalleId) });
-      if (vars.movimientoId) qc.invalidateQueries({ queryKey: ['inv', 'movimiento', 'detail', vars.movimientoId] });
-      toast.success('Línea actualizada.');
-    },
-    onError: (err) => toast.error(getErrorMessage(err).message),
-  });
-}
-

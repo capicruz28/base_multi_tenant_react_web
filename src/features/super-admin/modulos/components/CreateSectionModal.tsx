@@ -120,17 +120,17 @@ const CreateSectionModal: React.FC<CreateSectionModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-border-base">
           <div className="flex items-center gap-3">
             <Folder className="h-6 w-6 text-brand-primary" />
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-xl font-semibold text-text-base">
                 Crear Nueva Sección
               </h2>
               {selectedModulo && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-text-soft">
                   Módulo: {selectedModulo.nombre}
                 </p>
               )}
@@ -138,10 +138,10 @@ const CreateSectionModal: React.FC<CreateSectionModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors"
             disabled={loading}
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-text-soft" />
           </button>
         </div>
 
@@ -150,7 +150,7 @@ const CreateSectionModal: React.FC<CreateSectionModalProps> = ({
           {/* Módulo (si no está pre-seleccionado) */}
           {!moduloId && (
             <div>
-              <label htmlFor="modulo_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="modulo_id" className="block text-sm font-medium text-text-soft mb-1">
                 Módulo *
               </label>
               <select
@@ -158,7 +158,7 @@ const CreateSectionModal: React.FC<CreateSectionModalProps> = ({
                 name="modulo_id"
                 value={formData.modulo_id}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.modulo_id ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${errors.modulo_id ? 'border-error' : 'border-border-base'
                   }`}
                 disabled={loading}
               >
@@ -170,14 +170,14 @@ const CreateSectionModal: React.FC<CreateSectionModalProps> = ({
                 ))}
               </select>
               {errors.modulo_id && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.modulo_id}</p>
+                <p className="mt-1 text-sm text-error">{errors.modulo_id}</p>
               )}
             </div>
           )}
 
           {/* Código de la Sección */}
           <div>
-            <label htmlFor="codigo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="codigo" className="block text-sm font-medium text-text-soft mb-1">
               Código de la Sección *
             </label>
             <input
@@ -186,22 +186,22 @@ const CreateSectionModal: React.FC<CreateSectionModalProps> = ({
               name="codigo"
               value={formData.codigo}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.codigo ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${errors.codigo ? 'border-error' : 'border-border-base'
                 }`}
               placeholder="Ej: CONTABILIDAD, PRESUPUESTO"
               disabled={loading}
             />
             {errors.codigo && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.codigo}</p>
+              <p className="mt-1 text-sm text-error">{errors.codigo}</p>
             )}
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs text-text-soft">
               Solo mayúsculas, números y guiones bajos. Usado para referencia en código.
             </p>
           </div>
 
           {/* Nombre de la Sección */}
           <div>
-            <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="nombre" className="block text-sm font-medium text-text-soft mb-1">
               Nombre de la Sección *
             </label>
             <input
@@ -210,19 +210,19 @@ const CreateSectionModal: React.FC<CreateSectionModalProps> = ({
               name="nombre"
               value={formData.nombre}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.nombre ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${errors.nombre ? 'border-error' : 'border-border-base'
                 }`}
               placeholder="Ej: Contabilidad General"
               disabled={loading}
             />
             {errors.nombre && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.nombre}</p>
+              <p className="mt-1 text-sm text-error">{errors.nombre}</p>
             )}
           </div>
 
           {/* Descripción */}
           <div>
-            <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="descripcion" className="block text-sm font-medium text-text-soft mb-1">
               Descripción
             </label>
             <textarea
@@ -231,7 +231,7 @@ const CreateSectionModal: React.FC<CreateSectionModalProps> = ({
               value={formData.descripcion || ''}
               onChange={handleInputChange}
               rows={3}
-              className="w-full px-3 py-2 border border-brand-input-border dark:border-brand-input-border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground"
+              className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
               placeholder="Descripción detallada de la sección..."
               disabled={loading}
             />
@@ -239,7 +239,7 @@ const CreateSectionModal: React.FC<CreateSectionModalProps> = ({
 
           {/* Icono */}
           <div>
-            <label htmlFor="icono" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="icono" className="block text-sm font-medium text-text-soft mb-1">
               Icono *
             </label>
             <IconSelector
@@ -247,13 +247,13 @@ const CreateSectionModal: React.FC<CreateSectionModalProps> = ({
               onChange={(icon) => setFormData(prev => ({ ...prev, icono: icon || 'Folder' }))}
             />
             {errors.icono && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.icono}</p>
+              <p className="mt-1 text-sm text-error">{errors.icono}</p>
             )}
           </div>
 
           {/* Orden */}
           <div>
-            <label htmlFor="orden" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="orden" className="block text-sm font-medium text-text-soft mb-1">
               Orden de Visualización
             </label>
             <input
@@ -263,14 +263,14 @@ const CreateSectionModal: React.FC<CreateSectionModalProps> = ({
               value={formData.orden}
               onChange={handleInputChange}
               min="0"
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${errors.orden ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${errors.orden ? 'border-error' : 'border-border-base'
                 }`}
               disabled={loading}
             />
             {errors.orden && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.orden}</p>
+              <p className="mt-1 text-sm text-error">{errors.orden}</p>
             )}
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs text-text-soft">
               Menor número = aparece primero en la lista.
             </p>
           </div>
@@ -283,31 +283,31 @@ const CreateSectionModal: React.FC<CreateSectionModalProps> = ({
               name="es_activa"
               checked={formData.es_activa || false}
               onChange={handleInputChange}
-              className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 rounded"
+              className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-border-base rounded"
               disabled={loading}
             />
-            <label htmlFor="es_activa" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+            <label htmlFor="es_activa" className="ml-2 block text-sm text-text-base">
               Sección Activa
             </label>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 ml-6">
+          <p className="text-xs text-text-soft ml-6">
             Las secciones inactivas no estarán disponibles en el menú.
           </p>
 
           {/* Footer */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-end gap-3 pt-6 border-t border-border-base">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-secondary disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-primary disabled:opacity-50"
             >
               {loading && <Loader className="h-4 w-4 animate-spin" />}
               {loading ? 'Creando...' : 'Crear Sección'}

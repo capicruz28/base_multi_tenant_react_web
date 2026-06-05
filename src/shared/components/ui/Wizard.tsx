@@ -40,10 +40,10 @@ export const Wizard: React.FC<WizardProps> = ({
                   disabled={!isClickable}
                   className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all ${
                     isCompleted
-                      ? 'bg-green-500 border-green-500 text-white'
+                      ? 'bg-success border-success text-white'
                       : isActive
                       ? 'bg-brand-primary border-brand-primary text-white'
-                      : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400'
+                      : 'bg-brand-surface border-brand-border text-brand-text-secondary'
                   } ${isClickable ? 'cursor-pointer hover:scale-110' : 'cursor-not-allowed'}`}
                 >
                   {isCompleted ? (
@@ -58,14 +58,14 @@ export const Wizard: React.FC<WizardProps> = ({
                       isActive
                         ? 'text-brand-primary dark:text-brand-primary'
                         : isCompleted
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-gray-500 dark:text-gray-400'
+                        ? 'text-success'
+                        : 'text-brand-text-secondary'
                     }`}
                   >
                     {step.label}
                   </p>
                   {step.description && (
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    <p className="text-xs text-brand-text-secondary mt-1">
                       {step.description}
                     </p>
                   )}
@@ -74,7 +74,7 @@ export const Wizard: React.FC<WizardProps> = ({
               {index < steps.length - 1 && (
                 <div
                   className={`flex-1 h-0.5 mx-4 transition-colors ${
-                    isCompleted ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                    isCompleted ? 'bg-success' : 'bg-brand-border'
                   }`}
                 />
               )}
@@ -83,7 +83,7 @@ export const Wizard: React.FC<WizardProps> = ({
         })}
       </div>
       {/* Barra de progreso */}
-      <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+      <div className="h-1 bg-brand-surface-secondary rounded-full overflow-hidden">
         <div
           className="h-full bg-brand-primary transition-all duration-300"
           style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}

@@ -19,11 +19,11 @@ export const AudPageLayout: React.FC<AudPageLayoutProps> = ({
   <div className="w-full">
     <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">
+        <h1 className="text-xl font-semibold text-brand-text-primary tracking-tight">
           {title}
         </h1>
         {description && (
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-sm text-brand-text-secondary">
             {description}
           </p>
         )}

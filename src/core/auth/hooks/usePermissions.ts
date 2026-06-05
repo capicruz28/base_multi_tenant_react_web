@@ -12,7 +12,7 @@ import type { PermissionAction } from '../types/permission.types';
  * 
  * @example
  * ```tsx
- * const { can, permissions, loading } = usePermissions();
+ * const { can, permissions, menuPermissionsReady } = usePermissions();
  * 
  * if (can('planillas', 'crear')) {
  *   // Mostrar botón de crear
@@ -23,7 +23,7 @@ export const usePermissions = () => {
   const { 
     permissions, 
     isSuperAdmin,
-    loading 
+    menuPermissionsReady,
   } = useAuth();
 
   /**
@@ -95,7 +95,7 @@ export const usePermissions = () => {
     canAll,
     getModulePermissions,
     permissions,
-    loading,
+    menuPermissionsReady,
     isSuperAdmin,
   };
 };

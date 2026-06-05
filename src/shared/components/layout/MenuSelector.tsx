@@ -2,39 +2,24 @@ import { useMemo } from 'react';
 import { useAuth } from '@/shared/context/AuthContext';
 import type { SidebarMenuItem } from '@/features/admin/types/menu.types';
 import type { AuthMenuModulo } from '@/core/auth/types/auth-menu.types';
-import { ERP_MODULES } from '@/core/constants/erp-modules';
-
-// Conjunto de códigos de módulos ERP para separar módulos de negocio vs administración
-const ERP_CODES = new Set(ERP_MODULES.map((m) => m.codigo));
+import { useLayoutShell } from './LayoutShellContext';
+import { filterModulosForShell } from './sidebar-menu.utils';
+import { isMenuVisibleInPayload } from '@/core/auth/utils/menu-shell.utils';
 
 /**
- * Transforma los módulos NO ERP de /auth/menu en items de sidebar
- * para la sección de Administración (Super Admin / Tenant Admin).
- *
- * Respeta la estructura módulo → sección → menú insertando separadores
- * (isSeparator) al inicio de cada sección para agrupar visualmente los menús.
- * El separador hereda la ruta del primer menú de la sección para que el filtro
- * global/tenant (por prefijo /super-admin vs /admin) funcione correctamente.
- *
- * La estructura visual (render) se mantiene en NewSidebar;
- * aquí solo cambiamos la fuente de datos.
+ * Lista plana de administración desde /auth/menu (módulos ya filtrados por shell).
  */
 function transformAdminMenuFromAuthMenu(modulos: AuthMenuModulo[]): SidebarMenuItem[] {
-  const adminModules = modulos.filter((modulo) => !ERP_CODES.has(modulo.codigo));
-
   const items: SidebarMenuItem[] = [];
 
-  for (const modulo of adminModules) {
+  for (const modulo of modulos) {
     for (const seccion of modulo.secciones || []) {
-      const visibleMenus = (seccion.menus || []).filter(
-        (m) => m.is_visible && m.is_enabled
-      );
+      const visibleMenus = (seccion.menus || []).filter((m) => isMenuVisibleInPayload(m));
       if (visibleMenus.length === 0) continue;
 
       const firstMenuRuta = visibleMenus[0].ruta;
       const baseOrden = (modulo.orden ?? 0) * 1_000_000 + (seccion.orden ?? 0) * 1_000;
 
-      // Separador de sección (permite que el filtro global/tenant lo enrute correctamente)
       items.push({
         menu_id: `separator-${seccion.seccion_id}`,
         nombre: seccion.nombre,
@@ -70,27 +55,20 @@ function transformAdminMenuFromAuthMenu(modulos: AuthMenuModulo[]): SidebarMenuI
 }
 
 /**
- * Selector de menú de administración basado en /auth/menu.
- *
- * - Elimina la lógica basada en isSuperAdmin/accessLevel/userType.
- * - No usa menús hardcodeados; todo viene de AuthContext (GET /auth/menu).
+ * Menú de administración desde GET /auth/menu, particionado por shell de layout (admin | super-admin).
  */
 export const useAdminMenuItems = (): { items: SidebarMenuItem[]; loading: boolean } => {
   const { menuModulos: menu } = useAuth();
+  const shell = useLayoutShell();
 
   const loading = menu === null;
 
-  const items = useMemo(
-    () => (menu ? transformAdminMenuFromAuthMenu(menu as AuthMenuModulo[]) : []),
-    [menu]
-  );
-
-  if (import.meta.env.DEV) {
-    // Debug temporal para verificar estructura real del menú desde AuthContext
-    // eslint-disable-next-line no-console
-    console.log('MENU FROM AUTH:', menu);
-  }
+  const items = useMemo(() => {
+    if (!menu) return [];
+    if (shell === 'app') return [];
+    const forShell = filterModulosForShell(menu, shell);
+    return transformAdminMenuFromAuthMenu(forShell);
+  }, [menu, shell]);
 
   return { items, loading };
 };
-

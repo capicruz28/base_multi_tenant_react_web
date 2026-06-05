@@ -1,29 +1,52 @@
 // src/pages/UnauthorizedPage.tsx
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../shared/context/AuthContext';
+import { resolvePostLoginPath } from '@/core/routing/post-login-path';
 import { ShieldAlert } from 'lucide-react';
+import { logPostLoginDiag } from '@/core/auth/utils/post-login-diag-log';
 
 const UnauthorizedPage: React.FC = () => {
-  const { isSuperAdmin, accessLevel, loading } = useAuth();
+  const { isSuperAdmin, userType, menuModulos, loading, permissions, menuPermissionsReady } = useAuth();
+  const location = useLocation();
 
-  // ✅ CORRECCIÓN: Determinar ruta según tipo de usuario
-  const getReturnPath = (): string => {
-    if (isSuperAdmin) {
-      return '/super-admin/dashboard';
-    }
-    if (accessLevel >= 4) { // Tenant Admin
-      return '/admin/usuarios';
-    }
-    return '/home'; // Usuario regular
-  };
+  const routeState = location.state as {
+    from?: { pathname?: string };
+    requiredPermission?: string;
+  } | null;
+
+  useEffect(() => {
+    logPostLoginDiag('UnauthorizedPage', 'mounted', {
+      pathname: location.pathname,
+      locationState: routeState,
+      fromPathname: routeState?.from?.pathname ?? null,
+      requiredPermission: routeState?.requiredPermission ?? null,
+      userType,
+      menuModulosCount: menuModulos?.length ?? 0,
+      menuPermissionsReady,
+      permissionsIsNull: permissions === null,
+      permissionsKeys: permissions ? Object.keys(permissions) : null,
+      returnPath: resolvePostLoginPath({ isSuperAdmin, userType, menuModulos }),
+    });
+  }, [
+    location.pathname,
+    routeState,
+    userType,
+    menuModulos,
+    menuPermissionsReady,
+    permissions,
+    isSuperAdmin,
+  ]);
+
+  const getReturnPath = (): string =>
+    resolvePostLoginPath({ isSuperAdmin, userType, menuModulos });
 
   const getReturnLabel = (): string => {
     if (isSuperAdmin) {
       return 'Volver a Administración Global';
     }
-    if (accessLevel >= 4) {
-      return 'Volver a Administración';
+    if (userType === 'tenant_admin') {
+      return 'Volver a mi panel';
     }
     return 'Volver a mi página principal';
   };

@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { Loader, Tag, Pencil, Search, Eye, Plus, Trash2, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toAppPath } from '@/core/routing/post-login-path';
 import { empresaService } from '@/features/org/services/org.service';
 import { usePermissions } from '@/core/auth/hooks/usePermissions';
 import {
@@ -370,7 +371,7 @@ export default function ListasPrecioPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => navigate(`/prc/listas-precio/${row.lista_precio_id}/detalles`)}
+                          onClick={() => navigate(toAppPath(`/prc/listas-precio/${row.lista_precio_id}/detalles`))}
                           className="text-brand-primary hover:text-brand-primary/80"
                           title="Ver detalles"
                         >
@@ -579,7 +580,7 @@ export default function ListasPrecioPage() {
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting || !canCrear} className="bg-brand-primary hover:bg-brand-primary-hover">
+              <Button type="submit" disabled={submitting || !canCrear} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
                 Crear
               </Button>
             </DialogFooter>
@@ -739,7 +740,7 @@ export default function ListasPrecioPage() {
               <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting || !canEditar} className="bg-brand-primary hover:bg-brand-primary-hover">
+              <Button type="submit" disabled={submitting || !canEditar} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
                 Guardar
               </Button>
             </DialogFooter>

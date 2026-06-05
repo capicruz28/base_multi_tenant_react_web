@@ -20,6 +20,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { useAuth } from '../../../shared/context/AuthContext';
+import { decodeAccessToken } from '@/core/auth/utils/decodeAccessToken';
 import { useBrandingStore } from '../stores/branding.store';
 import { useQueryClient } from '@tanstack/react-query';
 import { tenantResolver } from '../../../core/services/tenant-resolver.service';
@@ -73,13 +74,12 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
   // Evitar cargar branding más de una vez por tenant (incluido StrictMode)
   const brandingLoadedRef = useRef<Set<string>>(new Set());
 
-  function resetStores(tenantIdParam: string | null) {
-    console.log('🔄 [TenantContext] Reseteando stores al cambiar tenant...');
-    storeRegistry.resetAll(tenantIdParam);
+  const resetStores = useCallback((tenantIdParam: string | null) => {
     if (import.meta.env.DEV) {
-      console.log('✅ [TenantContext] Stores reseteados');
+      console.log('🔄 [TenantContext] Reseteando stores tenant-scoped:', tenantIdParam ?? 'null');
     }
-  }
+    storeRegistry.resetAll(tenantIdParam);
+  }, []);
 
   function ensureBrandingLoaded(tenantIdParam: string) {
     if (!tenantIdParam) return;
@@ -131,35 +131,52 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
    * Obtiene el tenantId del usuario autenticado.
    * Usa user.cliente_id cuando authInitialized y user están disponibles.
    */
+  const userClienteId =
+    user?.cliente_id ?? user?.cliente?.cliente_id ?? clienteInfo?.cliente_id ?? null;
+
+  /** Tenant = cliente_id (JWT / user). NO depende de empresa_activa. */
   const derivedTenantId = useMemo(() => {
-    if (!authInitialized || !user) return null;
-    return user.cliente_id ?? user.cliente?.cliente_id ?? clienteInfo?.cliente_id ?? null;
-  }, [authInitialized, user, clienteInfo]);
-  
-  // ============================================================================
-  // REINICIALIZAR TENANT CUANDO CAMBIA EL USUARIO AUTENTICADO
-  // ============================================================================
-  
-  useEffect(() => {
-    if (!authInitialized || !user) {
-      previousTenantIdRef.current = null;
-      setTenantIdState(null);
-      storeRegistry.clearAll();
-      queryClient.clear();
-      tenantStoreSync.notifyTenantChange(null);
-      return;
+    if (!authInitialized) return null;
+    const token = auth.token;
+    const claims = decodeAccessToken(token);
+
+    if (claims?.is_impersonation && claims.cliente_id) {
+      const impersonatedId = String(claims.cliente_id).trim();
+      if (impersonatedId) {
+        if (import.meta.env.DEV) {
+          const fromUser =
+            userClienteId !== null &&
+            userClienteId !== undefined &&
+            String(userClienteId).trim().length > 0
+              ? String(userClienteId).trim()
+              : null;
+          console.log('[IMPERSONATION-TENANT-SYNC]', {
+            source: 'jwt',
+            impersonatedClienteId: impersonatedId,
+            userClienteId: fromUser,
+            ignoredUserCliente: fromUser !== null && fromUser !== impersonatedId,
+          });
+        }
+        return impersonatedId;
+      }
     }
-    previousTenantIdRef.current = null;
-    setTenantIdState(null);
-    const newTenantId = user.cliente_id ?? user.cliente?.cliente_id ?? null;
-    setTenantIdState(newTenantId);
-    previousTenantIdRef.current = newTenantId;
-    if (newTenantId) {
-      resetStores(newTenantId);
-      tenantStoreSync.notifyTenantChange(newTenantId);
-      ensureBrandingLoaded(newTenantId);
+
+    const fromUser =
+      userClienteId !== null && userClienteId !== undefined && String(userClienteId).trim().length > 0
+        ? String(userClienteId).trim()
+        : null;
+    if (fromUser) return fromUser;
+
+    const fromClaims = claims?.cliente_id;
+    if (
+      fromClaims !== null &&
+      fromClaims !== undefined &&
+      String(fromClaims).trim().length > 0
+    ) {
+      return String(fromClaims).trim();
     }
-  }, [authInitialized, user?.cliente_id]);
+    return null;
+  }, [authInitialized, userClienteId, auth.token]);
 
   // ============================================================================
   // REGISTRO DE STORES
@@ -303,63 +320,58 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
   // ============================================================================
   
   useEffect(() => {
-    const currentTenantId = derivedTenantId;
+    const nextTenantId = derivedTenantId;
     const previousTenantId = previousTenantIdRef.current;
-    
-    // Si el tenant cambió
-    if (currentTenantId !== previousTenantId) {
-      // Solo log en desarrollo
+
+    if (nextTenantId === previousTenantId) {
+      if (nextTenantId && tenantId !== nextTenantId) {
+        setTenantIdState(nextTenantId);
+      }
+      return;
+    }
+
+    if (import.meta.env.DEV) {
+      console.log('🔄 [TenantContext] Cambio de tenant detectado:', {
+        anterior: previousTenantId,
+        nuevo: nextTenantId,
+      });
+    }
+
+    if (previousTenantId) {
+      invalidatePreviousTenantCache(previousTenantId);
+    }
+
+    previousTenantIdRef.current = nextTenantId;
+    setTenantIdState(nextTenantId);
+
+    if (nextTenantId) {
+      resetStores(nextTenantId);
+      tenantStoreSync.notifyTenantChange(nextTenantId);
+      ensureBrandingLoaded(nextTenantId);
       if (import.meta.env.DEV) {
-        console.log('🔄 [TenantContext] Cambio de tenant detectado:', {
-          anterior: previousTenantId,
-          nuevo: currentTenantId,
-        });
+        console.log('✅ [TenantContext] Tenant actualizado:', nextTenantId);
       }
-      
-      // Si había un tenant anterior, invalidar su caché
-      if (previousTenantId) {
-        invalidatePreviousTenantCache(previousTenantId);
-      }
-      
-      // Resetear stores usando el registry
-      resetStores(currentTenantId);
-      
-      // ✅ FASE 4: Notificar cambio de tenant a otras pestañas
-      tenantStoreSync.notifyTenantChange(currentTenantId);
-      
-      // Actualizar el ref
-      previousTenantIdRef.current = currentTenantId;
-      
-      // Actualizar el estado
-      setTenantIdState(currentTenantId);
-      // Cargar branding para el nuevo tenant usando protección contra doble carga
-      if (currentTenantId) {
-        ensureBrandingLoaded(currentTenantId);
-      }
-      
-      console.log('✅ [TenantContext] Tenant actualizado:', currentTenantId);
-    } else if (currentTenantId && !tenantId) {
-      // Primera carga: establecer tenant sin reset (no hay tenant anterior)
-      previousTenantIdRef.current = currentTenantId;
-      setTenantIdState(currentTenantId);
-      console.log('✅ [TenantContext] Tenant inicial establecido:', currentTenantId);
-    } else if (!currentTenantId && tenantId) {
-      // Logout: limpiar tenant
-      previousTenantIdRef.current = null;
-      setTenantIdState(null);
-      
-      // ✅ FASE 4: Limpiar todos los stores usando el registry
-      storeRegistry.clearAll();
-      
-      // ✅ FASE 4: Limpiar todo el caché de React Query
-      queryClient.clear();
-      
-      // ✅ FASE 4: Notificar logout a otras pestañas
-      tenantStoreSync.notifyTenantChange(null);
-      
+      return;
+    }
+
+    if (auth.token) {
+      return;
+    }
+
+    storeRegistry.clearAll();
+    queryClient.clear();
+    tenantStoreSync.notifyTenantChange(null);
+    if (import.meta.env.DEV) {
       console.log('🔄 [TenantContext] Tenant limpiado (logout)');
     }
-  }, [derivedTenantId, tenantId, resetStores, invalidatePreviousTenantCache]);
+  }, [
+    derivedTenantId,
+    tenantId,
+    auth.token,
+    resetStores,
+    invalidatePreviousTenantCache,
+    queryClient,
+  ]);
   
   // ============================================================================
   // FUNCIONES PÚBLICAS
@@ -368,19 +380,27 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
   /**
    * Establece manualmente el tenant (útil para testing o casos especiales)
    */
-  const setTenant = useCallback((newTenantId: string) => {
-    const previous = tenantId;
-    
-    if (previous && previous !== newTenantId) {
-      invalidatePreviousTenantCache(previous);
-      resetStores(previous);
-    }
-    
-    previousTenantIdRef.current = newTenantId;
-    setTenantIdState(newTenantId);
-    
-    console.log('✅ [TenantContext] Tenant establecido manualmente:', newTenantId);
-  }, [tenantId, invalidatePreviousTenantCache, resetStores]);
+  const setTenant = useCallback(
+    (newTenantId: string) => {
+      const previous = previousTenantIdRef.current;
+      if (previous === newTenantId) {
+        setTenantIdState(newTenantId);
+        return;
+      }
+      if (previous) {
+        invalidatePreviousTenantCache(previous);
+      }
+      previousTenantIdRef.current = newTenantId;
+      setTenantIdState(newTenantId);
+      resetStores(newTenantId);
+      tenantStoreSync.notifyTenantChange(newTenantId);
+      ensureBrandingLoaded(newTenantId);
+      if (import.meta.env.DEV) {
+        console.log('✅ [TenantContext] Tenant establecido manualmente:', newTenantId);
+      }
+    },
+    [invalidatePreviousTenantCache, resetStores],
+  );
   
   /**
    * Resetea el tenant actual (útil para logout o limpieza)

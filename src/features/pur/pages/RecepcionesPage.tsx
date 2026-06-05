@@ -253,7 +253,7 @@ function DetalleRow({
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={updateLineMut.isPending} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button>
+              <Button type="submit" disabled={updateLineMut.isPending} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -623,7 +623,7 @@ export default function RecepcionesPage() {
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={createTransaccionalMut.isPending} className="bg-brand-primary hover:bg-brand-primary-hover">
+              <Button type="submit" disabled={createTransaccionalMut.isPending} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
                 {createTransaccionalMut.isPending ? 'Creando...' : 'Crear recepción'}
               </Button>
             </DialogFooter>
@@ -655,7 +655,7 @@ export default function RecepcionesPage() {
             <div><Label>Incidencias</Label><textarea value={editForm.incidencias ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, incidencias: e.target.value || undefined }))} className={inputClass} rows={2} /></div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={updateMut.isPending} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button>
+              <Button type="submit" disabled={updateMut.isPending} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button>
             </DialogFooter>
           </form>
         </DialogContent>

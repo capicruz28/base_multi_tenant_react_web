@@ -2,26 +2,58 @@
  * Productos — Listado y gestión completa. GET/POST /api/v1/inv/productos
  * Implementación centrada en los campos más importantes del catálogo.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
-import { Loader, Package, Plus, Pencil, Search, Trash2, RotateCcw } from 'lucide-react';
-import { empresaService } from '@/features/org/services/org.service';
+import { Link } from 'react-router-dom';
+import { Package, Plus, Pencil, Trash2, RotateCcw, Ruler } from 'lucide-react';
+import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
+import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
+import { toAppPath } from '@/core/routing/post-login-path';
 import { catalogosService } from '@/core/services/catalogos.service';
-import type { Empresa } from '@/features/org/types/org.types';
 import type { Categoria, UnidadMedida, Producto, ProductoCreate, ProductoUpdate } from '../types/inv.types';
 import type { CatMoneda } from '@/types/catalogos.types';
 import { InvPageLayout } from '../components/InvPageLayout';
+import { InvTableSkeleton } from '../components/InvTableSkeleton';
 import { getErrorMessage } from '@/core/services/error.service';
 import { Button } from '@/shared/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle } from '@/shared/components/ui/dialog';
+import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+} from '@/shared/components/ui/dialog';
 import { Label } from '@/shared/components/ui/label';
 import { usePermissions } from '@/core/auth/hooks/usePermissions';
 import { useCategorias } from '../hooks/categorias.hooks';
 import { useUnidadesMedida } from '../hooks/unidades-medida.hooks';
 import { useCreateProducto, useDeleteProducto, useProductos, useReactivarProducto, useUpdateProducto } from '../hooks/productos.hooks';
+import { useInvSessionScope, useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
+import { OrgSessionEmpresaField } from '@/features/org/components/OrgSessionEmpresaField';
+import { assertBodyEmpresaMatchesSession } from '@/features/org/utils/org-body-scope';
+import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
+import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
+import { createOrgDiscardHandlers } from '@/features/org/utils/org-discard-handlers';
+import { orgDialogGuardProps } from '@/features/org/utils/org-dialog-guard-props';
+import {
+  buildCreateProductoFormSnapshot,
+  buildEditProductoFormSnapshot,
+  isCreateProductoDirty,
+  isEditProductoDirty,
+  type EditProductoFormSnapshot,
+  type ProductoCreateFormSnapshot,
+} from '../utils/form-dirty/producto-form-dirty';
 
 const TIPOS_PRODUCTO = ['bien', 'servicio', 'materia_prima', 'producto_terminado', 'semi_elaborado', 'insumo'] as const;
 const METODOS_COSTEO = ['promedio', 'fifo', 'lifo', 'estandar'] as const;
+
+const MSG_SIN_UM_ACTIVAS =
+  'Debe registrar al menos una Unidad de Medida activa antes de crear productos.';
+const TOOLTIP_CREAR_SIN_UM =
+  'Debe crear al menos una Unidad de Medida activa para registrar productos.';
+const RUTA_UNIDADES_MEDIDA = '/inv/unidades-medida';
 
 const DEFAULT: ProductoCreate = {
   empresa_id: '',
@@ -42,8 +74,7 @@ const DEFAULT: ProductoCreate = {
 
 export default function ProductosPage() {
   const { can } = usePermissions();
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [empresaFilter, setEmpresaFilter] = useState<string>('');
+  const { scopeEmpresaId, canQueryCompanyScoped } = useInvSessionScope();
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -51,41 +82,44 @@ export default function ProductosPage() {
   const [editing, setEditing] = useState<Producto | null>(null);
   const [form, setForm] = useState<ProductoCreate>(DEFAULT);
   const [editForm, setEditForm] = useState<ProductoUpdate>({});
+  const [createBaseline, setCreateBaseline] = useState<ProductoCreateFormSnapshot>(() =>
+    buildCreateProductoFormSnapshot(DEFAULT),
+  );
+  const [editFormSnapshot, setEditFormSnapshot] = useState<EditProductoFormSnapshot | null>(null);
+  const [discardPending, setDiscardPending] = useState<OrgDiscardPending>(null);
   const [monedas, setMonedas] = useState<CatMoneda[]>([]);
+  const [bajaTarget, setBajaTarget] = useState<Producto | null>(null);
+  const [reactivarTarget, setReactivarTarget] = useState<Producto | null>(null);
 
-  const loadEmpresas = useCallback(async () => {
-    try {
-      const data = await empresaService.list({ solo_activos: true });
-      setEmpresas(data);
-      if (data.length === 1 && !empresaFilter) setEmpresaFilter(data[0].empresa_id);
-    } catch {
-      setEmpresas([]);
-    }
-  }, [empresaFilter]);
-
-  useEffect(() => { loadEmpresas(); }, [loadEmpresas]);
+  const resetPageFilters = useCallback(() => {
+    setSearchTerm('');
+    setMostrarInactivos(false);
+    setCreateOpen(false);
+    setEditOpen(false);
+    setEditing(null);
+    setEditFormSnapshot(null);
+    setDiscardPending(null);
+  }, []);
+  useInvScopeEmpresaReset(resetPageFilters);
 
   const categoriasQuery = useCategorias({
-    empresa_id: empresaFilter || undefined,
     solo_activos: true,
-    enabled: !!empresaFilter,
   });
   const unidadesQuery = useUnidadesMedida({
-    empresa_id: empresaFilter || undefined,
     solo_activos: true,
-    enabled: !!empresaFilter,
   });
 
   const productosQuery = useProductos({
-    empresa_id: empresaFilter || undefined,
     solo_activos: !mostrarInactivos,
     buscar: searchTerm.trim() || undefined,
-    enabled: true,
   });
 
   const list = productosQuery.data ?? [];
   const categorias = (categoriasQuery.data ?? []) as Categoria[];
   const unidadesMedida = (unidadesQuery.data ?? []) as UnidadMedida[];
+  /** REG-005: no deshabilitar Crear mientras la query de UM está cargando (data undefined → length 0). */
+  const sinUnidadesMedidaEnSesion =
+    unidadesQuery.isSuccess && unidadesMedida.length === 0;
 
   const createMutation = useCreateProducto();
   const updateMutation = useUpdateProducto();
@@ -93,6 +127,77 @@ export default function ProductosPage() {
   const reactivarMutation = useReactivarProducto();
   const submitting =
     createMutation.isPending || updateMutation.isPending || deleteMutation.isPending || reactivarMutation.isPending;
+  const formSubmitting = createMutation.isPending || updateMutation.isPending;
+
+  const buildDefaultCreateForm = useCallback((): ProductoCreate => {
+    const defaultMonedaId = monedas[0]?.moneda_id ?? '';
+    return {
+      ...DEFAULT,
+      empresa_id: scopeEmpresaId ?? '',
+      moneda_costo: defaultMonedaId,
+      moneda_venta: defaultMonedaId,
+    };
+  }, [monedas, scopeEmpresaId]);
+
+  const isCreateDialogDirty = useMemo(
+    () => isCreateProductoDirty(form, createBaseline),
+    [form, createBaseline],
+  );
+  const isEditDialogDirty = useMemo(
+    () => isEditProductoDirty(editForm, editFormSnapshot),
+    [editForm, editFormSnapshot],
+  );
+
+  const closeCreate = useCallback(() => {
+    if (!formSubmitting) {
+      setCreateOpen(false);
+      const nextForm = buildDefaultCreateForm();
+      setForm(nextForm);
+      setCreateBaseline(buildCreateProductoFormSnapshot(nextForm));
+      setDiscardPending((pending) => (pending === 'create' ? null : pending));
+    }
+  }, [formSubmitting, buildDefaultCreateForm]);
+
+  const closeEdit = useCallback(() => {
+    if (!formSubmitting) {
+      setEditOpen(false);
+      setEditing(null);
+      setEditForm({});
+      setEditFormSnapshot(null);
+      setDiscardPending((pending) => (pending === 'edit' ? null : pending));
+    }
+  }, [formSubmitting]);
+
+  const {
+    handleRequestCloseCreate,
+    handleRequestCloseEdit,
+    handleDiscardCancel,
+    handleDiscardConfirm,
+    handleCreateDialogOpenChange,
+    handleEditDialogOpenChange,
+  } = useMemo(
+    () =>
+      createOrgDiscardHandlers({
+        discardPending,
+        setDiscardPending,
+        isSubmitting: formSubmitting,
+        isCreateDirty: isCreateDialogDirty,
+        isEditDirty: isEditDialogDirty,
+        setCreateOpen,
+        setEditOpen,
+        closeCreate,
+        closeEdit,
+        contextPrefix: 'inv-producto',
+      }),
+    [
+      discardPending,
+      formSubmitting,
+      isCreateDialogDirty,
+      isEditDialogDirty,
+      closeCreate,
+      closeEdit,
+    ],
+  );
 
   useEffect(() => {
     catalogosService
@@ -102,19 +207,16 @@ export default function ProductosPage() {
   }, []);
 
   const openCreate = () => {
-    const defaultEmpresa = empresaFilter || (empresas[0]?.empresa_id ?? '');
-    const defaultMonedaId = monedas[0]?.moneda_id ?? '';
-    setForm({
-      ...DEFAULT,
-      empresa_id: defaultEmpresa,
-      moneda_costo: defaultMonedaId,
-      moneda_venta: defaultMonedaId,
-    });
+    setDiscardPending(null);
+    const nextForm = buildDefaultCreateForm();
+    setForm(nextForm);
+    setCreateBaseline(buildCreateProductoFormSnapshot(nextForm));
     setCreateOpen(true);
   };
   const openEdit = (row: Producto) => {
+    setDiscardPending(null);
     setEditing(row);
-    setEditForm({
+    const nextEditForm: ProductoUpdate = {
       codigo_sku: row.codigo_sku,
       nombre: row.nombre,
       codigo_barra: row.codigo_barra ?? undefined,
@@ -166,21 +268,25 @@ export default function ProductosPage() {
       tipo_afectacion_igv: row.tipo_afectacion_igv ?? undefined,
       proveedor_habitual_id: row.proveedor_habitual_id ?? undefined,
       es_activo: row.es_activo,
-    });
+    };
+    setEditForm(nextEditForm);
+    setEditFormSnapshot(buildEditProductoFormSnapshot(nextEditForm));
     setEditOpen(true);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.empresa_id || !form.codigo_sku.trim() || !form.nombre.trim() || !form.tipo_producto || !form.unidad_medida_base_id) {
-      toast.error('Completa empresa, SKU, nombre, tipo y unidad de medida.');
+    if (!scopeEmpresaId || !form.codigo_sku.trim() || !form.nombre.trim() || !form.tipo_producto || !form.unidad_medida_base_id) {
+      toast.error('Empresa activa, SKU, nombre, tipo y unidad de medida son requeridos.');
       return;
     }
     try {
-      await createMutation.mutateAsync(form);
-      setCreateOpen(false);
-    } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      await createMutation.mutateAsync(
+        assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId),
+      );
+      closeCreate();
+    } catch {
+      /* error vía useCreateProducto.onError */
     }
   };
 
@@ -189,166 +295,213 @@ export default function ProductosPage() {
     if (!editing) return;
     try {
       await updateMutation.mutateAsync({ productoId: editing.producto_id, payload: editForm });
-      setEditOpen(false);
-      setEditing(null);
-    } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      closeEdit();
+    } catch {
+      /* error vía useUpdateProducto.onError */
     }
   };
 
-  const categoriaNombre = (id: string | null | undefined) => id ? categorias.find((c) => c.categoria_id === id)?.nombre ?? id : '-';
+  const categoriaNombre = (id: string | null | undefined) =>
+    id ? categorias.find((c) => c.categoria_id === id)?.nombre ?? '—' : '—';
   const canCrear = can('inv', 'crear');
   const canEditar = can('inv', 'editar');
   const canEliminar = can('inv', 'eliminar');
 
-  const eliminar = async (row: Producto) => {
+  const eliminar = (row: Producto) => {
     if (!canEliminar) return;
-    const ok = window.confirm(`¿Dar de baja el producto "${row.nombre}"?`);
-    if (!ok) return;
+    setBajaTarget(row);
+  };
+
+  const reactivar = (row: Producto) => {
+    if (!canEditar) return;
+    setReactivarTarget(row);
+  };
+
+  const confirmarBaja = async () => {
+    if (!bajaTarget) return;
     try {
-      await deleteMutation.mutateAsync({ productoId: row.producto_id });
-    } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      await deleteMutation.mutateAsync({ productoId: bajaTarget.producto_id });
+      setBajaTarget(null);
+    } catch {
+      /* error vía useDeleteProducto.onError */
     }
   };
 
-  const reactivar = async (row: Producto) => {
-    if (!canEditar) return;
-    const ok = window.confirm(`¿Reactivar el producto "${row.nombre}"?`);
-    if (!ok) return;
+  const confirmarReactivar = async () => {
+    if (!reactivarTarget) return;
     try {
-      await reactivarMutation.mutateAsync({ productoId: row.producto_id });
-    } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      await reactivarMutation.mutateAsync({ productoId: reactivarTarget.producto_id });
+      setReactivarTarget(null);
+    } catch {
+      /* error vía useReactivarProducto.onError */
     }
   };
+
+  const mostrarAvisoSinUm =
+    Boolean(scopeEmpresaId) && canQueryCompanyScoped && sinUnidadesMedidaEnSesion;
+  const crearProductoDeshabilitado =
+    !scopeEmpresaId || !canQueryCompanyScoped || sinUnidadesMedidaEnSesion || discardPending !== null;
+  const hasSearch = searchTerm.trim().length > 0;
+  const TABLE_COLSPAN = 7;
 
   return (
-    <InvPageLayout
-      title="Productos"
-      description="Catálogo completo con SKU, código de barras, categoría, precio."
-      action={
-        <Button
-          onClick={openCreate}
-          className="bg-brand-primary hover:bg-brand-primary-hover text-white"
-          disabled={!empresas.length || !unidadesMedida.length || !canCrear}
+    <InvPageLayout>
+      {mostrarAvisoSinUm && (
+        <div
+          className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border border-brand-primary/30 bg-brand-primary/10"
+          role="status"
         >
-          <Plus className="h-4 w-4 mr-2" /> Crear producto
-        </Button>
-      }
-    >
-      <div className="mb-4 flex flex-col sm:flex-row gap-4">
-        {empresas.length > 0 && (
-          <div>
-            <Label className="mr-2">Empresa</Label>
-            <select value={empresaFilter} onChange={(e) => setEmpresaFilter(e.target.value)} className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm">
-              <option value="">Todas</option>
-              {empresas.map((e) => <option key={e.empresa_id} value={e.empresa_id}>{e.razon_social}</option>)}
-            </select>
+          <div className="flex items-start gap-2 min-w-0 flex-1">
+            <Ruler className="h-5 w-5 shrink-0 text-brand-primary mt-0.5" aria-hidden />
+            <p className="text-sm text-text-base">{MSG_SIN_UM_ACTIVAS}</p>
           </div>
-        )}
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre, SKU o código de barras..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-3 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
-          />
+          <Button variant="outline" size="sm" asChild className="shrink-0 border-border-base">
+            <Link to={toAppPath(RUTA_UNIDADES_MEDIDA)}>Ir a Unidades de Medida</Link>
+          </Button>
         </div>
-        <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+      )}
+      <OrgCompanyToolbar
+        actions={
+          canCrear ? (
+            <span
+              className="inline-flex"
+              title={sinUnidadesMedidaEnSesion ? TOOLTIP_CREAR_SIN_UM : undefined}
+            >
+              <Button
+                onClick={openCreate}
+                disabled={crearProductoDeshabilitado}
+                className="bg-brand-primary hover:bg-brand-primary-hover text-white disabled:opacity-50"
+              >
+                <Plus className="h-4 w-4 mr-2" /> Crear producto
+              </Button>
+            </span>
+          ) : null
+        }
+      >
+        <OrgToolbarSearch
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="SKU, nombre, código de barras…"
+          aria-label="Buscar productos"
+          disabled={discardPending !== null}
+        />
+        <label className="flex shrink-0 items-center gap-1.5 text-sm text-text-soft cursor-pointer select-none">
           <input
             type="checkbox"
             checked={mostrarInactivos}
             onChange={(e) => setMostrarInactivos(e.target.checked)}
+            className="rounded border border-border-base"
           />
-          Mostrar inactivos
+          Ver inactivos
         </label>
-      </div>
-      {productosQuery.isLoading && (
-        <div className="flex justify-center py-12">
-          <Loader className="h-8 w-8 animate-spin text-brand-primary" />
-        </div>
-      )}
+      </OrgCompanyToolbar>
+      {productosQuery.isLoading && <InvTableSkeleton columns={TABLE_COLSPAN} />}
       {productosQuery.error && !productosQuery.isLoading && (
-        <p className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+        <p className="text-error bg-error/10 p-4 rounded-lg">
           {getErrorMessage(productosQuery.error).message}
         </p>
       )}
       {!productosQuery.isLoading && !productosQuery.error && (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+        <div className="overflow-x-auto rounded-lg border border-border-base shadow">
+          <table className="min-w-full divide-y divide-border-base">
+            <thead className="bg-subtle">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">SKU</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Nombre</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Categoría</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Tipo</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Precio</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Estado</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Acciones</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">SKU</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Nombre</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Categoría</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Tipo</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Precio</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Estado</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-text-soft uppercase">Acciones</th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-surface divide-y divide-border-base">
               {list.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                    <Package className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                    No hay productos.
-                  </td>
-                </tr>
+                <IamTableEmptyState
+                  colSpan={TABLE_COLSPAN}
+                  icon={Package}
+                  title={
+                    hasSearch
+                      ? 'No se encontraron productos que coincidan con la búsqueda.'
+                      : mostrarInactivos
+                        ? 'No hay productos registrados.'
+                        : 'No hay productos activos.'
+                  }
+                  description={
+                    hasSearch ? 'Pruebe con otro término o limpie el filtro de búsqueda.' : undefined
+                  }
+                  actionLabel={
+                    !hasSearch && !mostrarInactivos && canCrear && scopeEmpresaId && !sinUnidadesMedidaEnSesion
+                      ? 'Crear producto'
+                      : undefined
+                  }
+                  onAction={
+                    !hasSearch && !mostrarInactivos && canCrear && scopeEmpresaId && !sinUnidadesMedidaEnSesion
+                      ? openCreate
+                      : undefined
+                  }
+                  actionDisabled={discardPending !== null}
+                />
               ) : (
                 list.map((row) => (
-                  <tr key={row.producto_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{row.codigo_sku}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.nombre}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{categoriaNombre(row.categoria_id)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.tipo_producto}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.precio_base_venta ? `S/ ${row.precio_base_venta.toFixed(2)}` : '-'}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                          row.es_activo
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
-                        }`}
-                      >
-                        {row.es_activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
+                  <tr key={row.producto_id} className="hover:bg-overlay dark:hover:bg-overlay">
+                    <td className="px-4 py-3 text-sm font-medium text-text-base">{row.codigo_sku}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">{row.nombre}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">{categoriaNombre(row.categoria_id)}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">{row.tipo_producto}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">{row.precio_base_venta ? `S/ ${row.precio_base_venta.toFixed(2)}` : '-'}</td>
                     <td className="px-4 py-3 text-center">
                       {row.es_activo ? (
-                        <div className="inline-flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEdit(row)}
-                            disabled={!canEditar}
-                            className="text-brand-primary hover:text-brand-primary/80"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => void eliminar(row)}
-                            disabled={!canEliminar || submitting}
-                            className="text-red-600 hover:text-red-600/80"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+                          Activo
+                        </span>
                       ) : (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => void reactivar(row)}
-                          disabled={!canEditar || submitting}
-                          className="text-emerald-700 hover:text-emerald-700/80"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-error/10 text-error">
+                          Inactivo
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 flex items-center justify-center gap-1">
+                      {row.es_activo ? (
+                        <>
+                          {canEditar && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEdit(row)}
+                              disabled={discardPending !== null}
+                              className="text-brand-primary hover:text-brand-primary/80"
+                              title="Editar"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canEliminar && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => eliminar(row)}
+                              disabled={submitting || discardPending !== null}
+                              className="text-error hover:text-error hover:bg-error/10"
+                              title="Desactivar"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        canEditar && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => reactivar(row)}
+                            disabled={submitting || discardPending !== null}
+                            className="text-success hover:text-success/80"
+                            title="Reactivar"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )
                       )}
                     </td>
                   </tr>
@@ -358,36 +511,27 @@ export default function ProductosPage() {
           </table>
         </div>
       )}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <OrgDiscardConfirmDialog
+        discardPending={discardPending}
+        entityLabel="el producto"
+        onClose={handleDiscardCancel}
+        onConfirm={handleDiscardConfirm}
+      />
+      <Dialog open={createOpen} onOpenChange={handleCreateDialogOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" {...orgDialogGuardProps}>
           <DialogHeader><DialogTitle>Crear producto</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-6">
             <div className="space-y-4">
               <h3 className="text-sm font-semibold">Información General</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Empresa *</Label>
-                  <select
-                    value={form.empresa_id}
-                    onChange={(e) => setForm((p) => ({ ...p, empresa_id: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
-                    required
-                  >
-                    <option value="">Seleccionar</option>
-                    {empresas.map((e) => (
-                      <option key={e.empresa_id} value={e.empresa_id}>
-                        {e.razon_social}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <OrgSessionEmpresaField />
                 <div>
                   <Label>SKU *</Label>
                   <input
                     type="text"
                     value={form.codigo_sku}
                     onChange={(e) => setForm((p) => ({ ...p, codigo_sku: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
                     required
                   />
                 </div>
@@ -397,7 +541,7 @@ export default function ProductosPage() {
                     type="text"
                     value={form.nombre}
                     onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                     required
                   />
                 </div>
@@ -409,7 +553,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, codigo_barra: e.target.value || undefined }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
                   />
                 </div>
                 <div>
@@ -420,7 +564,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, codigo_interno: e.target.value || undefined }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
                   />
                 </div>
                 <div>
@@ -431,7 +575,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, codigo_fabricante: e.target.value || undefined }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
                   />
                 </div>
                 <div>
@@ -441,7 +585,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, categoria_id: e.target.value || undefined }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   >
                     <option value="">Ninguna</option>
                     {categorias.map((c) => (
@@ -456,7 +600,7 @@ export default function ProductosPage() {
                   <select
                     value={form.tipo_producto}
                     onChange={(e) => setForm((p) => ({ ...p, tipo_producto: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   >
                     {TIPOS_PRODUCTO.map((t) => (
                       <option key={t} value={t}>
@@ -472,7 +616,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, unidad_medida_base_id: e.target.value }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                     required
                   >
                     <option value="">Seleccionar</option>
@@ -528,7 +672,7 @@ export default function ProductosPage() {
                         stock_minimo: e.target.value ? parseFloat(e.target.value) : undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div>
@@ -543,7 +687,7 @@ export default function ProductosPage() {
                         stock_maximo: e.target.value ? parseFloat(e.target.value) : undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div>
@@ -558,7 +702,7 @@ export default function ProductosPage() {
                         punto_reorden: e.target.value ? parseFloat(e.target.value) : undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
               </div>
@@ -585,7 +729,7 @@ export default function ProductosPage() {
                         dias_vida_util: e.target.value ? parseInt(e.target.value, 10) : undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
               </div>
@@ -623,7 +767,7 @@ export default function ProductosPage() {
                         unidad_medida_compra_id: e.target.value || undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   >
                     <option value="">Misma que base</option>
                     {unidadesMedida.map((u) => (
@@ -643,7 +787,7 @@ export default function ProductosPage() {
                         unidad_medida_venta_id: e.target.value || undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   >
                     <option value="">Misma que base</option>
                     {unidadesMedida.map((u) => (
@@ -669,7 +813,7 @@ export default function ProductosPage() {
                           : undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div>
@@ -686,7 +830,7 @@ export default function ProductosPage() {
                           : undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div>
@@ -701,7 +845,7 @@ export default function ProductosPage() {
                         multiplo_compra: e.target.value ? parseFloat(e.target.value) : undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
               </div>
@@ -714,7 +858,7 @@ export default function ProductosPage() {
                   <select
                     value={form.metodo_costeo ?? 'promedio'}
                     onChange={(e) => setForm((p) => ({ ...p, metodo_costeo: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   >
                     {METODOS_COSTEO.map((m) => (
                       <option key={m} value={m}>
@@ -733,7 +877,7 @@ export default function ProductosPage() {
                         moneda_costo: e.target.value,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                     required
                   >
                     <option value="">Seleccionar</option>
@@ -754,7 +898,7 @@ export default function ProductosPage() {
                         moneda_venta: e.target.value,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                     required
                   >
                     <option value="">Seleccionar</option>
@@ -777,7 +921,7 @@ export default function ProductosPage() {
                         precio_base_venta: e.target.value ? parseFloat(e.target.value) : undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -802,7 +946,7 @@ export default function ProductosPage() {
                         porcentaje_igv: parseFloat(e.target.value) || 18.0,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div>
@@ -813,7 +957,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, codigo_sunat: e.target.value || undefined }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
                   />
                 </div>
                 <div>
@@ -827,7 +971,7 @@ export default function ProductosPage() {
                         tipo_afectacion_igv: e.target.value || undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
               </div>
@@ -843,7 +987,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, marca: e.target.value || undefined }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div>
@@ -854,7 +998,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, modelo: e.target.value || undefined }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div>
@@ -865,7 +1009,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, color: e.target.value || undefined }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div>
@@ -876,7 +1020,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, talla: e.target.value || undefined }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -912,7 +1056,7 @@ export default function ProductosPage() {
                       }))
                     }
                     rows={2}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div>
@@ -926,17 +1070,17 @@ export default function ProductosPage() {
                       }))
                     }
                     rows={2}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
               </div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Crear</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={handleRequestCloseCreate}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-      <Dialog open={editOpen} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={editOpen} onOpenChange={handleEditDialogOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" {...orgDialogGuardProps}>
           <DialogHeader><DialogTitle>Editar producto</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-6">
             <div className="space-y-4">
@@ -948,7 +1092,7 @@ export default function ProductosPage() {
                     type="text"
                     value={editForm.codigo_sku ?? ''}
                     onChange={(e) => setEditForm((p) => ({ ...p, codigo_sku: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
                     required
                   />
                 </div>
@@ -960,7 +1104,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setEditForm((p) => ({ ...p, codigo_barra: e.target.value || undefined }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -969,7 +1113,7 @@ export default function ProductosPage() {
                     type="text"
                     value={editForm.nombre ?? ''}
                     onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                     required
                   />
                 </div>
@@ -980,7 +1124,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setEditForm((p) => ({ ...p, categoria_id: e.target.value || undefined }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   >
                     <option value="">Ninguna</option>
                     {categorias.map((c) => (
@@ -997,7 +1141,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setEditForm((p) => ({ ...p, tipo_producto: e.target.value }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   >
                     {TIPOS_PRODUCTO.map((t) => (
                       <option key={t} value={t}>
@@ -1057,7 +1201,7 @@ export default function ProductosPage() {
                           : undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div>
@@ -1074,7 +1218,7 @@ export default function ProductosPage() {
                           : undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div>
@@ -1091,7 +1235,7 @@ export default function ProductosPage() {
                           : undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
               </div>
@@ -1106,7 +1250,7 @@ export default function ProductosPage() {
                     onChange={(e) =>
                       setEditForm((p) => ({ ...p, metodo_costeo: e.target.value }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   >
                     {METODOS_COSTEO.map((m) => (
                       <option key={m} value={m}>
@@ -1125,7 +1269,7 @@ export default function ProductosPage() {
                         moneda_costo: e.target.value || undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                     required
                   >
                     <option value="">Seleccionar</option>
@@ -1146,7 +1290,7 @@ export default function ProductosPage() {
                         moneda_venta: e.target.value || undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                     required
                   >
                     <option value="">Seleccionar</option>
@@ -1171,7 +1315,7 @@ export default function ProductosPage() {
                           : undefined,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -1196,15 +1340,39 @@ export default function ProductosPage() {
                         porcentaje_igv: parseFloat(e.target.value) || 18.0,
                       }))
                     }
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                   />
                 </div>
               </div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={handleRequestCloseEdit}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        isOpen={!!bajaTarget && discardPending === null}
+        onClose={() => setBajaTarget(null)}
+        onConfirm={() => void confirmarBaja()}
+        title="Desactivar producto"
+        message={bajaTarget ? `¿Desactivar producto '${bajaTarget.nombre}'? Podrá reactivarlo después.` : ''}
+        confirmText="Desactivar"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={deleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={!!reactivarTarget && discardPending === null}
+        onClose={() => setReactivarTarget(null)}
+        onConfirm={() => void confirmarReactivar()}
+        title="Reactivar producto"
+        message={reactivarTarget ? `¿Reactivar producto '${reactivarTarget.nombre}'? Volverá a estar disponible.` : ''}
+        confirmText="Reactivar"
+        cancelText="Cancelar"
+        variant="info"
+        loading={reactivarMutation.isPending}
+      />
     </InvPageLayout>
   );
 }

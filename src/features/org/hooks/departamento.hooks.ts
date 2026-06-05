@@ -1,45 +1,44 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useTenantQuery } from '@/core/hooks/useTenantQuery';
-import { getErrorMessage } from '@/core/services/error.service';
+import { toastOrgApiError } from '../utils/org-api-error';
 import { departamentoService } from '../services/org.service';
 import type { Departamento, DepartamentoCreate, DepartamentoUpdate } from '../types/org.types';
+import { useOrgCompanyQueryGate } from './org-company-query-gate';
 
 const qk = {
-  list: (empresaId: string | undefined, soloActivos: boolean, buscar?: string) =>
-    ['org', 'departamento', 'list', empresaId ?? '', soloActivos, (buscar ?? '').trim()] as const,
-  detail: (departamentoId: string, empresaId?: string) =>
-    ['org', 'departamento', 'detail', departamentoId, empresaId ?? ''] as const,
+  list: (scopeEmpresaId: string, soloActivos: boolean, buscar?: string) =>
+    ['org', 'departamento', 'list', scopeEmpresaId, soloActivos, (buscar ?? '').trim()] as const,
+  detail: (departamentoId: string, scopeEmpresaId: string) =>
+    ['org', 'departamento', 'detail', departamentoId, scopeEmpresaId] as const,
 };
 
 export function useDepartamentos(options?: {
-  empresa_id?: string;
   solo_activos?: boolean;
   buscar?: string;
   enabled?: boolean;
 }) {
-  const empresaId = options?.empresa_id;
+  const { scopeEmpresaId, enabled } = useOrgCompanyQueryGate(options);
   const soloActivos = options?.solo_activos ?? true;
   const buscar = options?.buscar;
-  const enabled = options?.enabled ?? true;
 
   return useTenantQuery<Departamento[], Error>({
-    queryKey: qk.list(empresaId, soloActivos, buscar),
-    queryFn: () => departamentoService.list({ empresa_id: empresaId, solo_activos: soloActivos, buscar }),
+    queryKey: qk.list(scopeEmpresaId ?? '', soloActivos, buscar),
+    queryFn: () => departamentoService.list({ solo_activos: soloActivos, buscar }),
     enabled,
   });
 }
 
 export function useDepartamento(
   departamentoId: string | null | undefined,
-  options?: { empresa_id?: string; enabled?: boolean }
+  options?: { enabled?: boolean },
 ) {
-  const empresaId = options?.empresa_id;
-  const enabled = (options?.enabled ?? true) && !!departamentoId;
+  const { scopeEmpresaId, enabled: gateEnabled } = useOrgCompanyQueryGate(options);
+  const enabled = gateEnabled && !!departamentoId;
 
   return useTenantQuery<Departamento, Error>({
-    queryKey: qk.detail(departamentoId ?? '', empresaId),
-    queryFn: () => departamentoService.getById(departamentoId ?? '', { empresa_id: empresaId }),
+    queryKey: qk.detail(departamentoId ?? '', scopeEmpresaId ?? ''),
+    queryFn: () => departamentoService.getById(departamentoId ?? ''),
     enabled,
   });
 }
@@ -54,63 +53,65 @@ export function useCreateDepartamento() {
       toast.success('Departamento creado.');
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err).message);
+      toastOrgApiError(err);
     },
   });
 }
 
 export function useUpdateDepartamento() {
   const qc = useQueryClient();
+  const { scopeEmpresaId } = useOrgCompanyQueryGate();
 
-  return useMutation<
-    Departamento,
-    Error,
-    { departamentoId: string; payload: DepartamentoUpdate; empresa_id?: string }
-  >({
-    mutationFn: ({ departamentoId, payload, empresa_id }) =>
-      departamentoService.update(departamentoId, payload, { empresa_id }),
+  return useMutation<Departamento, Error, { departamentoId: string; payload: DepartamentoUpdate }>({
+    mutationFn: ({ departamentoId, payload }) =>
+      departamentoService.update(departamentoId, payload),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['org', 'departamento', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.departamentoId, vars.empresa_id) });
+      qc.invalidateQueries({
+        queryKey: qk.detail(vars.departamentoId, scopeEmpresaId ?? ''),
+      });
       toast.success('Departamento actualizado.');
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err).message);
+      toastOrgApiError(err);
     },
   });
 }
 
 export function useDeleteDepartamento() {
   const qc = useQueryClient();
+  const { scopeEmpresaId } = useOrgCompanyQueryGate();
 
-  return useMutation<void, Error, { departamentoId: string; empresa_id?: string }>({
-    mutationFn: ({ departamentoId, empresa_id }) =>
-      departamentoService.delete(departamentoId, { empresa_id }),
+  return useMutation<void, Error, { departamentoId: string }>({
+    mutationFn: ({ departamentoId }) => departamentoService.delete(departamentoId),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['org', 'departamento', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.departamentoId, vars.empresa_id) });
+      qc.invalidateQueries({
+        queryKey: qk.detail(vars.departamentoId, scopeEmpresaId ?? ''),
+      });
       toast.success('Departamento eliminado.');
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err).message);
+      toastOrgApiError(err);
     },
   });
 }
 
 export function useReactivarDepartamento() {
   const qc = useQueryClient();
+  const { scopeEmpresaId } = useOrgCompanyQueryGate();
 
-  return useMutation<Departamento, Error, { departamentoId: string; empresa_id?: string }>({
-    mutationFn: ({ departamentoId, empresa_id }) =>
-      departamentoService.reactivar(departamentoId, { empresa_id }),
+  return useMutation<Departamento, Error, { departamentoId: string }>({
+    mutationFn: ({ departamentoId }) => departamentoService.reactivar(departamentoId),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['org', 'departamento', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.departamentoId, vars.empresa_id) });
+      qc.invalidateQueries({
+        queryKey: qk.detail(vars.departamentoId, scopeEmpresaId ?? ''),
+      });
       toast.success('Departamento reactivado.');
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err).message);
+      toastOrgApiError(err);
     },
   });
 }
-

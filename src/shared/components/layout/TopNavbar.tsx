@@ -4,9 +4,19 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import * as LucideIcons from 'lucide-react';
 import type { AuthMenuModulo, AuthMenuItem } from '../../../core/auth/types/auth-menu.types';
-import { ERP_MODULES } from '../../../core/constants/erp-modules';
-
-const ERP_CODES = new Set(ERP_MODULES.map((m) => m.codigo));
+import { useLayoutShell } from './LayoutShellContext';
+import type { LayoutShellVariant } from './layout-shell.types';
+import {
+  filterModulosForShell,
+  isMenuVisibleForShell,
+  normalizeNavRoute,
+} from './sidebar-menu.utils';
+import {
+  navItemActive,
+  navItemIdle,
+  navItemNavbarActive,
+  navItemNavbarIdle,
+} from './nav-item-classes';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -77,11 +87,16 @@ function getFirstRoute(modulo: AuthMenuModulo): string | null {
   return null;
 }
 
-function isModuleActive(modulo: AuthMenuModulo, currentPath: string): boolean {
+function isModuleActive(
+  modulo: AuthMenuModulo,
+  currentPath: string,
+  shell: LayoutShellVariant
+): boolean {
   for (const seccion of modulo.secciones ?? []) {
     for (const menu of seccion.menus ?? []) {
       if (menu.ruta) {
-        const mp = menu.ruta.startsWith('/') ? menu.ruta : `/${menu.ruta}`;
+        const raw = menu.ruta.startsWith('/') ? menu.ruta : `/${menu.ruta}`;
+        const mp = normalizeNavRoute(raw, shell) ?? raw;
         if (currentPath === mp || currentPath.startsWith(mp + '/')) return true;
       }
     }
@@ -118,7 +133,8 @@ interface CategoryEntry {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const TopNavbar: React.FC = () => {
-  const { menuModulos, userType } = useAuth();
+  const shell = useLayoutShell();
+  const { menuModulos } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -130,24 +146,14 @@ const TopNavbar: React.FC = () => {
   const [dropdownLeft, setDropdownLeft] = useState(0);
   const barRef = useRef<HTMLDivElement>(null);
 
-  /** Nivel 2 de filtrado: dentro de cada módulo, solo los menús que corresponden al rol.
-   *  ERP → todos los visible+enabled. No-ERP → filtra además por prefijo de ruta. */
   const getMenusForModulo = useCallback(
     (modulo: AuthMenuModulo): AuthMenuItem[] => {
       const allMenus = (modulo.secciones ?? []).flatMap((s) => s.menus ?? []);
       const visibleMenus = allMenus.filter((m) => m.is_visible && m.is_enabled);
 
-      if (ERP_CODES.has(modulo.codigo ?? '')) return visibleMenus;
-
-      if (userType === 'platform_admin') {
-        return visibleMenus.filter((m) => m.ruta?.startsWith('/super-admin'));
-      }
-      if (userType === 'tenant_admin') {
-        return visibleMenus.filter((m) => m.ruta?.startsWith('/admin'));
-      }
-      return [];
+      return visibleMenus.filter((m) => isMenuVisibleForShell(m, modulo, shell));
     },
-    [userType]
+    [shell]
   );
 
   // Cerrar al navegar
@@ -171,45 +177,10 @@ const TopNavbar: React.FC = () => {
 
   // ─── Data ──────────────────────────────────────────────────────────────────
 
-  // Replica exactamente la lógica de visibilidad de NewSidebar:
-  // - Módulos ERP: mostrar si tienen ≥1 menú visible+habilitado
-  // - Módulos no-ERP (admin): gate por userType + prefijo de ruta
-  //   · platform_admin → solo rutas /super-admin/*
-  //   · tenant_admin   → solo rutas /admin/*
-  //   · user regular   → ningún módulo admin
-  const filteredModulos = useMemo(() => {
-    return (menuModulos ?? []).filter((m) => {
-      const hasVisibleMenu = (m.secciones ?? []).some((s) =>
-        (s.menus ?? []).some((menu) => menu.is_visible && menu.is_enabled)
-      );
-      if (!hasVisibleMenu) return false;
-
-      if (ERP_CODES.has(m.codigo)) return true;
-
-      // Módulo no-ERP (administración): filtrar por userType + prefijo de ruta
-      if (userType === 'platform_admin') {
-        return (m.secciones ?? []).some((s) =>
-          (s.menus ?? []).some(
-            (menu) =>
-              menu.is_visible &&
-              menu.is_enabled &&
-              (menu.ruta ?? '').startsWith('/super-admin')
-          )
-        );
-      }
-      if (userType === 'tenant_admin') {
-        return (m.secciones ?? []).some((s) =>
-          (s.menus ?? []).some(
-            (menu) =>
-              menu.is_visible &&
-              menu.is_enabled &&
-              (menu.ruta ?? '').startsWith('/admin')
-          )
-        );
-      }
-      return false;
-    });
-  }, [menuModulos, userType]);
+  const filteredModulos = useMemo(
+    () => filterModulosForShell(menuModulos ?? [], shell),
+    [menuModulos, shell],
+  );
 
   const categoryEntries = useMemo<CategoryEntry[]>(() => {
     const grouped: Record<string, AuthMenuModulo[]> = {};
@@ -271,23 +242,25 @@ const TopNavbar: React.FC = () => {
 
   const handleMenuItemClick = useCallback(
     (ruta: string) => {
-      navigate(ruta.startsWith('/') ? ruta : `/${ruta}`);
+      const raw = ruta.startsWith('/') ? ruta : `/${ruta}`;
+      const target = normalizeNavRoute(raw, shell) ?? raw;
+      navigate(target);
       setOpenCategory(null);
       setSelectedModuleId(null);
     },
-    [navigate],
+    [navigate, shell],
   );
 
   // ─── Categoría activa según ruta actual (independiente del estado de apertura) ──
   const activeCategoryKeys = useMemo(() => {
     const keys = new Set<string>();
     for (const { key, modules } of categoryEntries) {
-      if (modules.some((m) => isModuleActive(m, currentPath))) {
+      if (modules.some((m) => isModuleActive(m, currentPath, shell))) {
         keys.add(key);
       }
     }
     return keys;
-  }, [categoryEntries, currentPath]);
+  }, [categoryEntries, currentPath, shell]);
 
   // ─── Derived ───────────────────────────────────────────────────────────────
 
@@ -303,7 +276,7 @@ const TopNavbar: React.FC = () => {
   return (
     <div
       ref={barRef}
-      className="relative z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex-shrink-0"
+      className="relative z-20 bg-brand-surface border-b border-brand-border flex-shrink-0"
     >
       {/* ── Category bar — h-11 (44px) ───────────────────────────────────── */}
       <div className="flex items-center h-11 px-4 gap-0.5 overflow-x-auto">
@@ -315,28 +288,18 @@ const TopNavbar: React.FC = () => {
               key={key}
               onClick={(e) => handleCategoryClick(key, e)}
               className={[
-                'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium',
-                'transition-colors duration-150 flex-shrink-0 whitespace-nowrap',
-                'border-b-2',
+                'text-sm',
                 hasActive
-                  ? 'border-blue-600 dark:border-blue-400 text-blue-700 dark:text-blue-300 bg-transparent'
+                  ? navItemNavbarActive
                   : isOpen
-                  ? 'border-transparent bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-md'
-                  : 'border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md',
+                  ? `${navItemNavbarIdle} bg-brand-surface-secondary text-brand-text-primary`
+                  : navItemNavbarIdle,
               ].join(' ')}
             >
-              <Icon
-                className={`w-4 h-4 flex-shrink-0 ${
-                  hasActive ? 'text-blue-700 dark:text-blue-300' : ''
-                }`}
-              />
+              <Icon className="w-4 h-4 flex-shrink-0 text-inherit" />
               <span>{label}</span>
               <LucideIcons.ChevronDown
-                className={`w-3.5 h-3.5 transition-transform duration-150 ${
-                  hasActive
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-gray-400 dark:text-gray-500'
-                } ${isOpen ? 'rotate-180' : ''}`}
+                className={`w-3.5 h-3.5 flex-shrink-0 text-inherit transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
               />
             </button>
           );
@@ -346,7 +309,7 @@ const TopNavbar: React.FC = () => {
       {/* ── Mega dropdown — flex-col: módulos arriba, menús abajo ────────── */}
       {openEntry && (
         <div
-          className="absolute top-full z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-b-lg shadow-xl overflow-hidden"
+          className="absolute top-full z-50 bg-brand-surface border border-brand-border rounded-b-lg shadow-xl overflow-hidden"
           style={{ minWidth: 240, left: dropdownLeft }}
         >
           {/* Panel de módulos — columnas automáticas, compacto */}
@@ -355,41 +318,24 @@ const TopNavbar: React.FC = () => {
             style={{ gridTemplateColumns: `repeat(${getModuleColCount(openEntry.modules.length)}, max-content)` }}
           >
             {openEntry.modules.map((modulo) => {
-              const active = isModuleActive(modulo, currentPath);
+              const active = isModuleActive(modulo, currentPath, shell);
               const selected = selectedModuleId === modulo.modulo_id;
               return (
                 <button
                   key={modulo.modulo_id}
                   onClick={() => handleModuleClick(modulo)}
                   className={`
-                    flex items-center gap-2 px-3 py-2 rounded-md text-left w-full
-                    transition-colors duration-150
-                    ${
-                      active
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                        : selected
-                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }
+                    gap-2 text-left
+                    ${active ? navItemActive : selected ? `${navItemIdle} bg-brand-surface-secondary` : navItemIdle}
                   `}
                 >
-                  <span
-                    className={`flex-shrink-0 ${
-                      active
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-gray-400 dark:text-gray-500'
-                    }`}
-                  >
+                  <span className="flex-shrink-0 text-inherit">
                     {resolveIcon(modulo.icono, 'w-[18px] h-[18px]')}
                   </span>
-                  <span className="text-[13px] font-medium whitespace-nowrap">
-                    {modulo.nombre}
-                  </span>
+                  <span className="text-[13px] whitespace-nowrap">{modulo.nombre}</span>
                   <LucideIcons.ChevronDown
-                    className={`w-3.5 h-3.5 flex-shrink-0 transition-transform duration-150 ${
-                      selected
-                        ? 'rotate-180 text-blue-500 dark:text-blue-400'
-                        : 'text-gray-300 dark:text-gray-600'
+                    className={`w-3.5 h-3.5 flex-shrink-0 text-inherit transition-transform duration-200 ${
+                      selected ? 'rotate-180' : ''
                     }`}
                   />
                 </button>
@@ -400,9 +346,9 @@ const TopNavbar: React.FC = () => {
           {/* Panel de menús — debajo de módulos, con separador visual */}
           {selectedModule && menuItems.length > 0 && (
             <>
-              <div className="border-t border-gray-100 dark:border-gray-800" />
-              <div className="bg-gray-50 dark:bg-gray-800/40 p-2">
-                <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 px-2 py-1">
+              <div className="border-t border-brand-border" />
+              <div className="bg-brand-surface-secondary/80 dark:bg-brand-surface-secondary/50 p-2">
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-brand-text-secondary px-2 py-1">
                   {selectedModule.nombre}
                 </div>
                 <div
@@ -411,9 +357,10 @@ const TopNavbar: React.FC = () => {
                 >
                   {menuItems.map((item) => {
                     const ruta = item.ruta
-                      ? item.ruta.startsWith('/')
-                        ? item.ruta
-                        : `/${item.ruta}`
+                      ? normalizeNavRoute(
+                          item.ruta.startsWith('/') ? item.ruta : `/${item.ruta}`,
+                          shell
+                        )
                       : null;
                     const isItemActive =
                       !!ruta &&
@@ -424,32 +371,19 @@ const TopNavbar: React.FC = () => {
                         onClick={() => ruta && handleMenuItemClick(ruta)}
                         disabled={!ruta}
                         className={`
-                          flex items-start gap-2 px-2 py-2 rounded-md text-left w-full
-                          transition-colors duration-150
-                          ${
-                            isItemActive
-                              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                              : 'text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800'
-                          }
+                          items-start gap-2 text-left
+                          ${isItemActive ? navItemActive : navItemIdle}
                           ${!ruta ? 'opacity-40 cursor-default' : 'cursor-pointer'}
                         `}
                       >
-                        <span
-                          className={`flex-shrink-0 mt-0.5 ${
-                            isItemActive
-                              ? 'text-blue-600 dark:text-blue-400'
-                              : 'text-gray-400 dark:text-gray-500'
-                          }`}
-                        >
+                        <span className="mt-0.5 flex-shrink-0 text-inherit">
                           {resolveIcon(item.icono, 'w-4 h-4')}
                         </span>
                         <div>
-                          <div className="text-[13px] font-semibold whitespace-nowrap">
-                            {item.nombre}
-                          </div>
+                          <div className="whitespace-nowrap text-[13px]">{item.nombre}</div>
                           {item.descripcion && (
                             <div
-                              className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5"
+                              className="text-[11px] text-brand-text-secondary mt-0.5"
                               style={{
                                 maxWidth: '200px',
                                 whiteSpace: 'normal',

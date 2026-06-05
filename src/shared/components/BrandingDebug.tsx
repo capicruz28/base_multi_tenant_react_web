@@ -22,7 +22,7 @@ export const BrandingDebug: React.FC = () => {
   const logoUrl = rootStyles.getPropertyValue('--logo-url').trim();
 
   return (
-    <div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg p-4 shadow-lg z-50 max-w-md text-xs">
+    <div className="fixed bottom-4 right-4 bg-brand-surface border-2 border-brand-border rounded-lg p-4 shadow-lg z-50 max-w-md text-xs">
       <h3 className="font-bold mb-2 text-sm">🎨 Branding Debug</h3>
       
       <div className="space-y-1">
@@ -42,7 +42,7 @@ export const BrandingDebug: React.FC = () => {
             <div>
               <strong>Logo URL:</strong>{' '}
               {branding.logo_url ? (
-                <a href={branding.logo_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                <a href={branding.logo_url} target="_blank" rel="noopener noreferrer" className="text-brand-primary underline">
                   Ver
                 </a>
               ) : (
@@ -52,7 +52,7 @@ export const BrandingDebug: React.FC = () => {
             <div>
               <strong>Color Primario:</strong>{' '}
               <span
-                className="inline-block w-4 h-4 rounded border border-gray-300"
+                className="inline-block w-4 h-4 rounded border border-brand-border"
                 style={{ backgroundColor: branding.color_primario || '#000' }}
               />{' '}
               {branding.color_primario || 'N/A'}
@@ -60,7 +60,7 @@ export const BrandingDebug: React.FC = () => {
             <div>
               <strong>Color Secundario:</strong>{' '}
               <span
-                className="inline-block w-4 h-4 rounded border border-gray-300"
+                className="inline-block w-4 h-4 rounded border border-brand-border"
                 style={{ backgroundColor: branding.color_secundario || '#000' }}
               />{' '}
               {branding.color_secundario || 'N/A'}
@@ -68,7 +68,7 @@ export const BrandingDebug: React.FC = () => {
           </>
         )}
         
-        <div className="mt-2 pt-2 border-t border-gray-300 dark:border-gray-600">
+        <div className="mt-2 pt-2 border-t border-brand-border">
           <strong>CSS Variables:</strong>
           <div className="mt-1 space-y-0.5">
             <div>
@@ -84,7 +84,7 @@ export const BrandingDebug: React.FC = () => {
         </div>
         
         {clienteInfo && (
-          <div className="mt-2 pt-2 border-t border-gray-300 dark:border-gray-600">
+          <div className="mt-2 pt-2 border-t border-brand-border">
             <strong>Cliente Info:</strong>
             <div className="mt-1">
               <div>ID: {clienteInfo.cliente_id}</div>

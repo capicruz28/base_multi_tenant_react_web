@@ -18,10 +18,10 @@
  */
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '@/shared/context/AuthContext';
 import { usePermissions } from '@/core/auth/hooks/usePermissions';
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 import type { PermissionAction } from '@/core/auth/types/permission.types';
+import { logPostLoginDiag, warnPostLoginDiag } from '@/core/auth/utils/post-login-diag-log';
 
 interface PermissionGuardProps {
   /**
@@ -54,28 +54,44 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   children,
   redirectTo = '/unauthorized',
 }) => {
-  const { accessLevel } = useAuth();
-  const { can, loading, isSuperAdmin } = usePermissions();
+  const { can, menuPermissionsReady, permissions } = usePermissions();
   const location = useLocation();
 
-  // Mostrar loading mientras se cargan los permisos
-  if (loading) {
+  if (!menuPermissionsReady) {
+    logPostLoginDiag('PermissionGuard', 'spinner', {
+      pathname: location.pathname,
+      module,
+      action,
+      menuPermissionsReady,
+    });
     return <LoadingSpinner fullScreen message="Verificando permisos..." />;
   }
 
-  // Super admin y admin tenant tienen acceso completo (el menú /me/ ya filtra por módulos contratados)
-  if (isSuperAdmin || accessLevel >= 4) {
-    return <>{children || <Outlet />}</>;
-  }
-
-  // Verificar permiso específico
   const hasPermission = can(module, action);
+  const modulePermissions = permissions?.[module] ?? null;
+
+  logPostLoginDiag('PermissionGuard', 'can-evaluated', {
+    pathname: location.pathname,
+    module,
+    action,
+    canResult: hasPermission,
+    menuPermissionsReady,
+    permissionsIsNull: permissions === null,
+    permissionsKeys: permissions ? Object.keys(permissions) : null,
+    modulePermissions,
+  });
 
   if (!hasPermission) {
-    console.warn(
-      `🚫 [PermissionGuard] Acceso denegado a ${module}.${action} - ` +
-      `Usuario no tiene el permiso requerido`
-    );
+    warnPostLoginDiag('PermissionGuard', 'redirect-unauthorized', {
+      pathname: location.pathname,
+      module,
+      action,
+      canResult: hasPermission,
+      requiredPermission: `${module}.${action}`,
+      permissionsIsNull: permissions === null,
+      permissionsKeys: permissions ? Object.keys(permissions) : null,
+      modulePermissions,
+    });
     return (
       <Navigate 
         to={redirectTo} 
@@ -85,7 +101,12 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
     );
   }
 
-  console.log(`✅ [PermissionGuard] Acceso permitido a ${module}.${action}`);
+  logPostLoginDiag('PermissionGuard', 'access-allowed', {
+    pathname: location.pathname,
+    module,
+    action,
+    canResult: hasPermission,
+  });
   return <>{children || <Outlet />}</>;
 };
 

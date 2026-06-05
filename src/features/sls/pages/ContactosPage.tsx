@@ -211,7 +211,7 @@ export default function ContactosPage() {
                 <label className="flex items-center gap-2"><input type="checkbox" checked={form.es_contacto_cobranzas} onChange={(e) => setForm((p) => ({ ...p, es_contacto_cobranzas: e.target.checked }))} className="rounded" /> Cobranzas</label>
               </div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Crear</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -232,7 +232,7 @@ export default function ContactosPage() {
                 <label className="flex items-center gap-2"><input type="checkbox" checked={editForm.es_contacto_cobranzas} onChange={(e) => setEditForm((p) => ({ ...p, es_contacto_cobranzas: e.target.checked }))} className="rounded" /> Cobranzas</label>
               </div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

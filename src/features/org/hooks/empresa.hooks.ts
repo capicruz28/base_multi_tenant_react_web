@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useTenantQuery } from '@/core/hooks/useTenantQuery';
-import { getErrorMessage } from '@/core/services/error.service';
+import { toastOrgApiError } from '../utils/org-api-error';
 import { empresaService } from '../services/org.service';
 import type { Empresa, EmpresaCreate, EmpresaUpdate } from '../types/org.types';
 
@@ -11,6 +11,7 @@ const qk = {
   detail: (empresaId: string) => ['org', 'empresa', 'detail', empresaId] as const,
 };
 
+/** @deprecated Preferir useEmpresasTenant() para catálogo tenant. */
 export function useEmpresas(options?: { solo_activos?: boolean; buscar?: string; enabled?: boolean }) {
   const soloActivos = options?.solo_activos ?? true;
   const buscar = options?.buscar;
@@ -22,6 +23,8 @@ export function useEmpresas(options?: { solo_activos?: boolean; buscar?: string;
     enabled,
   });
 }
+
+export { useEmpresasTenant } from './useEmpresasTenant';
 
 export function useEmpresa(empresaId: string | null | undefined, options?: { enabled?: boolean }) {
   const enabled = (options?.enabled ?? true) && !!empresaId;
@@ -43,7 +46,7 @@ export function useCreateEmpresa() {
       toast.success('Empresa creada.');
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err).message);
+      toastOrgApiError(err);
     },
   });
 }
@@ -59,7 +62,7 @@ export function useUpdateEmpresa() {
       toast.success('Empresa actualizada.');
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err).message);
+      toastOrgApiError(err);
     },
   });
 }
@@ -75,7 +78,7 @@ export function useDeleteEmpresa() {
       toast.success('Empresa eliminada.');
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err).message);
+      toastOrgApiError(err);
     },
   });
 }
@@ -91,7 +94,7 @@ export function useReactivarEmpresa() {
       toast.success('Empresa reactivada.');
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err).message);
+      toastOrgApiError(err);
     },
   });
 }

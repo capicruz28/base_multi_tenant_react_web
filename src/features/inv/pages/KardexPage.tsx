@@ -1,280 +1,211 @@
 /**
- * Kardex — Líneas de movimiento por producto y almacén.
- * GET /api/v1/inv/kardex
+ * Kardex — Líneas según contrato GET /api/v1/inv/kardex.
+ * tipo_movimiento_id se enriquece con useTiposMovimiento (decisión de diseño).
  */
-import { useState, useEffect, useCallback } from 'react';
-import { Loader, ListTree, Filter } from 'lucide-react';
-import { empresaService } from '@/features/org/services/org.service';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { ListTree, Filter } from 'lucide-react';
 import { productoService } from '../services/inv.service';
-import type { Empresa } from '@/features/org/types/org.types';
 import type { Almacen, Producto, KardexLineaRead } from '../types/inv.types';
 import { InvPageLayout } from '../components/InvPageLayout';
+import { InvTableSkeleton } from '../components/InvTableSkeleton';
 import { getErrorMessage } from '@/core/services/error.service';
 import { useAlmacenes } from '../hooks/almacenes.hooks';
 import { useKardex } from '../hooks/kardex.hooks';
+import { useTiposMovimiento } from '../hooks/tipos-movimiento.hooks';
+import { useProductos } from '../hooks/productos.hooks';
+import { useInvSessionScope, useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
+
+function fmtCant(s: string | null | undefined): string {
+  if (s == null || s === '') return '-';
+  const n = Number(s);
+  return Number.isFinite(n) ? n.toFixed(4) : s;
+}
 
 export default function KardexPage() {
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [searchParams] = useSearchParams();
+  const { canQueryCompanyScoped } = useInvSessionScope();
   const [productosMap, setProductosMap] = useState<Record<string, Producto>>({});
-  const [empresaFilter, setEmpresaFilter] = useState<string>('');
-  const [almacenFilter, setAlmacenFilter] = useState<string>('');
-  const [productoFilter, setProductoFilter] = useState<string>('');
+  const [almacenFilter, setAlmacenFilter] = useState(() => searchParams.get('almacen_id') ?? '');
+  const [productoFilter, setProductoFilter] = useState(() => searchParams.get('producto_id') ?? '');
   const [fechaDesde, setFechaDesde] = useState<string>('');
   const [fechaHasta, setFechaHasta] = useState<string>('');
 
-  const loadEmpresas = useCallback(async () => {
-    try {
-      const data = await empresaService.list({ solo_activos: true });
-      setEmpresas(data);
-      if (data.length === 1 && !empresaFilter) setEmpresaFilter(data[0].empresa_id);
-    } catch {
-      setEmpresas([]);
-    }
-  }, [empresaFilter]);
-
-  useEffect(() => { loadEmpresas(); }, [loadEmpresas]);
+  const resetPageFilters = useCallback(() => {
+    setAlmacenFilter('');
+    setProductoFilter('');
+    setFechaDesde('');
+    setFechaHasta('');
+    setProductosMap({});
+  }, []);
+  useInvScopeEmpresaReset(resetPageFilters);
 
   const almacenesQuery = useAlmacenes({
-    empresa_id: empresaFilter || undefined,
     solo_activos: true,
-    enabled: !!empresaFilter,
   });
   const almacenes = (almacenesQuery.data ?? []) as Almacen[];
 
+  const tiposQuery = useTiposMovimiento({
+    solo_activos: true,
+  });
+  const tipoNombre = (id: string) => tiposQuery.data?.find((t) => t.tipo_movimiento_id === id)?.nombre ?? '—';
+
+  const productosListaQuery = useProductos({
+    solo_activos: true,
+  });
+  const productosOpciones = productosListaQuery.data ?? [];
+
   const kardexQuery = useKardex({
-    empresa_id: empresaFilter || undefined,
     almacen_id: almacenFilter || undefined,
     producto_id: productoFilter || undefined,
     fecha_desde: fechaDesde || undefined,
     fecha_hasta: fechaHasta || undefined,
-    enabled: true,
   });
   const list = (kardexQuery.data ?? []) as KardexLineaRead[];
 
-  // Cargar productos referenciados para mostrar SKU y nombre
+  const lineProductIds = useMemo(
+    () =>
+      [...new Set(list.map((row) => row.producto_id))]
+        .sort()
+        .join(','),
+    [list]
+  );
+
   useEffect(() => {
-    const cargarProductos = async () => {
-      const idsUnicos = Array.from(new Set(list.map((row) => row.producto_id))).filter(
-        (id) => id && !productosMap[id]
+    if (!list.length) return;
+    const ids = [...new Set(list.map((row) => row.producto_id))].filter((id) => id && !productosMap[id]);
+    if (!ids.length) return;
+    void (async () => {
+      const resultados = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const prod = await productoService.getById(id);
+            return { id, prod };
+          } catch {
+            return null;
+          }
+        })
       );
-      if (!idsUnicos.length) return;
-      try {
-        const resultados = await Promise.all(
-          idsUnicos.map(async (id) => {
-            try {
-              const prod = await productoService.getById(id);
-              return prod ? { id, prod } : null;
-            } catch {
-              return null;
-            }
-          })
-        );
-        const nuevos: Record<string, Producto> = {};
+      setProductosMap((prev) => {
+        const next = { ...prev };
         resultados.forEach((r) => {
-          if (r && r.prod) nuevos[r.id] = r.prod;
+          if (r?.prod) next[r.id] = r.prod;
         });
-        if (Object.keys(nuevos).length) {
-          setProductosMap((prev) => ({ ...prev, ...nuevos }));
-        }
-      } catch {
-        // Silenciado: el kardex sigue funcionando aunque falle la carga de productos
-      }
-    };
-    if (list.length) {
-      void cargarProductos();
-    }
-  }, [list, productosMap]);
+        return next;
+      });
+    })();
+  }, [lineProductIds, productosMap]);
 
   const productoLabel = (productoId: string) => {
     const p = productosMap[productoId];
-    if (!p) return productoId.substring(0, 8) + '...';
+    if (!p) return '—';
     return `${p.codigo_sku} — ${p.nombre}`;
   };
 
-  const almacenNombre = (id?: string | null) => {
-    if (!id) return '-';
-    return almacenes.find((a) => a.almacen_id === id)?.nombre ?? id;
+  const almacenEtiqueta = (origen?: string | null, destino?: string | null) => {
+    const no = origen ? almacenes.find((a) => a.almacen_id === origen)?.nombre ?? null : null;
+    const nd = destino ? almacenes.find((a) => a.almacen_id === destino)?.nombre ?? null : null;
+    if (no && nd) return `${no} → ${nd}`;
+    if (no) return `Origen: ${no}`;
+    if (nd) return `Destino: ${nd}`;
+    return '-';
   };
 
   return (
-    <InvPageLayout
-      title="Kardex de Inventario"
-      description="Detalle de movimientos por producto y almacén, con saldos valorizados."
-      action={
-        <div className="inline-flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-          <Filter className="h-4 w-4" /> Usa filtros para acotar el rango de fechas.
-        </div>
-      }
-    >
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {empresas.length > 0 && (
-          <div>
-            <label className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300">Empresa</label>
-            <select
-              value={empresaFilter}
-              onChange={(e) => setEmpresaFilter(e.target.value)}
-              className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
-            >
-              <option value="">Todas</option>
-              {empresas.map((e) => (
-                <option key={e.empresa_id} value={e.empresa_id}>
-                  {e.razon_social}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+    <InvPageLayout>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         {almacenes.length > 0 && (
-          <div>
-            <label className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300">Almacén</label>
-            <select
-              value={almacenFilter}
-              onChange={(e) => setAlmacenFilter(e.target.value)}
-              className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
-            >
-              <option value="">Todos</option>
-              {almacenes.map((a) => (
-                <option key={a.almacen_id} value={a.almacen_id}>
-                  {a.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={almacenFilter}
+            onChange={(e) => setAlmacenFilter(e.target.value)}
+            className="px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
+          >
+            <option value="">Todos los almacenes</option>
+            {almacenes.map((a) => (
+              <option key={a.almacen_id} value={a.almacen_id}>
+                {a.nombre}
+              </option>
+            ))}
+          </select>
         )}
-        <div>
-          <label className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300">Producto (ID)</label>
-          <input
-            type="text"
-            value={productoFilter}
-            onChange={(e) => setProductoFilter(e.target.value)}
-            placeholder="Pega aquí el ID de producto"
-            className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
-          />
-        </div>
-        <div>
-          <label className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300">Fecha desde</label>
-          <input
-            type="date"
-            value={fechaDesde}
-            onChange={(e) => setFechaDesde(e.target.value)}
-            className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
-          />
-        </div>
-        <div>
-          <label className="mr-2 text-sm font-medium text-gray-700 dark:text-gray-300">Fecha hasta</label>
-          <input
-            type="date"
-            value={fechaHasta}
-            onChange={(e) => setFechaHasta(e.target.value)}
-            className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
-          />
-        </div>
+        <select
+          value={productoFilter}
+          onChange={(e) => setProductoFilter(e.target.value)}
+          disabled={!canQueryCompanyScoped}
+          className="min-w-[10rem] max-w-[16rem] px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm disabled:opacity-50"
+        >
+          <option value="">Producto</option>
+          {productosOpciones.map((p) => (
+            <option key={p.producto_id} value={p.producto_id}>
+              {p.codigo_sku} — {p.nombre}
+            </option>
+          ))}
+        </select>
+        <input
+          type="date"
+          value={fechaDesde}
+          onChange={(e) => setFechaDesde(e.target.value)}
+          className="px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
+          title="Fecha desde"
+        />
+        <input
+          type="date"
+          value={fechaHasta}
+          onChange={(e) => setFechaHasta(e.target.value)}
+          className="px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
+          title="Fecha hasta"
+        />
+        <span className="inline-flex items-center gap-1.5 text-xs text-text-soft sm:ml-auto max-w-[14rem]">
+          <Filter className="h-4 w-4 shrink-0" />
+          Acota por fechas y empresa para mejores tiempos de respuesta.
+        </span>
       </div>
-      {kardexQuery.isLoading && (
-        <div className="flex justify-center py-12">
-          <Loader className="h-8 w-8 animate-spin text-brand-primary" />
-        </div>
-      )}
+      {kardexQuery.isLoading && <InvTableSkeleton columns={8} />}
       {kardexQuery.error && !kardexQuery.isLoading && (
-        <p className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+        <p className="text-error bg-error/10 p-4 rounded-lg">
           {getErrorMessage(kardexQuery.error).message}
         </p>
       )}
       {!kardexQuery.isLoading && !kardexQuery.error && (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+        <div className="overflow-x-auto rounded-lg border border-border-base shadow">
+          <table className="min-w-full divide-y divide-border-base">
+            <thead className="bg-subtle">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Fecha
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Producto
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Almacén
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Movimiento
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Documento
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Entrada
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Salida
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Saldo
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Costo Unit.
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Costo Total
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  Saldo Valorizado
-                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Fecha</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Producto</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Almacén</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Tipo mov.</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-text-soft uppercase">Cant. base</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-text-soft uppercase">Costo u.</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Lote</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">N.º serie</th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-surface divide-y divide-border-base">
               {list.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={11}
-                    className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
-                  >
-                    <ListTree className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                    No hay movimientos en el rango seleccionado.
+                  <td colSpan={8} className="px-4 py-12 text-center">
+                    <ListTree className="h-12 w-12 mx-auto mb-3 text-text-soft opacity-70" />
+                    <p className="text-sm font-medium text-text-soft">
+                      No hay movimientos en el rango seleccionado.
+                    </p>
                   </td>
                 </tr>
               ) : (
                 list.map((row) => (
-                  <tr key={row.kardex_linea_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                  <tr key={row.movimiento_detalle_id} className="hover:bg-overlay dark:hover:bg-overlay">
+                    <td className="px-4 py-3 text-sm text-text-base">
                       {new Date(row.fecha_movimiento).toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                      {productoLabel(row.producto_id)}
+                    <td className="px-4 py-3 text-sm text-text-base">{productoLabel(row.producto_id)}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">
+                      {almacenEtiqueta(row.almacen_origen_id, row.almacen_destino_id)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                      {almacenNombre(row.almacen_id)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                      {row.tipo_movimiento_codigo
-                        ? `${row.tipo_movimiento_codigo} - ${row.tipo_movimiento_nombre ?? ''}`
-                        : row.tipo_movimiento_nombre ?? '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                      {row.documento_referencia_tipo && row.documento_referencia_numero
-                        ? `${row.documento_referencia_tipo} ${row.documento_referencia_numero}`
-                        : row.documento_referencia_numero ?? '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">
-                      {row.cantidad_entrada != null ? row.cantidad_entrada.toFixed(2) : ''}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">
-                      {row.cantidad_salida != null ? row.cantidad_salida.toFixed(2) : ''}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">
-                      {row.saldo_cantidad != null ? row.saldo_cantidad.toFixed(2) : ''}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">
-                      {row.costo_unitario != null ? row.costo_unitario.toFixed(4) : ''}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">
-                      {row.costo_total != null
-                        ? `${row.moneda ?? ''} ${row.costo_total.toFixed(2)}`
-                        : ''}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">
-                      {row.saldo_valorizado != null
-                        ? `${row.moneda ?? ''} ${row.saldo_valorizado.toFixed(2)}`
-                        : ''}
-                    </td>
+                    <td className="px-4 py-3 text-sm text-text-base">{tipoNombre(row.tipo_movimiento_id)}</td>
+                    <td className="px-4 py-3 text-sm text-right text-text-base">{fmtCant(row.cantidad_base)}</td>
+                    <td className="px-4 py-3 text-sm text-right text-text-base">{fmtCant(row.costo_unitario)}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">{row.lote ?? '-'}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">{row.numero_serie ?? '-'}</td>
                   </tr>
                 ))
               )}
@@ -285,4 +216,3 @@ export default function KardexPage() {
     </InvPageLayout>
   );
 }
-

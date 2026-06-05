@@ -12,7 +12,7 @@
           "ORG - Empresa"
         ],
         "summary": "Listar empresas",
-        "description": "Lista empresas del tenant. Filtro por cliente_id del token.",
+        "description": "Lista empresas del tenant activo en sesión (todas las empresas del cliente).",
         "operationId": "listar_empresas_api_v1_org_empresa_get",
         "security": [
           {
@@ -80,7 +80,7 @@
           "ORG - Empresa"
         ],
         "summary": "Crear empresa",
-        "description": "Crea una empresa. cliente_id se asigna desde el contexto (tenant), no desde el body.",
+        "description": "Crea una empresa en el tenant de sesión. cliente_id no viene del body.",
         "operationId": "crear_empresa_api_v1_org_empresa_post",
         "security": [
           {
@@ -128,7 +128,7 @@
           "ORG - Empresa"
         ],
         "summary": "Detalle empresa",
-        "description": "Detalle de una empresa. Solo del tenant del usuario.",
+        "description": "Detalle de una empresa del tenant de sesión.",
         "operationId": "detalle_empresa_api_v1_org_empresa__empresa_id__get",
         "security": [
           {
@@ -176,7 +176,7 @@
           "ORG - Empresa"
         ],
         "summary": "Actualizar empresa",
-        "description": "Actualiza una empresa. Solo del tenant del usuario.",
+        "description": "Actualiza una empresa del tenant de sesión.",
         "operationId": "actualizar_empresa_api_v1_org_empresa__empresa_id__put",
         "security": [
           {
@@ -234,7 +234,7 @@
           "ORG - Empresa"
         ],
         "summary": "Eliminar (baja lógica) empresa",
-        "description": "Marca una empresa como inactiva (baja lógica) dentro del tenant.",
+        "description": "Marca una empresa como inactiva dentro del tenant de sesión.",
         "operationId": "eliminar_empresa_api_v1_org_empresa__empresa_id__delete",
         "security": [
           {
@@ -277,7 +277,7 @@
           "ORG - Empresa"
         ],
         "summary": "Reactivar empresa",
-        "description": "Reactiva una empresa previamente dada de baja dentro del tenant.",
+        "description": "Reactiva una empresa del tenant de sesión.",
         "operationId": "reactivar_empresa_api_v1_org_empresa__empresa_id__reactivar_post",
         "security": [
           {
@@ -327,6 +327,7 @@
           "ORG - Sucursales"
         ],
         "summary": "Listar sucursales",
+        "description": "Lista sucursales de la empresa activa en sesión.",
         "operationId": "listar_sucursales_api_v1_org_sucursales_get",
         "security": [
           {
@@ -334,23 +335,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Empresa Id"
-            }
-          },
           {
             "name": "solo_activos",
             "in": "query",
@@ -411,6 +395,7 @@
           "ORG - Sucursales"
         ],
         "summary": "Crear sucursal",
+        "description": "Crea una sucursal. empresa_id del body debe coincidir con la sesión.",
         "operationId": "crear_sucursal_api_v1_org_sucursales_post",
         "security": [
           {
@@ -458,7 +443,7 @@
           "ORG - Sucursales"
         ],
         "summary": "Reactivar sucursal",
-        "description": "Marca la sucursal como activa (es_activo = True) dentro del tenant.",
+        "description": "Marca la sucursal como activa (es_activo = True) en la empresa de sesión.",
         "operationId": "reactivar_sucursal_api_v1_org_sucursales__sucursal_id__reactivar_post",
         "security": [
           {
@@ -475,18 +460,6 @@
               "format": "uuid",
               "title": "Sucursal Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria de la sucursal.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria de la sucursal."
           }
         ],
         "responses": {
@@ -520,6 +493,7 @@
           "ORG - Sucursales"
         ],
         "summary": "Detalle sucursal",
+        "description": "Detalle de una sucursal de la empresa activa.",
         "operationId": "detalle_sucursal_api_v1_org_sucursales__sucursal_id__get",
         "security": [
           {
@@ -536,18 +510,6 @@
               "format": "uuid",
               "title": "Sucursal Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria de la sucursal.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria de la sucursal."
           }
         ],
         "responses": {
@@ -579,6 +541,7 @@
           "ORG - Sucursales"
         ],
         "summary": "Actualizar sucursal",
+        "description": "Actualiza una sucursal de la empresa activa.",
         "operationId": "actualizar_sucursal_api_v1_org_sucursales__sucursal_id__put",
         "security": [
           {
@@ -595,18 +558,6 @@
               "format": "uuid",
               "title": "Sucursal Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria de la sucursal.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria de la sucursal."
           }
         ],
         "requestBody": {
@@ -648,7 +599,7 @@
           "ORG - Sucursales"
         ],
         "summary": "Eliminar (baja lógica) sucursal",
-        "description": "Marca una sucursal como inactiva (baja lógica) dentro del tenant.",
+        "description": "Marca una sucursal como inactiva (baja lógica) en la empresa de sesión.",
         "operationId": "eliminar_sucursal_api_v1_org_sucursales__sucursal_id__delete",
         "security": [
           {
@@ -665,18 +616,6 @@
               "format": "uuid",
               "title": "Sucursal Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria de la sucursal.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria de la sucursal."
           }
         ],
         "responses": {
@@ -710,23 +649,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Empresa Id"
-            }
-          },
           {
             "name": "solo_activos",
             "in": "query",
@@ -834,7 +756,6 @@
           "ORG - Centros de costo"
         ],
         "summary": "Reactivar centro de costo",
-        "description": "Marca el centro de costo como activo (es_activo = True) dentro del tenant.",
         "operationId": "reactivar_centro_costo_api_v1_org_centros_costo__centro_costo_id__reactivar_post",
         "security": [
           {
@@ -851,18 +772,6 @@
               "format": "uuid",
               "title": "Centro Costo Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria del centro de costo.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria del centro de costo."
           }
         ],
         "responses": {
@@ -912,18 +821,6 @@
               "format": "uuid",
               "title": "Centro Costo Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria del centro de costo.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria del centro de costo."
           }
         ],
         "responses": {
@@ -971,18 +868,6 @@
               "format": "uuid",
               "title": "Centro Costo Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria del centro de costo.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria del centro de costo."
           }
         ],
         "requestBody": {
@@ -1024,7 +909,6 @@
           "ORG - Centros de costo"
         ],
         "summary": "Eliminar (baja lógica) centro de costo",
-        "description": "Marca un centro de costo como inactivo (baja lógica) dentro del tenant.",
         "operationId": "eliminar_centro_costo_api_v1_org_centros_costo__centro_costo_id__delete",
         "security": [
           {
@@ -1041,18 +925,6 @@
               "format": "uuid",
               "title": "Centro Costo Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria del centro de costo.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria del centro de costo."
           }
         ],
         "responses": {
@@ -1086,23 +958,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Empresa Id"
-            }
-          },
           {
             "name": "solo_activos",
             "in": "query",
@@ -1210,7 +1065,6 @@
           "ORG - Departamentos"
         ],
         "summary": "Reactivar departamento",
-        "description": "Marca el departamento como activo (es_activo = True) dentro del tenant.",
         "operationId": "reactivar_departamento_api_v1_org_departamentos__departamento_id__reactivar_post",
         "security": [
           {
@@ -1227,18 +1081,6 @@
               "format": "uuid",
               "title": "Departamento Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria del departamento.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria del departamento."
           }
         ],
         "responses": {
@@ -1288,18 +1130,6 @@
               "format": "uuid",
               "title": "Departamento Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria del departamento.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria del departamento."
           }
         ],
         "responses": {
@@ -1347,18 +1177,6 @@
               "format": "uuid",
               "title": "Departamento Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria del departamento.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria del departamento."
           }
         ],
         "requestBody": {
@@ -1400,7 +1218,6 @@
           "ORG - Departamentos"
         ],
         "summary": "Eliminar (baja lógica) departamento",
-        "description": "Marca un departamento como inactivo (baja lógica) dentro del tenant.",
         "operationId": "eliminar_departamento_api_v1_org_departamentos__departamento_id__delete",
         "security": [
           {
@@ -1417,18 +1234,6 @@
               "format": "uuid",
               "title": "Departamento Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria del departamento.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria del departamento."
           }
         ],
         "responses": {
@@ -1462,23 +1267,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Empresa Id"
-            }
-          },
           {
             "name": "solo_activos",
             "in": "query",
@@ -1586,7 +1374,6 @@
           "ORG - Cargos"
         ],
         "summary": "Reactivar cargo",
-        "description": "Marca el cargo como activo (es_activo = True) dentro del tenant.",
         "operationId": "reactivar_cargo_api_v1_org_cargos__cargo_id__reactivar_post",
         "security": [
           {
@@ -1603,18 +1390,6 @@
               "format": "uuid",
               "title": "Cargo Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria del cargo.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria del cargo."
           }
         ],
         "responses": {
@@ -1664,18 +1439,6 @@
               "format": "uuid",
               "title": "Cargo Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria del cargo.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria del cargo."
           }
         ],
         "responses": {
@@ -1723,18 +1486,6 @@
               "format": "uuid",
               "title": "Cargo Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria del cargo.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria del cargo."
           }
         ],
         "requestBody": {
@@ -1776,7 +1527,6 @@
           "ORG - Cargos"
         ],
         "summary": "Eliminar (baja lógica) cargo",
-        "description": "Marca un cargo como inactivo (baja lógica) dentro del tenant.",
         "operationId": "eliminar_cargo_api_v1_org_cargos__cargo_id__delete",
         "security": [
           {
@@ -1793,18 +1543,6 @@
               "format": "uuid",
               "title": "Cargo Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Empresa propietaria del cargo.",
-              "title": "Empresa Id"
-            },
-            "description": "Empresa propietaria del cargo."
           }
         ],
         "responses": {
@@ -1831,6 +1569,7 @@
           "ORG - Parámetros"
         ],
         "summary": "Listar parámetros",
+        "description": "Lista efectiva para la empresa activa: globales tenant + overrides con precedencia.",
         "operationId": "listar_parametros_api_v1_org_parametros_get",
         "security": [
           {
@@ -1838,23 +1577,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Empresa Id"
-            }
-          },
           {
             "name": "modulo_codigo",
             "in": "query",
@@ -1931,6 +1653,7 @@
           "ORG - Parámetros"
         ],
         "summary": "Crear parámetro",
+        "description": "Global (empresa_id null): tenant_admin/platform.\nEmpresa: empresa_id del body debe coincidir con la sesión.",
         "operationId": "crear_parametro_api_v1_org_parametros_post",
         "security": [
           {
@@ -1978,7 +1701,6 @@
           "ORG - Parámetros"
         ],
         "summary": "Reactivar parámetro",
-        "description": "Marca el parámetro como activo (es_activo = True) dentro del tenant.",
         "operationId": "reactivar_parametro_api_v1_org_parametros__parametro_id__reactivar_post",
         "security": [
           {
@@ -1995,25 +1717,6 @@
               "format": "uuid",
               "title": "Parametro Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Ámbito empresa para validar el registro: si se informa, acepta parámetros globales (empresa_id NULL en BD) o de esa empresa; excluye parámetros de otra empresa.",
-              "title": "Empresa Id"
-            },
-            "description": "Ámbito empresa para validar el registro: si se informa, acepta parámetros globales (empresa_id NULL en BD) o de esa empresa; excluye parámetros de otra empresa."
           }
         ],
         "responses": {
@@ -2063,25 +1766,6 @@
               "format": "uuid",
               "title": "Parametro Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Ámbito empresa para validar el registro: si se informa, acepta parámetros globales (empresa_id NULL en BD) o de esa empresa; excluye parámetros de otra empresa.",
-              "title": "Empresa Id"
-            },
-            "description": "Ámbito empresa para validar el registro: si se informa, acepta parámetros globales (empresa_id NULL en BD) o de esa empresa; excluye parámetros de otra empresa."
           }
         ],
         "responses": {
@@ -2129,25 +1813,6 @@
               "format": "uuid",
               "title": "Parametro Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Ámbito empresa para validar el registro: si se informa, acepta parámetros globales (empresa_id NULL en BD) o de esa empresa; excluye parámetros de otra empresa.",
-              "title": "Empresa Id"
-            },
-            "description": "Ámbito empresa para validar el registro: si se informa, acepta parámetros globales (empresa_id NULL en BD) o de esa empresa; excluye parámetros de otra empresa."
           }
         ],
         "requestBody": {
@@ -2189,7 +1854,6 @@
           "ORG - Parámetros"
         ],
         "summary": "Eliminar (baja lógica) parámetro",
-        "description": "Marca un parámetro como inactivo (baja lógica) dentro del tenant.",
         "operationId": "eliminar_parametro_api_v1_org_parametros__parametro_id__delete",
         "security": [
           {
@@ -2206,25 +1870,6 @@
               "format": "uuid",
               "title": "Parametro Id"
             }
-          },
-          {
-            "name": "empresa_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Ámbito empresa para validar el registro: si se informa, acepta parámetros globales (empresa_id NULL en BD) o de esa empresa; excluye parámetros de otra empresa.",
-              "title": "Empresa Id"
-            },
-            "description": "Ámbito empresa para validar el registro: si se informa, acepta parámetros globales (empresa_id NULL en BD) o de esa empresa; excluye parámetros de otra empresa."
           }
         ],
         "responses": {

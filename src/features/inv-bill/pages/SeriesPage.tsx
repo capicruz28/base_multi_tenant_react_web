@@ -228,7 +228,7 @@ export default function SeriesPage() {
               <div className="md:col-span-2"><label className="flex items-center gap-2"><input type="checkbox" checked={form.es_electronica} onChange={(e) => setForm((p) => ({ ...p, es_electronica: e.target.checked }))} className="rounded" /> Electrónica</label></div>
               <div className="md:col-span-2"><label className="flex items-center gap-2"><input type="checkbox" checked={form.requiere_autorizacion_sunat} onChange={(e) => setForm((p) => ({ ...p, requiere_autorizacion_sunat: e.target.checked }))} className="rounded" /> Requiere Autorización SUNAT</label></div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Crear</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -239,7 +239,7 @@ export default function SeriesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div><Label>Número Actual</Label><input type="number" value={editForm.numero_actual ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, numero_actual: e.target.value ? parseInt(e.target.value) : undefined }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" /></div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

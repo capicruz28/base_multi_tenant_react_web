@@ -780,7 +780,7 @@ export default function PromocionesPage() {
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting || !canCrear} className="bg-brand-primary hover:bg-brand-primary-hover">
+              <Button type="submit" disabled={submitting || !canCrear} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
                 Crear
               </Button>
             </DialogFooter>
@@ -847,7 +847,7 @@ export default function PromocionesPage() {
               <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting || !canEditar} className="bg-brand-primary hover:bg-brand-primary-hover">
+              <Button type="submit" disabled={submitting || !canEditar} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
                 Guardar
               </Button>
             </DialogFooter>

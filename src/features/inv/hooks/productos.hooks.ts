@@ -4,57 +4,67 @@ import { useTenantQuery } from '@/core/hooks/useTenantQuery';
 import { getErrorMessage } from '@/core/services/error.service';
 import { productoService } from '../services/inv.service';
 import type { Producto, ProductoCreate, ProductoUpdate } from '../types/inv.types';
+import { INV_LIST_STALE_TIME_MS } from './inv-query-defaults';
+import { useInvCompanyQueryGate } from './inv-company-query-gate';
 
 const qk = {
-  list: (empresaId: string | undefined, soloActivos: boolean, categoriaId?: string, tipoProducto?: string, buscar?: string) =>
+  list: (
+    scopeEmpresaId: string,
+    soloActivos: boolean,
+    categoriaId: string,
+    tipoProducto: string,
+    buscar: string,
+  ) =>
     [
       'inv',
       'producto',
       'list',
-      empresaId ?? '',
+      scopeEmpresaId,
       soloActivos,
-      categoriaId ?? '',
-      tipoProducto ?? '',
-      (buscar ?? '').trim(),
+      categoriaId,
+      tipoProducto,
+      buscar,
     ] as const,
-  detail: (productoId: string) => ['inv', 'producto', 'detail', productoId] as const,
+  detail: (productoId: string, scopeEmpresaId: string) =>
+    ['inv', 'producto', 'detail', productoId, scopeEmpresaId] as const,
 };
 
 export function useProductos(options?: {
-  empresa_id?: string;
   categoria_id?: string;
   tipo_producto?: string;
   solo_activos?: boolean;
   buscar?: string;
   enabled?: boolean;
 }) {
-  const empresaId = options?.empresa_id;
-  const categoriaId = options?.categoria_id;
-  const tipoProducto = options?.tipo_producto;
+  const { scopeEmpresaId, enabled: gateEnabled } = useInvCompanyQueryGate(options);
+  const categoriaId = options?.categoria_id ?? '';
+  const tipoProducto = options?.tipo_producto ?? '';
   const soloActivos = options?.solo_activos ?? true;
-  const buscar = options?.buscar;
-  const enabled = options?.enabled ?? true;
+  const buscar = (options?.buscar ?? '').trim();
 
   return useTenantQuery<Producto[], Error>({
-    queryKey: qk.list(empresaId, soloActivos, categoriaId, tipoProducto, buscar),
+    queryKey: qk.list(scopeEmpresaId ?? '', soloActivos, categoriaId, tipoProducto, buscar),
     queryFn: () =>
       productoService.list({
-        empresa_id: empresaId,
-        categoria_id: categoriaId,
-        tipo_producto: tipoProducto,
+        empresa_id: scopeEmpresaId ?? undefined,
+        categoria_id: options?.categoria_id,
+        tipo_producto: options?.tipo_producto,
         solo_activos: soloActivos,
-        buscar,
+        buscar: buscar || undefined,
       }),
-    enabled,
+    staleTime: INV_LIST_STALE_TIME_MS,
+    enabled: gateEnabled,
   });
 }
 
 export function useProducto(productoId: string | null | undefined, options?: { enabled?: boolean }) {
-  const enabled = (options?.enabled ?? true) && !!productoId;
+  const { scopeEmpresaId, enabled: gateEnabled } = useInvCompanyQueryGate(options);
+  const enabled = gateEnabled && !!productoId;
 
   return useTenantQuery<Producto, Error>({
-    queryKey: qk.detail(productoId ?? ''),
+    queryKey: qk.detail(productoId ?? '', scopeEmpresaId ?? ''),
     queryFn: () => productoService.getById(productoId ?? ''),
+    staleTime: INV_LIST_STALE_TIME_MS,
     enabled,
   });
 }
@@ -74,12 +84,15 @@ export function useCreateProducto() {
 
 export function useUpdateProducto() {
   const qc = useQueryClient();
+  const { scopeEmpresaId } = useInvCompanyQueryGate();
 
   return useMutation<Producto, Error, { productoId: string; payload: ProductoUpdate }>({
     mutationFn: ({ productoId, payload }) => productoService.update(productoId, payload),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['inv', 'producto', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.productoId) });
+      qc.invalidateQueries({
+        queryKey: qk.detail(vars.productoId, scopeEmpresaId ?? ''),
+      });
       toast.success('Producto actualizado.');
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
@@ -88,12 +101,15 @@ export function useUpdateProducto() {
 
 export function useDeleteProducto() {
   const qc = useQueryClient();
+  const { scopeEmpresaId } = useInvCompanyQueryGate();
 
   return useMutation<void, Error, { productoId: string }>({
     mutationFn: ({ productoId }) => productoService.delete(productoId),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['inv', 'producto', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.productoId) });
+      qc.invalidateQueries({
+        queryKey: qk.detail(vars.productoId, scopeEmpresaId ?? ''),
+      });
       toast.success('Producto eliminado.');
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
@@ -102,15 +118,17 @@ export function useDeleteProducto() {
 
 export function useReactivarProducto() {
   const qc = useQueryClient();
+  const { scopeEmpresaId } = useInvCompanyQueryGate();
 
   return useMutation<Producto, Error, { productoId: string }>({
     mutationFn: ({ productoId }) => productoService.reactivar(productoId),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['inv', 'producto', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.productoId) });
+      qc.invalidateQueries({
+        queryKey: qk.detail(vars.productoId, scopeEmpresaId ?? ''),
+      });
       toast.success('Producto reactivado.');
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });
 }
-

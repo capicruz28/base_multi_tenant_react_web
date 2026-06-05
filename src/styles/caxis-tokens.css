@@ -242,13 +242,11 @@
    DARK MODE (opcional)
    =================================== */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Invertir grises para dark mode */
-    --caxis-bg:         var(--caxis-gray-900);
-    --caxis-surface:    var(--caxis-gray-800);
-    --caxis-border:     var(--caxis-gray-700);
-    --caxis-text:       var(--caxis-gray-100);
-    --caxis-text-dim:   var(--caxis-gray-400);
-  }
+.dark {
+  /* Invertir grises para dark mode */
+  --caxis-bg:         var(--caxis-gray-900);
+  --caxis-surface:    var(--caxis-gray-800);
+  --caxis-border:     var(--caxis-gray-700);
+  --caxis-text:       var(--caxis-gray-100);
+  --caxis-text-dim:   var(--caxis-gray-400);
 }

@@ -4,6 +4,10 @@
  * Permission Provider global que consume GET /auth/permissions/me
  * y permite controlar la UI por permisos (string[]).
  *
+ * Nota: el menú lateral y PermissionGuard usan permisos derivados de GET /auth/menu
+ * (AuthContext). Este provider solo inicializa `permissionsInitialized` para ProtectedRoute
+ * y `hasPermission(codigo)` granular; no sustituye la visibilidad del menú.
+ *
  * Uso: envolver la app con <PermissionProvider> (dentro de AuthProvider).
  * Ejemplo: {hasPermission("wms.zona.crear") && <Button>Crear Zona</Button>}
  */
@@ -56,15 +60,21 @@ interface PermissionsMeResponse {
 // ---------------------------------------------------------------------------
 
 export const PermissionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { auth, isAuthenticated, loading: authLoading } = useAuth();
+  const {
+    auth,
+    isAuthenticated,
+    loading: authLoading,
+    requiereSeleccionEmpresa,
+    empresaActivaId,
+  } = useAuth();
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [permissionsInitialized, setPermissionsInitialized] = useState(false);
 
-  // Reiniciar cuando cambie el usuario autenticado
+  // Reiniciar cuando cambie el usuario o la empresa activa de sesión
   useEffect(() => {
     setPermissionsInitialized(false);
-  }, [auth.user?.usuario_id]);
+  }, [auth.user?.usuario_id, empresaActivaId]);
 
   const loadPermissions = useCallback(async () => {
     setLoading(true);
@@ -96,8 +106,22 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({ children
       return;
     }
 
+    if (requiereSeleccionEmpresa) {
+      setPermissions([]);
+      setLoading(false);
+      setPermissionsInitialized(true);
+      return;
+    }
+
     loadPermissions();
-  }, [isAuthenticated, authLoading, loadPermissions]);
+  }, [
+    isAuthenticated,
+    authLoading,
+    loadPermissions,
+    requiereSeleccionEmpresa,
+    auth.token,
+    empresaActivaId,
+  ]);
 
   const hasPermission = useCallback(
     (code: string): boolean => {

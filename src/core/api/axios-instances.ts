@@ -43,6 +43,20 @@ export const apiCentral: AxiosInstance = axios.create({
 });
 
 /**
+ * Instancia sin interceptores de sesión ERP.
+ * Solo para POST /auth/empresa/seleccionar/ (Bearer selection_token).
+ */
+export const apiSelection: AxiosInstance = axios.create({
+  baseURL: DEFAULT_API_BASE_URL,
+  withCredentials: true,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Client-Type': 'web',
+  },
+});
+
+/**
  * Cache de instancias locales por URL
  * Evita crear múltiples instancias para la misma URL
  */

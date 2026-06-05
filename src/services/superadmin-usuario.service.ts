@@ -13,6 +13,9 @@ export interface SuperadminUsuarioListParams {
   limit?: number;
   search?: string;
   es_activo?: boolean;
+  cliente_id?: string;
+  ordenar_por?: 'fecha_creacion' | 'fecha_ultimo_acceso' | 'nombre_usuario';
+  orden?: 'asc' | 'desc';
 }
 
 export interface UsuarioActividadParams {
@@ -25,6 +28,30 @@ export interface UsuarioSesionesParams {
 }
 
 export const superadminUsuarioService = {
+  async getUsuariosGlobales(
+    {
+      page = 1,
+      limit = 20,
+      search,
+      es_activo,
+      cliente_id,
+      ordenar_por,
+      orden,
+    }: SuperadminUsuarioListParams = {},
+  ): Promise<PaginatedSuperadminUsuariosResponse> {
+    const params: Record<string, unknown> = { page, limit };
+    if (search) params.search = search;
+    if (typeof es_activo === 'boolean') params.es_activo = es_activo;
+    if (cliente_id) params.cliente_id = cliente_id;
+    if (ordenar_por) params.ordenar_por = ordenar_por;
+    if (orden) params.orden = orden;
+
+    const response = await api.get<PaginatedSuperadminUsuariosResponse>(`${BASE_URL}/`, {
+      params,
+    });
+    return response.data;
+  },
+
   async getUsuariosByCliente(
     clienteId: string,
     { page = 1, limit = 20, search, es_activo }: SuperadminUsuarioListParams = {},

@@ -1,16 +1,26 @@
 /**
  * Categorías de Producto — Listado y gestión. GET/POST /api/v1/inv/categorias
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
-import { Loader, FolderTree, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
-import { empresaService } from '@/features/org/services/org.service';
-import type { Empresa } from '@/features/org/types/org.types';
+import { FolderTree, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
+import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
+import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
+import { matchesInvCatalogSearch } from '../utils/inv-catalog-client-search';
 import type { Categoria, CategoriaCreate, CategoriaUpdate } from '../types/inv.types';
 import { InvPageLayout } from '../components/InvPageLayout';
+import { InvTableSkeleton } from '../components/InvTableSkeleton';
 import { getErrorMessage } from '@/core/services/error.service';
 import { Button } from '@/shared/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle } from '@/shared/components/ui/dialog';
+import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+} from '@/shared/components/ui/dialog';
 import { Label } from '@/shared/components/ui/label';
 import { usePermissions } from '@/core/auth/hooks/usePermissions';
 import {
@@ -20,6 +30,19 @@ import {
   useReactivarCategoria,
   useUpdateCategoria,
 } from '../hooks/categorias.hooks';
+import { useInvSessionScope, useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
+import { OrgSessionEmpresaField } from '@/features/org/components/OrgSessionEmpresaField';
+import { assertBodyEmpresaMatchesSession } from '@/features/org/utils/org-body-scope';
+import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
+import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
+import { createOrgDiscardHandlers } from '@/features/org/utils/org-discard-handlers';
+import { orgDialogGuardProps } from '@/features/org/utils/org-dialog-guard-props';
+import {
+  buildEditCategoriaFormSnapshot,
+  isCreateCategoriaDirty,
+  isEditCategoriaDirty,
+  type EditCategoriaFormSnapshot,
+} from '../utils/form-dirty/categoria-form-dirty';
 
 const DEFAULT: CategoriaCreate = {
   empresa_id: '',
@@ -31,34 +54,33 @@ const DEFAULT: CategoriaCreate = {
 
 export default function CategoriasPage() {
   const { can } = usePermissions();
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [empresaFilter, setEmpresaFilter] = useState<string>('');
+  const { scopeEmpresaId, canQueryCompanyScoped, activeEmpresaLabel } = useInvSessionScope();
+  const [buscar, setBuscar] = useState('');
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Categoria | null>(null);
   const [form, setForm] = useState<CategoriaCreate>(DEFAULT);
   const [editForm, setEditForm] = useState<CategoriaUpdate>({});
+  const [editFormSnapshot, setEditFormSnapshot] = useState<EditCategoriaFormSnapshot | null>(null);
+  const [discardPending, setDiscardPending] = useState<OrgDiscardPending>(null);
+  const [bajaTarget, setBajaTarget] = useState<Categoria | null>(null);
+  const [reactivarTarget, setReactivarTarget] = useState<Categoria | null>(null);
 
-  const loadEmpresas = useCallback(async () => {
-    try {
-      const data = await empresaService.list({ solo_activos: true });
-      setEmpresas(data);
-      if (data.length === 1 && !empresaFilter) setEmpresaFilter(data[0].empresa_id);
-    } catch {
-      setEmpresas([]);
-    }
-  }, [empresaFilter]);
-
-  useEffect(() => { loadEmpresas(); }, [loadEmpresas]);
+  const resetPageFilters = useCallback(() => {
+    setBuscar('');
+    setMostrarInactivos(false);
+    setCreateOpen(false);
+    setEditOpen(false);
+    setEditing(null);
+    setEditFormSnapshot(null);
+    setDiscardPending(null);
+  }, []);
+  useInvScopeEmpresaReset(resetPageFilters);
 
   const soloActivos = !mostrarInactivos;
-  const categoriasQuery = useCategorias({
-    empresa_id: empresaFilter || undefined,
-    solo_activos: soloActivos,
-    enabled: true,
-  });
-  const list = categoriasQuery.data ?? [];
+  const categoriasQuery = useCategorias({ solo_activos: soloActivos });
+  const rawList = categoriasQuery.data ?? [];
 
   const createMutation = useCreateCategoria();
   const updateMutation = useUpdateCategoria();
@@ -67,20 +89,72 @@ export default function CategoriasPage() {
 
   const submitting =
     createMutation.isPending || updateMutation.isPending || deleteMutation.isPending || reactivarMutation.isPending;
+  const formSubmitting = createMutation.isPending || updateMutation.isPending;
 
-  const categoriasById = useMemo(() => {
-    const map = new Map<string, Categoria>();
-    list.forEach((c) => map.set(c.categoria_id, c));
-    return map;
-  }, [list]);
+  const isCreateDialogDirty = useMemo(() => isCreateCategoriaDirty(form), [form]);
+  const isEditDialogDirty = useMemo(
+    () => isEditCategoriaDirty(editForm, editFormSnapshot),
+    [editForm, editFormSnapshot],
+  );
+
+  const closeCreate = useCallback(() => {
+    if (!formSubmitting) {
+      setCreateOpen(false);
+      setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
+      setDiscardPending((pending) => (pending === 'create' ? null : pending));
+    }
+  }, [formSubmitting, scopeEmpresaId]);
+
+  const closeEdit = useCallback(() => {
+    if (!formSubmitting) {
+      setEditOpen(false);
+      setEditing(null);
+      setEditForm({});
+      setEditFormSnapshot(null);
+      setDiscardPending((pending) => (pending === 'edit' ? null : pending));
+    }
+  }, [formSubmitting]);
+
+  const {
+    handleRequestCloseCreate,
+    handleRequestCloseEdit,
+    handleDiscardCancel,
+    handleDiscardConfirm,
+    handleCreateDialogOpenChange,
+    handleEditDialogOpenChange,
+  } = useMemo(
+    () =>
+      createOrgDiscardHandlers({
+        discardPending,
+        setDiscardPending,
+        isSubmitting: formSubmitting,
+        isCreateDirty: isCreateDialogDirty,
+        isEditDirty: isEditDialogDirty,
+        setCreateOpen,
+        setEditOpen,
+        closeCreate,
+        closeEdit,
+        contextPrefix: 'inv-categoria',
+      }),
+    [
+      discardPending,
+      formSubmitting,
+      isCreateDialogDirty,
+      isEditDialogDirty,
+      closeCreate,
+      closeEdit,
+    ],
+  );
 
   const openCreate = () => {
-    setForm({ ...DEFAULT, empresa_id: empresaFilter || (empresas[0]?.empresa_id ?? '') });
+    setDiscardPending(null);
+    setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
     setCreateOpen(true);
   };
   const openEdit = (row: Categoria) => {
+    setDiscardPending(null);
     setEditing(row);
-    setEditForm({
+    const nextEditForm: CategoriaUpdate = {
       codigo: row.codigo,
       nombre: row.nombre,
       descripcion: row.descripcion ?? undefined,
@@ -89,21 +163,46 @@ export default function CategoriasPage() {
       cuenta_contable_inventario: row.cuenta_contable_inventario ?? undefined,
       cuenta_contable_costo_venta: row.cuenta_contable_costo_venta ?? undefined,
       es_activo: row.es_activo,
-    });
+    };
+    setEditForm(nextEditForm);
+    setEditFormSnapshot(buildEditCategoriaFormSnapshot(nextEditForm));
     setEditOpen(true);
   };
 
+  const categoriasById = useMemo(() => {
+    const map = new Map<string, Categoria>();
+    rawList.forEach((c) => map.set(c.categoria_id, c));
+    return map;
+  }, [rawList]);
+
+  const hasSearch = buscar.trim().length > 0;
+  const list = useMemo(() => {
+    if (!hasSearch) return rawList;
+    return rawList.filter((row) =>
+      matchesInvCatalogSearch(
+        buscar,
+        row.codigo,
+        row.nombre,
+        row.descripcion,
+        row.metodo_costeo_defecto,
+        row.categoria_padre_id ? categoriasById.get(row.categoria_padre_id)?.nombre : null,
+      ),
+    );
+  }, [rawList, buscar, hasSearch, categoriasById]);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.empresa_id || !form.codigo.trim() || !form.nombre.trim()) {
-      toast.error('Empresa, código y nombre son requeridos.');
+    if (!scopeEmpresaId || !form.codigo.trim() || !form.nombre.trim()) {
+      toast.error('Empresa activa, código y nombre son requeridos.');
       return;
     }
     try {
-      await createMutation.mutateAsync(form);
-      setCreateOpen(false);
-    } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      await createMutation.mutateAsync(
+        assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId),
+      );
+      closeCreate();
+    } catch {
+      /* error vía useCreateCategoria.onError */
     }
   };
 
@@ -112,172 +211,192 @@ export default function CategoriasPage() {
     if (!editing) return;
     try {
       await updateMutation.mutateAsync({ categoriaId: editing.categoria_id, payload: editForm });
-      setEditOpen(false);
-      setEditing(null);
-    } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      closeEdit();
+    } catch {
+      /* error vía useUpdateCategoria.onError */
     }
   };
 
-  const empresaNombre = (id: string) => empresas.find((e) => e.empresa_id === id)?.razon_social ?? id;
   const canCrear = can('inv', 'crear');
   const canEditar = can('inv', 'editar');
   const canEliminar = can('inv', 'eliminar');
+  const TABLE_COLSPAN = 7;
 
   const categoriaPadreNombre = (categoriaPadreId?: string | null) => {
-    if (!categoriaPadreId) return '-';
-    return categoriasById.get(categoriaPadreId)?.nombre ?? categoriaPadreId;
+    if (!categoriaPadreId) return '—';
+    return categoriasById.get(categoriaPadreId)?.nombre ?? '—';
   };
 
-  const eliminar = async (row: Categoria) => {
+  const eliminar = (row: Categoria) => {
     if (!canEliminar) return;
-    const ok = window.confirm(`¿Dar de baja la categoría "${row.nombre}"?`);
-    if (!ok) return;
+    setBajaTarget(row);
+  };
+
+  const reactivar = (row: Categoria) => {
+    if (!canEditar) return;
+    setReactivarTarget(row);
+  };
+
+  const confirmarBaja = async () => {
+    if (!bajaTarget) return;
     try {
-      await deleteMutation.mutateAsync({ categoriaId: row.categoria_id });
-    } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      await deleteMutation.mutateAsync({ categoriaId: bajaTarget.categoria_id });
+      setBajaTarget(null);
+    } catch {
+      /* error vía useDeleteCategoria.onError */
     }
   };
 
-  const reactivar = async (row: Categoria) => {
-    if (!canEditar) return;
-    const ok = window.confirm(`¿Reactivar la categoría "${row.nombre}"?`);
-    if (!ok) return;
+  const confirmarReactivar = async () => {
+    if (!reactivarTarget) return;
     try {
-      await reactivarMutation.mutateAsync({ categoriaId: row.categoria_id });
-    } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      await reactivarMutation.mutateAsync({ categoriaId: reactivarTarget.categoria_id });
+      setReactivarTarget(null);
+    } catch {
+      /* error vía useReactivarCategoria.onError */
     }
   };
 
   return (
-    <InvPageLayout
-      title="Categorías"
-      description="Organizar productos en categorías/subcategorías."
-      action={
-        <Button
-          onClick={openCreate}
-          className="bg-brand-primary hover:bg-brand-primary-hover text-white"
-          disabled={!empresas.length || !canCrear}
-        >
-          <Plus className="h-4 w-4 mr-2" /> Crear categoría
-        </Button>
-      }
-    >
-      <div className="mb-4 flex flex-col sm:flex-row gap-4 sm:items-end">
-        {empresas.length > 0 && (
-          <div>
-            <Label className="mr-2">Empresa</Label>
-            <select
-              value={empresaFilter}
-              onChange={(e) => setEmpresaFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+    <InvPageLayout>
+      <OrgCompanyToolbar
+        actions={
+          canCrear ? (
+            <Button
+              onClick={openCreate}
+              disabled={!scopeEmpresaId || !canQueryCompanyScoped || discardPending !== null}
+              className="bg-brand-primary hover:bg-brand-primary-hover text-white"
             >
-              <option value="">Todas</option>
-              {empresas.map((e) => (
-                <option key={e.empresa_id} value={e.empresa_id}>
-                  {e.razon_social}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <Plus className="h-4 w-4 mr-2" /> Crear categoría
+            </Button>
+          ) : null
+        }
+      >
+        <OrgToolbarSearch
+          value={buscar}
+          onChange={setBuscar}
+          placeholder="Código, nombre..."
+          aria-label="Buscar categorías"
+          disabled={discardPending !== null}
+        />
+        <label className="flex shrink-0 items-center gap-1.5 text-sm text-text-soft cursor-pointer select-none">
           <input
             type="checkbox"
             checked={mostrarInactivos}
             onChange={(e) => setMostrarInactivos(e.target.checked)}
+            className="rounded border border-border-base"
           />
-          Mostrar inactivos
+          Ver inactivos
         </label>
-      </div>
+      </OrgCompanyToolbar>
 
-      {categoriasQuery.isLoading && (
-        <div className="flex justify-center py-12">
-          <Loader className="h-8 w-8 animate-spin text-brand-primary" />
-        </div>
-      )}
+      {categoriasQuery.isLoading && <InvTableSkeleton columns={TABLE_COLSPAN} />}
       {categoriasQuery.error && !categoriasQuery.isLoading && (
-        <p className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+        <p className="text-error bg-error/10 p-4 rounded-lg">
           {getErrorMessage(categoriasQuery.error).message}
         </p>
       )}
       {!categoriasQuery.isLoading && !categoriasQuery.error && (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+        <div className="overflow-x-auto rounded-lg border border-border-base shadow">
+          <table className="min-w-full divide-y divide-border-base">
+            <thead className="bg-subtle">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Código</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Nombre</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Padre</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Método Costeo</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Empresa</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Estado</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Acciones</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Código</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Nombre</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Padre</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Método Costeo</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Empresa</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Estado</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-text-soft uppercase">Acciones</th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-surface divide-y divide-border-base">
               {list.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                    <FolderTree className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                    No hay categorías.
-                  </td>
-                </tr>
+                <IamTableEmptyState
+                  colSpan={TABLE_COLSPAN}
+                  icon={FolderTree}
+                  title={
+                    hasSearch
+                      ? 'No se encontraron categorías que coincidan con la búsqueda.'
+                      : mostrarInactivos
+                        ? 'No hay categorías registradas.'
+                        : 'No hay categorías activas.'
+                  }
+                  description={
+                    hasSearch ? 'Pruebe con otro término o limpie el filtro de búsqueda.' : undefined
+                  }
+                  actionLabel={
+                    !hasSearch && !mostrarInactivos && canCrear && scopeEmpresaId
+                      ? 'Crear categoría'
+                      : undefined
+                  }
+                  onAction={
+                    !hasSearch && !mostrarInactivos && canCrear && scopeEmpresaId ? openCreate : undefined
+                  }
+                  actionDisabled={discardPending !== null}
+                />
               ) : (
                 list.map((row) => (
-                  <tr key={row.categoria_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{row.codigo}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.nombre}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                  <tr key={row.categoria_id} className="hover:bg-overlay dark:hover:bg-overlay">
+                    <td className="px-4 py-3 text-sm font-medium text-text-base">{row.codigo}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">{row.nombre}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">
                       {categoriaPadreNombre(row.categoria_padre_id)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.metodo_costeo_defecto ?? '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{empresaNombre(row.empresa_id)}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                          row.es_activo
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
-                        }`}
-                      >
-                        {row.es_activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
+                    <td className="px-4 py-3 text-sm text-text-base">{row.metodo_costeo_defecto ?? '-'}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">{activeEmpresaLabel ?? '—'}</td>
                     <td className="px-4 py-3 text-center">
                       {row.es_activo ? (
-                        <div className="inline-flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEdit(row)}
-                            disabled={!canEditar}
-                            className="text-brand-primary hover:text-brand-primary/80"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => void eliminar(row)}
-                            disabled={!canEliminar || submitting}
-                            className="text-red-600 hover:text-red-600/80"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+                          Activo
+                        </span>
                       ) : (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => void reactivar(row)}
-                          disabled={!canEditar || submitting}
-                          className="text-emerald-700 hover:text-emerald-700/80"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-error/10 text-error">
+                          Inactivo
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 flex items-center justify-center gap-1">
+                      {row.es_activo ? (
+                        <>
+                          {canEditar && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEdit(row)}
+                              disabled={discardPending !== null}
+                              className="text-brand-primary hover:text-brand-primary/80"
+                              title="Editar"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canEliminar && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => eliminar(row)}
+                              disabled={submitting || discardPending !== null}
+                              className="text-error hover:text-error hover:bg-error/10"
+                              title="Desactivar"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        canEditar && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => reactivar(row)}
+                            disabled={submitting || discardPending !== null}
+                            className="text-success hover:text-success/80"
+                            title="Reactivar"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )
                       )}
                     </td>
                   </tr>
@@ -287,13 +406,19 @@ export default function CategoriasPage() {
           </table>
         </div>
       )}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-lg">
+      <OrgDiscardConfirmDialog
+        discardPending={discardPending}
+        entityLabel="la categoría"
+        onClose={handleDiscardCancel}
+        onConfirm={handleDiscardConfirm}
+      />
+      <Dialog open={createOpen} onOpenChange={handleCreateDialogOpenChange}>
+        <DialogContent className="max-w-lg" {...orgDialogGuardProps}>
           <DialogHeader><DialogTitle>Crear categoría</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
-            <div><Label>Empresa *</Label><select value={form.empresa_id} onChange={(e) => setForm((p) => ({ ...p, empresa_id: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" required><option value="">Seleccionar</option>{empresas.map((e) => <option key={e.empresa_id} value={e.empresa_id}>{e.razon_social}</option>)}</select></div>
-            <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" required /></div>
-            <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" required /></div>
+            <OrgSessionEmpresaField />
+            <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase" required /></div>
+            <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm" required /></div>
             <div>
               <Label>Categoría padre</Label>
               <select
@@ -301,17 +426,17 @@ export default function CategoriasPage() {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, categoria_padre_id: e.target.value || undefined }))
                 }
-                className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
               >
                 <option value="">Ninguna</option>
-                {list.map((c) => (
+                {rawList.map((c) => (
                   <option key={c.categoria_id} value={c.categoria_id}>
                     {c.nombre}
                   </option>
                 ))}
               </select>
             </div>
-            <div><Label>Método Costeo</Label><select value={form.metodo_costeo_defecto ?? 'promedio'} onChange={(e) => setForm((p) => ({ ...p, metodo_costeo_defecto: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"><option value="promedio">Promedio</option><option value="fifo">FIFO</option><option value="lifo">LIFO</option><option value="estandar">Estándar</option></select></div>
+            <div><Label>Método Costeo</Label><select value={form.metodo_costeo_defecto ?? 'promedio'} onChange={(e) => setForm((p) => ({ ...p, metodo_costeo_defecto: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"><option value="promedio">Promedio</option><option value="fifo">FIFO</option><option value="lifo">LIFO</option><option value="estandar">Estándar</option></select></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Cuenta contable inventario</Label>
@@ -324,7 +449,7 @@ export default function CategoriasPage() {
                       cuenta_contable_inventario: e.target.value || undefined,
                     }))
                   }
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                  className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
                 />
               </div>
               <div>
@@ -338,27 +463,27 @@ export default function CategoriasPage() {
                       cuenta_contable_costo_venta: e.target.value || undefined,
                     }))
                   }
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                  className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+              <Button type="button" variant="outline" onClick={handleRequestCloseCreate}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">
+              <Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
                 Crear
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-      <Dialog open={editOpen} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={editOpen} onOpenChange={handleEditDialogOpenChange}>
+        <DialogContent className="max-w-lg" {...orgDialogGuardProps}>
           <DialogHeader><DialogTitle>Editar categoría</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-4">
-            <div><Label>Código *</Label><input type="text" value={editForm.codigo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" required /></div>
-            <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" required /></div>
+            <div><Label>Código *</Label><input type="text" value={editForm.codigo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase" required /></div>
+            <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm" required /></div>
             <div>
               <Label>Categoría padre</Label>
               <select
@@ -366,17 +491,17 @@ export default function CategoriasPage() {
                 onChange={(e) =>
                   setEditForm((p) => ({ ...p, categoria_padre_id: e.target.value || undefined }))
                 }
-                className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
               >
                 <option value="">Ninguna</option>
-                {list.map((c) => (
+                {rawList.map((c) => (
                   <option key={c.categoria_id} value={c.categoria_id}>
                     {c.nombre}
                   </option>
                 ))}
               </select>
             </div>
-            <div><Label>Método Costeo</Label><select value={editForm.metodo_costeo_defecto ?? 'promedio'} onChange={(e) => setEditForm((p) => ({ ...p, metodo_costeo_defecto: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"><option value="promedio">Promedio</option><option value="fifo">FIFO</option><option value="lifo">LIFO</option><option value="estandar">Estándar</option></select></div>
+            <div><Label>Método Costeo</Label><select value={editForm.metodo_costeo_defecto ?? 'promedio'} onChange={(e) => setEditForm((p) => ({ ...p, metodo_costeo_defecto: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"><option value="promedio">Promedio</option><option value="fifo">FIFO</option><option value="lifo">LIFO</option><option value="estandar">Estándar</option></select></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Cuenta contable inventario</Label>
@@ -389,7 +514,7 @@ export default function CategoriasPage() {
                       cuenta_contable_inventario: e.target.value || undefined,
                     }))
                   }
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                  className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
                 />
               </div>
               <div>
@@ -403,21 +528,45 @@ export default function CategoriasPage() {
                       cuenta_contable_costo_venta: e.target.value || undefined,
                     }))
                   }
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                  className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
+              <Button type="button" variant="outline" onClick={handleRequestCloseEdit}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">
+              <Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
                 Guardar
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        isOpen={!!bajaTarget && discardPending === null}
+        onClose={() => setBajaTarget(null)}
+        onConfirm={() => void confirmarBaja()}
+        title="Desactivar categoría"
+        message={bajaTarget ? `¿Desactivar categoría '${bajaTarget.nombre}'? Podrá reactivarlo después.` : ''}
+        confirmText="Desactivar"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={deleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={!!reactivarTarget && discardPending === null}
+        onClose={() => setReactivarTarget(null)}
+        onConfirm={() => void confirmarReactivar()}
+        title="Reactivar categoría"
+        message={reactivarTarget ? `¿Reactivar categoría '${reactivarTarget.nombre}'? Volverá a estar disponible.` : ''}
+        confirmText="Reactivar"
+        cancelText="Cancelar"
+        variant="info"
+        loading={reactivarMutation.isPending}
+      />
     </InvPageLayout>
   );
 }

@@ -214,7 +214,7 @@ export default function DireccionesPage() {
                 <label className="flex items-center gap-2"><input type="checkbox" checked={form.es_direccion_entrega_defecto} onChange={(e) => setForm((p) => ({ ...p, es_direccion_entrega_defecto: e.target.checked }))} className="rounded" /> Entrega por Defecto</label>
               </div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Crear</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -230,7 +230,7 @@ export default function DireccionesPage() {
                 <label className="flex items-center gap-2"><input type="checkbox" checked={editForm.es_direccion_entrega_defecto} onChange={(e) => setEditForm((p) => ({ ...p, es_direccion_entrega_defecto: e.target.checked }))} className="rounded" /> Entrega por Defecto</label>
               </div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

@@ -168,7 +168,7 @@ export default function GuiaRemisionDetallePage() {
       }
     >
       <div className="mb-4">
-        <Button variant="outline" onClick={() => navigate('/log/guias-remision')} className="mb-4">
+        <Button variant="outline" onClick={() => navigate('/app/log/guias-remision')} className="mb-4">
           <ArrowLeft className="h-4 w-4 mr-2" /> Volver a guías
         </Button>
       </div>
@@ -220,7 +220,7 @@ export default function GuiaRemisionDetallePage() {
               <div><Label>Unidad de Medida *</Label><select value={form.unidad_medida_id} onChange={(e) => setForm((p) => ({ ...p, unidad_medida_id: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" required><option value="">Seleccionar</option>{unidadesMedida.map((u) => <option key={u.unidad_medida_id} value={u.unidad_medida_id}>{u.codigo} - {u.nombre}</option>)}</select></div>
               <div><Label>Peso (kg)</Label><input type="number" step="0.01" min="0" value={form.peso_kg ?? ''} onChange={(e) => setForm((p) => ({ ...p, peso_kg: e.target.value ? parseFloat(e.target.value) : undefined }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" /></div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Agregar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Agregar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -233,7 +233,7 @@ export default function GuiaRemisionDetallePage() {
               <div><Label>Unidad de Medida</Label><select value={editForm.unidad_medida_id ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, unidad_medida_id: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"><option value="">Seleccionar</option>{unidadesMedida.map((u) => <option key={u.unidad_medida_id} value={u.unidad_medida_id}>{u.codigo} - {u.nombre}</option>)}</select></div>
               <div><Label>Peso (kg)</Label><input type="number" step="0.01" min="0" value={editForm.peso_kg ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, peso_kg: e.target.value ? parseFloat(e.target.value) : undefined }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" /></div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

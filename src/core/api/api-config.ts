@@ -109,6 +109,7 @@ export const shouldUseCentralServer = (url?: string): boolean => {
     '/auth/login',
     '/auth/refresh',
     '/auth/logout',
+    '/auth/empresa/seleccionar',
   ];
   
   return authEndpoints.some(endpoint => normalizedUrl.includes(endpoint));

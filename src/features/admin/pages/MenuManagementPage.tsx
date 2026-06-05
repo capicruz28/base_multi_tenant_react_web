@@ -26,7 +26,6 @@ import type { Seccion } from '@/features/modulos/types/seccion.types';
 // --- NUEVAS IMPORTACIONES ---
 import { getIcon } from '@/shared/lib/icon-utils';
 import IconSelector from '@/shared/components/ui/IconSelector';
-import { useTheme } from '@/shared/context/ThemeContext';
 
 // --- Definición del Tipo para el campo 'data' de nuestros nodos ---
 interface MenuNodeData {
@@ -494,8 +493,6 @@ const MenuManagementPage: React.FC = () => {
   const CustomPlaceholder: React.FC<PlaceholderRenderParams & { node: NodeModel<MenuNodeData> }> = ({
     depth,
   }) => {
-    const { isDarkMode } = useTheme(); // CORREGIDO: Usar isDarkMode
-
     const placeholderText = `Soltar aquí (nivel ${depth})`;
 
     const containerStyle: React.CSSProperties = {
@@ -509,8 +506,7 @@ const MenuManagementPage: React.FC = () => {
     const lineStyle: React.CSSProperties = {
       height: '2px',
       width: '100%',
-      // CORREGIDO: Usar isDarkMode para la condición
-      backgroundColor: isDarkMode ? 'rgb(59, 130, 246)' : 'rgb(37, 99, 235)', // Tailwind blue-500 (dark) / blue-600 (light)
+      backgroundColor: 'var(--color-info)',
       borderRadius: '1px',
     };
 
@@ -524,10 +520,8 @@ const MenuManagementPage: React.FC = () => {
       fontSize: '12px',
       fontWeight: 500,
       whiteSpace: 'nowrap',
-      // CORREGIDO: Usar isDarkMode para la condición
-      color: isDarkMode ? 'rgb(229, 231, 235)' : 'rgb(255, 255, 255)', // Tailwind gray-200 (dark) / white (light)
-      // CORREGIDO: Usar isDarkMode para la condición
-      backgroundColor: isDarkMode ? 'rgba(31, 41, 55, 0.85)' : 'rgba(37, 99, 235, 0.9)', // Tailwind gray-800 (dark) / blue-600 (light) con opacidad
+      color: 'var(--text-primary)',
+      backgroundColor: 'color-mix(in srgb, var(--color-info) 82%, var(--bg-page))',
       boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
       zIndex: 1,
     };
@@ -544,22 +538,22 @@ const MenuManagementPage: React.FC = () => {
   // --- ************************************************** ---
 
   return (
-      <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">        
+      <div className="min-h-screen bg-page p-4 md:p-6">        
 
         {/* ✅ NUEVO: Selectores de Módulo y Sección */}
         <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
           <div>
-            <label htmlFor="modulo-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="modulo-select" className="block text-sm font-medium text-text-base mb-1">
               Seleccionar Módulo
             </label>
             {isLoadingAreas ? (
-              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <div className="h-10 bg-subtle rounded animate-pulse"></div>
             ) : modulos.length > 0 ? (
               <select
                 id="modulo-select"
                 value={selectedModuloId ?? ''}
                 onChange={handleModuloChange}
-                className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="block w-full pl-3 pr-10 py-2 text-base border border-border-base focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md bg-surface text-text-base"
               >
                 <option value="" disabled>-- Seleccione un módulo --</option>
                 {modulos.map((modulo) => (
@@ -569,22 +563,22 @@ const MenuManagementPage: React.FC = () => {
                 ))}
               </select>
             ) : (
-              <p className="text-red-600 dark:text-red-400 text-sm mt-1">No se encontraron módulos.</p>
+              <p className="text-error text-sm mt-1">No se encontraron módulos.</p>
             )}
           </div>
 
           <div>
-            <label htmlFor="seccion-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="seccion-select" className="block text-sm font-medium text-text-base mb-1">
               Seleccionar Sección
             </label>
             {isLoadingTree ? (
-              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <div className="h-10 bg-subtle rounded animate-pulse"></div>
             ) : selectedModuloId && secciones.length > 0 ? (
               <select
                 id="seccion-select"
                 value={selectedSeccionId ?? ''}
                 onChange={handleSeccionChange}
-                className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="block w-full pl-3 pr-10 py-2 text-base border border-border-base focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md bg-surface text-text-base"
               >
                 <option value="" disabled>-- Seleccione una sección --</option>
                 {secciones.map((seccion) => (
@@ -594,9 +588,9 @@ const MenuManagementPage: React.FC = () => {
                 ))}
               </select>
             ) : selectedModuloId ? (
-              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">No hay secciones disponibles.</p>
+              <p className="text-text-soft text-sm mt-1">No hay secciones disponibles.</p>
             ) : (
-              <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">Seleccione un módulo primero.</p>
+              <p className="text-text-soft text-sm mt-1">Seleccione un módulo primero.</p>
             )}
           </div>
         </div>
@@ -604,17 +598,17 @@ const MenuManagementPage: React.FC = () => {
         {/* ⚠️ DEPRECADO: Selector de Área (mantener temporalmente como fallback) */}
         {areas.length > 0 && (
           <div className="mb-6 max-w-xs">
-            <label htmlFor="area-select" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+            <label htmlFor="area-select" className="block text-sm font-medium text-text-soft mb-1">
               ⚠️ Seleccionar Área (Deprecado)
             </label>
             {isLoadingAreas ? (
-              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <div className="h-10 bg-subtle rounded animate-pulse"></div>
             ) : (
               <select
                 id="area-select"
                 value={selectedAreaId ?? ''}
                 onChange={handleAreaChange}
-                className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 opacity-60"
+                className="block w-full pl-3 pr-10 py-2 text-base border border-border-base focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm rounded-md bg-surface text-text-base opacity-60"
               >
                 <option value="" disabled>-- Seleccione un área --</option>
                 {areas.map((area) => (
@@ -627,7 +621,7 @@ const MenuManagementPage: React.FC = () => {
           </div>
         )}
 
-        {error && ( <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 rounded">{error}</div> )}
+        {error && ( <div className="mb-4 p-3 bg-error/10 border border-error/30 text-error rounded">{error}</div> )}
 
         {(selectedAreaId !== null || selectedSeccionId !== null) && (
           <>
@@ -641,9 +635,9 @@ const MenuManagementPage: React.FC = () => {
               </button>
             </div>
 
-            {isLoadingTree ? ( <div className="flex items-center justify-center h-60 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800"><p className="text-gray-500 dark:text-gray-400">Cargando estructura...</p></div>
+            {isLoadingTree ? ( <div className="flex items-center justify-center h-60 border border-border-base rounded-md bg-surface"><p className="text-text-soft">Cargando estructura...</p></div>
             ) : treeViewData.length > 0 ? (
-              <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3 min-h-[300px] bg-white dark:bg-gray-800 shadow-sm">
+              <div className="border border-border-base rounded-md p-3 min-h-[300px] bg-surface shadow-sm">
                 <Tree<MenuNodeData>
                   ref={treeRef}
                   tree={treeViewData}
@@ -664,38 +658,38 @@ const MenuManagementPage: React.FC = () => {
                       const hasChildren = treeViewData.some(n => n.parent === node.id);
                       return (
                         <div style={{ marginLeft: depth * 20 }}
-                             className={`flex items-center justify-between py-1.5 px-2 rounded group hover:bg-gray-100 dark:hover:bg-gray-700 ${!node.data?.es_activo ? 'opacity-60 italic' : ''}`}>
+                             className={`flex items-center justify-between py-1.5 px-2 rounded group hover:bg-overlay ${!node.data?.es_activo ? 'opacity-60 italic' : ''}`}>
                           <div className="flex items-center truncate min-w-0">
                             <span style={{ width: '24px', textAlign: 'center', cursor: hasChildren ? 'pointer' : 'default' }}
-                                  className="inline-block mr-1 text-gray-500 dark:text-gray-400 flex-shrink-0"
+                                  className="inline-block mr-1 text-text-soft flex-shrink-0"
                                   onClick={hasChildren ? onToggle : undefined}>
                               {hasChildren ? (isOpen ? '▼' : '▶') : <span className="inline-block w-[1em]"></span>}
                             </span>
                             <span className="mr-2 flex-shrink-0 inline-flex items-center justify-center w-5 h-5 text-brand-primary">
                                {getIcon(node.data?.icono, undefined, { size: 18 })}
                             </span>
-                            <span className="text-sm text-gray-800 dark:text-gray-200 truncate" title={node.text}>{node.text}</span>
-                            {!node.data?.es_activo && <span className="ml-2 text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">(Inactivo)</span>}
+                            <span className="text-sm text-text-base truncate" title={node.text}>{node.text}</span>
+                            {!node.data?.es_activo && <span className="ml-2 text-xs text-text-soft flex-shrink-0">(Inactivo)</span>}
                           </div>
                           <div className="hidden group-hover:flex items-center space-x-1 flex-shrink-0 pl-2">
-                             <button title="Añadir Submenú" onClick={(e) => { e.stopPropagation(); handleOpenCreateModal(node); }} className="p-1 rounded text-blue-500 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-gray-600">➕</button>
-                             <button title="Editar" onClick={(e) => { e.stopPropagation(); handleOpenEditModal(node); }} className="p-1 rounded text-green-500 hover:text-green-700 hover:bg-green-100 dark:hover:bg-gray-600">✏️</button>
-                             <button title={node.data?.es_activo ? 'Desactivar' : 'Activar'} onClick={(e) => { e.stopPropagation(); handleToggleActive(node); }} className={`p-1 rounded ${node.data?.es_activo ? 'text-red-500 hover:text-red-700 hover:bg-red-100' : 'text-yellow-500 hover:text-yellow-700 hover:bg-yellow-100'} dark:hover:bg-gray-600`}>👁️</button>
+                             <button title="Añadir Submenú" onClick={(e) => { e.stopPropagation(); handleOpenCreateModal(node); }} className="p-1 rounded text-info hover:text-info hover:bg-overlay">➕</button>
+                             <button title="Editar" onClick={(e) => { e.stopPropagation(); handleOpenEditModal(node); }} className="p-1 rounded text-success hover:text-success hover:bg-overlay">✏️</button>
+                             <button title={node.data?.es_activo ? 'Desactivar' : 'Activar'} onClick={(e) => { e.stopPropagation(); handleToggleActive(node); }} className={`p-1 rounded hover:bg-overlay ${node.data?.es_activo ? 'text-error hover:text-error' : 'text-warning hover:text-warning'}`}>👁️</button>
                           </div>
                         </div>
                       );
                   }}
                 />
               </div>
-            ) : ( <p className="text-gray-500 dark:text-gray-400 mt-4 text-sm">No hay menús para esta área o aún no se han cargado.</p> )}
+            ) : ( <p className="text-text-soft mt-4 text-sm">No hay menús para esta área o aún no se han cargado.</p> )}
           </>
         )}
 
         {/* --- Modal de Creación --- */}
-        {isCreateModalOpen && ( <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"> <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md"> <h2 className="text-xl mb-4 font-semibold text-gray-800 dark:text-gray-200">Crear Nuevo Menú</h2> <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">{parentNodeForCreate ? `Como submenú de: "${parentNodeForCreate.text}"` : 'Como menú principal.'}</p> <form onSubmit={handleCreateSubmit} id="create-menu-form">
-            <div className="mb-4"><label htmlFor="create-nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre *</label><input type="text" id="create-nombre" name="nombre" value={newMenuData.nombre} onChange={handleNewMenuInputChange} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" /></div>
+        {isCreateModalOpen && ( <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"> <div className="bg-surface border border-border-base p-6 rounded-lg shadow-xl w-full max-w-md"> <h2 className="text-xl mb-4 font-semibold text-text-base">Crear Nuevo Menú</h2> <p className="mb-4 text-sm text-text-soft">{parentNodeForCreate ? `Como submenú de: "${parentNodeForCreate.text}"` : 'Como menú principal.'}</p> <form onSubmit={handleCreateSubmit} id="create-menu-form">
+            <div className="mb-4"><label htmlFor="create-nombre" className="block text-sm font-medium text-text-base mb-1">Nombre *</label><input type="text" id="create-nombre" name="nombre" value={newMenuData.nombre} onChange={handleNewMenuInputChange} required className="w-full px-3 py-2 border border-border-base rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-surface text-text-base" /></div>
             <div className="mb-4">
-              <label htmlFor="create-icono" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Icono</label>
+              <label htmlFor="create-icono" className="block text-sm font-medium text-text-base mb-1">Icono</label>
               <IconSelector
                 id="create-icono"
                 value={newMenuData.icono}
@@ -704,20 +698,20 @@ const MenuManagementPage: React.FC = () => {
                 menuPlacement="auto"
               />
             </div>
-            <div className="mb-4"><label htmlFor="create-ruta" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruta (URL)</label><input type="text" id="create-ruta" name="ruta" value={newMenuData.ruta || ''} onChange={handleNewMenuInputChange} placeholder="Ej: /admin/usuarios" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" /></div>
-            <div className="mb-4"><label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300"><input type="checkbox" id="create-es_activo" name="es_activo" checked={newMenuData.es_activo} onChange={handleNewMenuInputChange} className="h-4 w-4 text-brand-primary border-gray-300 dark:border-gray-600 rounded focus:ring-brand-primary bg-white dark:bg-gray-700" /><span className="ml-2">Activo</span></label></div>
+            <div className="mb-4"><label htmlFor="create-ruta" className="block text-sm font-medium text-text-base mb-1">Ruta (URL)</label><input type="text" id="create-ruta" name="ruta" value={newMenuData.ruta || ''} onChange={handleNewMenuInputChange} placeholder="Ej: /admin/usuarios" className="w-full px-3 py-2 border border-border-base rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-surface text-text-base" /></div>
+            <div className="mb-4"><label className="flex items-center text-sm font-medium text-text-base"><input type="checkbox" id="create-es_activo" name="es_activo" checked={newMenuData.es_activo} onChange={handleNewMenuInputChange} className="h-4 w-4 text-brand-primary border-border-base rounded focus:ring-brand-primary bg-surface" /><span className="ml-2">Activo</span></label></div>
             <div className="mt-6 flex justify-end space-x-3"><button type="button" onClick={() => setIsCreateModalOpen(false)} disabled={isSubmitting} className="px-4 py-2 text-white bg-brand-secondary text-sm font-medium rounded-md hover:bg-brand-secondary-hover disabled:opacity-50">Cancelar</button><button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-md shadow-sm hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Guardando...' : 'Guardar Menú'}</button></div>
         </form> </div> </div> )}
 
         {/* --- Modal de Edición --- */}
         {isEditModalOpen && editingNodeData && (
            <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
-              <h2 className="text-xl mb-4 font-semibold text-gray-800 dark:text-gray-200">Editar Menú: {editingNodeData.text}</h2>
+            <div className="bg-surface border border-border-base p-6 rounded-lg shadow-xl w-full max-w-md">
+              <h2 className="text-xl mb-4 font-semibold text-text-base">Editar Menú: {editingNodeData.text}</h2>
               <form onSubmit={handleEditSubmit} id="edit-menu-form">
-                <div className="mb-4"><label htmlFor="edit-nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre *</label><input type="text" id="edit-nombre" name="nombre" value={editFormData.nombre ?? ''} onChange={handleEditFormInputChange} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" /></div>
+                <div className="mb-4"><label htmlFor="edit-nombre" className="block text-sm font-medium text-text-base mb-1">Nombre *</label><input type="text" id="edit-nombre" name="nombre" value={editFormData.nombre ?? ''} onChange={handleEditFormInputChange} required className="w-full px-3 py-2 border border-border-base rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-surface text-text-base" /></div>
                 <div className="mb-4">
-                  <label htmlFor="edit-icono" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Icono</label>
+                  <label htmlFor="edit-icono" className="block text-sm font-medium text-text-base mb-1">Icono</label>
                   <IconSelector
                     id="edit-icono"
                     value={editFormData.icono}
@@ -726,8 +720,8 @@ const MenuManagementPage: React.FC = () => {
                     menuPlacement="auto"
                   />
                 </div>
-                <div className="mb-4"><label htmlFor="edit-ruta" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruta (URL)</label><input type="text" id="edit-ruta" name="ruta" value={editFormData.ruta ?? ''} onChange={handleEditFormInputChange} placeholder="Ej: /configuracion" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" /></div>
-                <div className="mb-4"><label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300"><input type="checkbox" id="edit-es_activo" name="es_activo" checked={editFormData.es_activo} onChange={handleEditFormInputChange} className="h-4 w-4 text-brand-primary border-gray-300 dark:border-gray-600 rounded focus:ring-brand-primary bg-white dark:bg-gray-700" /><span className="ml-2">Activo</span></label></div>
+                <div className="mb-4"><label htmlFor="edit-ruta" className="block text-sm font-medium text-text-base mb-1">Ruta (URL)</label><input type="text" id="edit-ruta" name="ruta" value={editFormData.ruta ?? ''} onChange={handleEditFormInputChange} placeholder="Ej: /configuracion" className="w-full px-3 py-2 border border-border-base rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-surface text-text-base" /></div>
+                <div className="mb-4"><label className="flex items-center text-sm font-medium text-text-base"><input type="checkbox" id="edit-es_activo" name="es_activo" checked={editFormData.es_activo} onChange={handleEditFormInputChange} className="h-4 w-4 text-brand-primary border-border-base rounded focus:ring-brand-primary bg-surface" /><span className="ml-2">Activo</span></label></div>
                 <div className="mt-6 flex justify-end space-x-3"><button type="button" onClick={() => { setIsEditModalOpen(false); setEditingNodeData(null); }} disabled={isSubmitting} className="px-4 py-2 text-white bg-brand-secondary text-sm font-medium rounded-md hover:bg-brand-secondary-hover disabled:opacity-50">Cancelar</button><button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-brand-primary text-white text-sm font-medium rounded-md shadow-sm hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}</button></div>
               </form>
             </div>

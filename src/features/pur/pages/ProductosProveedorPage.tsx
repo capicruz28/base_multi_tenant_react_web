@@ -242,7 +242,7 @@ export default function ProductosProveedorPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={createMut.isPending} className="bg-brand-primary hover:bg-brand-primary-hover">Agregar</Button>
+              <Button type="submit" disabled={createMut.isPending} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Agregar</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -288,7 +288,7 @@ export default function ProductosProveedorPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={updateMut.isPending} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button>
+              <Button type="submit" disabled={updateMut.isPending} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -233,7 +233,7 @@ const HierarchicalViewPage: React.FC = () => {
     return (
       <div key={node.id} className="select-none">
         <div
-          className={`flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer group ${
+          className={`flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-overlay dark:hover:bg-overlay cursor-pointer group ${
             !node.es_activo ? 'opacity-60' : ''
           }`}
           style={{ paddingLeft: `${indent + 12}px` }}
@@ -243,9 +243,9 @@ const HierarchicalViewPage: React.FC = () => {
           <div className="w-4 flex-shrink-0">
             {hasChildren ? (
               isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-gray-500" />
+                <ChevronDown className="h-4 w-4 text-text-soft" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-gray-500" />
+                <ChevronRight className="h-4 w-4 text-text-soft" />
               )
             ) : (
               <span className="w-4" />
@@ -266,11 +266,11 @@ const HierarchicalViewPage: React.FC = () => {
           {/* Nombre y detalles */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+              <span className="text-sm font-medium text-text-base truncate">
                 {node.nombre}
               </span>
               {node.type === 'menu' && node.ruta && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                <span className="text-xs text-text-soft truncate">
                   {node.ruta}
                 </span>
               )}
@@ -278,15 +278,15 @@ const HierarchicalViewPage: React.FC = () => {
             <div className="flex items-center gap-2 mt-1">
               <span className={`text-xs px-2 py-0.5 rounded ${
                 node.type === 'modulo'
-                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                  ? 'bg-info/10 text-info'
                   : node.type === 'seccion'
-                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                  : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                  ? 'bg-subtle text-text-soft dark:bg-subtle dark:text-text-soft'
+                  : 'bg-success/10 text-success'
               }`}>
                 {node.type === 'modulo' ? 'Módulo' : node.type === 'seccion' ? 'Sección' : 'Menú'}
               </span>
               {node.es_activo === false && (
-                <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                <span className="text-xs px-2 py-0.5 rounded bg-error/10 text-error">
                   Inactivo
                 </span>
               )}
@@ -297,7 +297,7 @@ const HierarchicalViewPage: React.FC = () => {
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={handleEdit}
-              className="p-1 text-brand-primary hover:text-brand-primary/80 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+              className="p-1 text-brand-primary hover:text-brand-primary/80 rounded hover:bg-overlay dark:hover:bg-overlay"
               title="Ir a gestión"
             >
               <Edit3 className="h-4 w-4" />
@@ -320,9 +320,9 @@ const HierarchicalViewPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <Package className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Acceso restringido</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <Package className="mx-auto h-12 w-12 text-text-soft" />
+          <h3 className="mt-2 text-sm font-medium text-text-base">Acceso restringido</h3>
+          <p className="mt-1 text-sm text-text-soft">
             No tienes permisos para acceder a la vista jerárquica.
           </p>
         </div>
@@ -335,22 +335,22 @@ const HierarchicalViewPage: React.FC = () => {
       {/* Header */}
       {/*
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-2xl font-bold text-text-base">
           Vista Jerárquica Completa
         </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-sm text-text-soft">
           Visualiza toda la estructura del sistema: Módulos → Secciones → Menús
         </p>
       </div>
       */}
       {/* Barra de herramientas */}
-      <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="mb-6 bg-surface rounded-lg shadow-sm border border-border-base p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           {/* Filtros */}
           <div className="flex flex-col sm:flex-row gap-3 flex-1">
             {/* Selector de Módulo */}
             <div className="sm:w-64">
-              <label htmlFor="modulo-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="modulo-filter" className="block text-sm font-medium text-text-soft mb-1">
                 Filtrar por Módulo
               </label>
               <select
@@ -359,7 +359,7 @@ const HierarchicalViewPage: React.FC = () => {
                 onChange={(e) => {
                   setSelectedModuloId(e.target.value);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+                className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
               >
                 <option value="">Todos los módulos</option>
                     {modulos && modulos.length > 0 && modulos.map((modulo) => (
@@ -372,18 +372,18 @@ const HierarchicalViewPage: React.FC = () => {
 
             {/* Búsqueda */}
             <div className="flex-1">
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="search" className="block text-sm font-medium text-text-soft mb-1">
                 Buscar
               </label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-soft" />
                 <input
                   type="text"
                   id="search"
                   placeholder="Buscar en la estructura..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+                  className="pl-10 pr-4 py-2 w-full border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                 />
               </div>
             </div>
@@ -405,14 +405,14 @@ const HierarchicalViewPage: React.FC = () => {
                 collectIds(filteredData);
                 setExpandedNodes(allIds);
               }}
-              className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="px-3 py-2 text-sm text-text-soft hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors"
               title="Expandir todo"
             >
               Expandir Todo
             </button>
             <button
               onClick={() => setExpandedNodes(new Set())}
-              className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="px-3 py-2 text-sm text-text-soft hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors"
               title="Colapsar todo"
             >
               Colapsar Todo
@@ -420,7 +420,7 @@ const HierarchicalViewPage: React.FC = () => {
             <button
               onClick={fetchHierarchicalData}
               disabled={loading}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="p-2 text-text-soft hover:text-text-base dark:hover:text-text-base hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors"
               title="Actualizar"
             >
               <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
@@ -431,42 +431,42 @@ const HierarchicalViewPage: React.FC = () => {
 
       {/* Estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-surface rounded-lg shadow-sm border border-border-base p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Package className="h-8 w-8 text-blue-600" />
+              <Package className="h-8 w-8 text-info" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Módulos</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-text-soft">Módulos</p>
+              <p className="text-2xl font-semibold text-text-base">
                 {hierarchicalData.length}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-surface rounded-lg shadow-sm border border-border-base p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Folder className="h-8 w-8 text-purple-600" />
+              <Folder className="h-8 w-8 text-text-soft" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Secciones</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-text-soft">Secciones</p>
+              <p className="text-2xl font-semibold text-text-base">
                 {hierarchicalData.reduce((acc, m) => acc + (m.children?.length || 0), 0)}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-surface rounded-lg shadow-sm border border-border-base p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Menu className="h-8 w-8 text-green-600" />
+              <Menu className="h-8 w-8 text-success" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Menús</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-text-soft">Menús</p>
+              <p className="text-2xl font-semibold text-text-base">
                 {(() => {
                   const countMenus = (nodes: HierarchicalNode[]): number => {
                     return nodes.reduce((acc, node) => {
@@ -486,22 +486,22 @@ const HierarchicalViewPage: React.FC = () => {
 
       {/* Error */}
       {error && (
-        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 rounded">
+        <div className="mb-4 p-3 bg-error/10 border border-error/30 text-error rounded">
           {error}
         </div>
       )}
 
       {/* Árbol Jerárquico */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-surface rounded-lg shadow-sm border border-border-base overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <RefreshCw className="animate-spin h-6 w-6 text-brand-primary" />
-            <span className="ml-2 text-gray-600 dark:text-gray-400">Cargando estructura...</span>
+            <span className="ml-2 text-text-soft">Cargando estructura...</span>
           </div>
         ) : filteredData.length === 0 ? (
           <div className="p-12 text-center">
-            <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-gray-500 dark:text-gray-400">
+            <Package className="mx-auto h-12 w-12 text-text-soft mb-4" />
+            <p className="text-text-soft">
               {searchTerm ? 'No se encontraron resultados para la búsqueda' : 'No hay datos para mostrar'}
             </p>
           </div>

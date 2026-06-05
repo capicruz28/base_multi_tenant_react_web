@@ -163,7 +163,7 @@ export default function DespachoGuiaPage() {
       }
     >
       <div className="mb-4">
-        <Button variant="outline" onClick={() => navigate('/log/despachos')} className="mb-4">
+        <Button variant="outline" onClick={() => navigate('/app/log/despachos')} className="mb-4">
           <ArrowLeft className="h-4 w-4 mr-2" /> Volver a despachos
         </Button>
       </div>
@@ -227,7 +227,7 @@ export default function DespachoGuiaPage() {
             {guiasParaAgregar.length === 0 && (
               <p className="text-sm text-yellow-600 dark:text-yellow-400">No hay guías disponibles para agregar (todas ya están en el despacho o no hay guías emitidas).</p>
             )}
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting || guiasParaAgregar.length === 0} className="bg-brand-primary hover:bg-brand-primary-hover">Agregar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting || guiasParaAgregar.length === 0} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Agregar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -246,7 +246,7 @@ export default function DespachoGuiaPage() {
               )}
               <div className="md:col-span-2"><Label>Observaciones</Label><textarea value={editForm.observaciones ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, observaciones: e.target.value || undefined }))} rows={2} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" /></div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

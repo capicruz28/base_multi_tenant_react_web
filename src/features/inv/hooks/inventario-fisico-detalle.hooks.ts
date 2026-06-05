@@ -1,17 +1,23 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
+/**
+ * Hooks de Inventario Físico Detalle (solo lectura directa).
+ * Las mutaciones de creación/edición de líneas se gestionan desde
+ * inventario-fisico.hooks.ts usando los endpoints con-detalle.
+ */
 import { useTenantQuery } from '@/core/hooks/useTenantQuery';
-import { getErrorMessage } from '@/core/services/error.service';
 import { inventarioFisicoDetalleService } from '../services/inv.service';
-import type {
-  InventarioFisicoDetalleCreate,
-  InventarioFisicoDetalleRead,
-  InventarioFisicoDetalleUpdate,
-} from '../types/inv.types';
+import type { InventarioFisicoDetalleRead } from '../types/inv.types';
+import { INV_LIST_STALE_TIME_MS } from './inv-query-defaults';
 
 const qk = {
   list: (empresaId?: string, inventarioFisicoId?: string, productoId?: string) =>
-    ['inv', 'inventario-fisico-detalle', 'list', empresaId ?? '', inventarioFisicoId ?? '', productoId ?? ''] as const,
+    [
+      'inv',
+      'inventario-fisico-detalle',
+      'list',
+      empresaId ?? '',
+      inventarioFisicoId ?? '',
+      productoId ?? '',
+    ] as const,
   detail: (inventarioFisicoDetalleId: string) =>
     ['inv', 'inventario-fisico-detalle', 'detail', inventarioFisicoDetalleId] as const,
 };
@@ -32,6 +38,7 @@ export function useInventariosFisicosDetalle(options?: {
         inventario_fisico_id: options?.inventario_fisico_id,
         producto_id: options?.producto_id,
       }),
+    staleTime: INV_LIST_STALE_TIME_MS,
     enabled,
   });
 }
@@ -44,44 +51,9 @@ export function useInventarioFisicoDetalle(
 
   return useTenantQuery<InventarioFisicoDetalleRead, Error>({
     queryKey: qk.detail(inventarioFisicoDetalleId ?? ''),
-    queryFn: () => inventarioFisicoDetalleService.getById(inventarioFisicoDetalleId ?? ''),
+    queryFn: () =>
+      inventarioFisicoDetalleService.getById(inventarioFisicoDetalleId ?? ''),
+    staleTime: INV_LIST_STALE_TIME_MS,
     enabled,
   });
 }
-
-export function useCreateInventarioFisicoDetalle() {
-  const qc = useQueryClient();
-
-  return useMutation<InventarioFisicoDetalleRead, Error, InventarioFisicoDetalleCreate>({
-    mutationFn: (payload) => inventarioFisicoDetalleService.create(payload),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: ['inv', 'inventario-fisico-detalle', 'list'] });
-      qc.invalidateQueries({ queryKey: ['inv', 'inventario-fisico', 'detail', vars.inventario_fisico_id] });
-      toast.success('Línea agregada.');
-    },
-    onError: (err) => toast.error(getErrorMessage(err).message),
-  });
-}
-
-export function useUpdateInventarioFisicoDetalle() {
-  const qc = useQueryClient();
-
-  return useMutation<
-    InventarioFisicoDetalleRead,
-    Error,
-    { inventarioFisicoDetalleId: string; payload: InventarioFisicoDetalleUpdate; inventarioFisicoId?: string }
-  >({
-    mutationFn: ({ inventarioFisicoDetalleId, payload }) =>
-      inventarioFisicoDetalleService.update(inventarioFisicoDetalleId, payload),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: ['inv', 'inventario-fisico-detalle', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.inventarioFisicoDetalleId) });
-      if (vars.inventarioFisicoId) {
-        qc.invalidateQueries({ queryKey: ['inv', 'inventario-fisico', 'detail', vars.inventarioFisicoId] });
-      }
-      toast.success('Línea actualizada.');
-    },
-    onError: (err) => toast.error(getErrorMessage(err).message),
-  });
-}
-

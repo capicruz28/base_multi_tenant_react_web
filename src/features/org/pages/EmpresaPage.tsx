@@ -2,12 +2,16 @@
  * Mi Empresa — Listado y gestión de empresas del tenant.
  * Flujo: crear empresa primero; luego configurar monedas en Monedas y elegir moneda base aquí al editar.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { Loader, Building2, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
+import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { OrgToolbarSearch } from '../components/OrgToolbarSearch';
 import type { Empresa, EmpresaCreate, EmpresaUpdate } from '../types/org.types';
 import type { CatMoneda, CatPais, CatDepartamento, CatProvincia, CatDistrito } from '@/types/catalogos.types';
 import { OrgPageLayout } from '../components/OrgPageLayout';
+import { OrgTableSkeleton } from '../components/OrgTableSkeleton';
 import { getErrorMessage, getValidationErrors } from '@/core/services/error.service';
 import { catalogosService } from '@/core/services';
 import { Button } from '@/shared/components/ui/button';
@@ -21,58 +25,39 @@ import {
 } from '@/shared/components/ui/dialog';
 import { Label } from '@/shared/components/ui/label';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
+// Label se mantiene — sigue usándose dentro de los formularios modales
 import { FormSection } from '../components/FormSection';
 import { usePermissions } from '@/core/auth/hooks/usePermissions';
-import {  
+import {
   useEmpresas,
   useCreateEmpresa,
   useDeleteEmpresa,
   useReactivarEmpresa,
   useUpdateEmpresa,
 } from '../hooks/empresa.hooks';
+import { useAuth } from '@/shared/context/AuthContext';
+import { APP_HOME } from '@/core/routing/post-login-path';
+import { OrgDiscardConfirmDialog } from '../components/OrgDiscardConfirmDialog';
+import type { OrgDiscardPending } from '../types/org-discard.types';
+import { createOrgDiscardHandlers } from '../utils/org-discard-handlers';
+import { orgDialogGuardProps } from '../utils/org-dialog-guard-props';
+import {
+  EMPRESA_CREATE_BASELINE,
+  buildEditEmpresaFormSnapshot,
+  isCreateEmpresaDirty,
+  isEditEmpresaDirty,
+  type EditEmpresaFormSnapshot,
+} from '../utils/form-dirty/empresa-form-dirty';
+import { geoFromIds } from '../utils/form-dirty/sucursal-form-dirty';
 
-const EMPRESA_DEFAULT: EmpresaCreate = {
-  codigo_empresa: '',
-  razon_social: '',
-  ruc: '',
-  nombre_comercial: '',
-  tipo_documento_tributario: 'RUC',
-  tipo_empresa: '',
-  direccion_fiscal: '',
-  pais_id: undefined,
-  departamento_id: undefined,
-  provincia_id: undefined,
-  distrito_id: undefined,
-  codigo_postal: '',
-  ubigeo: '',
-  telefono_principal: '',
-  telefono_secundario: '',
-  email_principal: '',
-  email_facturacion: '',
-  sitio_web: '',
-  moneda_base_id: undefined,
-  maneja_multimoneda: false,
-  zona_horaria: 'America/Lima',
-  idioma_sistema: 'es',
-  formato_fecha: 'DD/MM/YYYY',
-  separador_miles: ',',
-  separador_decimales: '.',
-  decimales_moneda: 2,
-  actividad_economica: '',
-  codigo_ciiu: '',
-  rubro: '',
-  representante_legal_nombre: '',
-  representante_legal_dni: '',
-  representante_legal_cargo: '',
-  logo_url: '',
-  logo_secundario_url: '',
-  favicon_url: '',
-  fecha_constitucion: undefined,
-  fecha_inicio_operaciones: undefined,
-  es_activo: true,
-};
+const EMPRESA_DEFAULT = EMPRESA_CREATE_BASELINE;
 
 export default function EmpresaPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isOnboarding = searchParams.get('onboarding') === 'true';
+  const { completeEmpresaSelection, cambiarEmpresaActiva, requiereSeleccionEmpresa } = useAuth();
+
   const [includeInactive, setIncludeInactive] = useState(false);
   const [buscar, setBuscar] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -92,6 +77,8 @@ export default function EmpresaPage() {
   const [selectedDepartamentoId, setSelectedDepartamentoId] = useState<string>('');
   const [selectedProvinciaId, setSelectedProvinciaId] = useState<string>('');
   const [selectedDistritoId, setSelectedDistritoId] = useState<string>('');
+  const [editFormSnapshot, setEditFormSnapshot] = useState<EditEmpresaFormSnapshot | null>(null);
+  const [discardPending, setDiscardPending] = useState<OrgDiscardPending>(null);
 
   const { can } = usePermissions();
   const canCrear = can('org', 'crear');
@@ -111,6 +98,81 @@ export default function EmpresaPage() {
   const submitting = createEmpresa.isPending || updateEmpresa.isPending;
   const deleting = deleteEmpresa.isPending;
   const reactivatingId = reactivarEmpresa.variables?.empresaId ?? null;
+  const hasSearch = buscar.trim().length > 0;
+  const TABLE_COLSPAN = 6;
+
+  const empresaGeo = useMemo(
+    () => geoFromIds(selectedPaisId, selectedDepartamentoId, selectedProvinciaId, selectedDistritoId),
+    [selectedPaisId, selectedDepartamentoId, selectedProvinciaId, selectedDistritoId],
+  );
+
+  const isCreateDialogDirty = useMemo(
+    () => isCreateEmpresaDirty({ form, geo: empresaGeo }),
+    [form, empresaGeo],
+  );
+  const isEditDialogDirty = useMemo(
+    () => isEditEmpresaDirty({ form: editForm, geo: empresaGeo }, editFormSnapshot),
+    [editForm, empresaGeo, editFormSnapshot],
+  );
+
+  const closeCreate = useCallback(() => {
+    if (!submitting) {
+      setCreateOpen(false);
+      setForm(EMPRESA_DEFAULT);
+      setFieldErrors({});
+      setSelectedPaisId('');
+      setSelectedDepartamentoId('');
+      setSelectedProvinciaId('');
+      setSelectedDistritoId('');
+      setDiscardPending((pending) => (pending === 'create' ? null : pending));
+    }
+  }, [submitting]);
+
+  const closeEdit = useCallback(() => {
+    if (!submitting) {
+      setEditOpen(false);
+      setEditing(null);
+      setEditForm({});
+      setEditFieldErrors({});
+      setEditFormSnapshot(null);
+      setSelectedPaisId('');
+      setSelectedDepartamentoId('');
+      setSelectedProvinciaId('');
+      setSelectedDistritoId('');
+      setDiscardPending((pending) => (pending === 'edit' ? null : pending));
+    }
+  }, [submitting]);
+
+  const {
+    handleRequestCloseCreate,
+    handleRequestCloseEdit,
+    handleDiscardCancel,
+    handleDiscardConfirm,
+    handleCreateDialogOpenChange,
+    handleEditDialogOpenChange,
+  } = useMemo(
+    () =>
+      createOrgDiscardHandlers({
+        discardPending,
+        setDiscardPending,
+        isSubmitting: submitting,
+        isCreateDirty: isCreateDialogDirty,
+        isEditDirty: isEditDialogDirty,
+        setCreateOpen,
+        setEditOpen,
+        closeCreate,
+        closeEdit,
+        contextPrefix: 'org-empresa',
+      }),
+    [discardPending, submitting, isCreateDialogDirty, isEditDialogDirty, closeCreate, closeEdit],
+  );
+
+  useEffect(() => {
+    if (isOnboarding) {
+      setDiscardPending(null);
+      setCreateOpen(true);
+    }
+  }, [isOnboarding]);
 
   // Cargar catálogos base (paises, departamentos, provincias, distritos) una sola vez
   useEffect(() => {
@@ -133,6 +195,7 @@ export default function EmpresaPage() {
   }, []);
 
   const openCreate = () => {
+    setDiscardPending(null);
     setForm(EMPRESA_DEFAULT);
     setSelectedPaisId('');
     setSelectedDepartamentoId('');
@@ -145,12 +208,13 @@ export default function EmpresaPage() {
       .catch(() => setMonedasForEdit([]));
   };
   const openEdit = (row: Empresa) => {
+    setDiscardPending(null);
     setEditing(row);
     const pid = row.pais_id ?? paises.find((p) => p.nombre === row.pais)?.pais_id ?? '';
     const did = row.departamento_id ?? departamentos.filter((d) => d.pais_id === pid).find((d) => d.nombre === row.departamento)?.departamento_id ?? '';
     const prid = row.provincia_id ?? provincias.filter((p) => p.departamento_id === did).find((p) => p.nombre === row.provincia)?.provincia_id ?? '';
     const distid = row.distrito_id ?? distritos.filter((d) => d.provincia_id === prid).find((d) => d.nombre === row.distrito)?.distrito_id ?? '';
-    setEditForm({
+    const nextEditForm: EmpresaUpdate = {
       codigo_empresa: row.codigo_empresa,
       razon_social: row.razon_social,
       nombre_comercial: row.nombre_comercial ?? undefined,
@@ -189,12 +253,15 @@ export default function EmpresaPage() {
       fecha_constitucion: row.fecha_constitucion ?? undefined,
       fecha_inicio_operaciones: row.fecha_inicio_operaciones ?? undefined,
       es_activo: row.es_activo,
-    });
+    };
+    setEditForm(nextEditForm);
     setEditFieldErrors({});
     setSelectedPaisId(pid);
     setSelectedDepartamentoId(did);
     setSelectedProvinciaId(prid);
     setSelectedDistritoId(distid);
+    const geo = geoFromIds(pid, did, prid, distid);
+    setEditFormSnapshot(buildEditEmpresaFormSnapshot({ form: nextEditForm, geo }));
     setEditOpen(true);
     catalogosService
       .listMonedas({ solo_activos: true })
@@ -207,16 +274,16 @@ export default function EmpresaPage() {
     try {
       await deleteEmpresa.mutateAsync({ empresaId: deleteTarget.empresa_id });
       setDeleteTarget(null);
-    } catch (err) {
-      toast.error(getErrorMessage(err).message);
+    } catch {
+      /* toast de error: onError en useDeleteEmpresa */
     }
   };
 
   const handleReactivar = async (empresa: Empresa) => {
     try {
       await reactivarEmpresa.mutateAsync({ empresaId: empresa.empresa_id });
-    } catch (err) {
-      toast.error(getErrorMessage(err).message);
+    } catch {
+      /* toast de error: onError en useReactivarEmpresa */
     }
   };
 
@@ -250,10 +317,20 @@ export default function EmpresaPage() {
       };
       if (payload.fecha_constitucion === '') delete payload.fecha_constitucion;
       if (payload.fecha_inicio_operaciones === '') delete payload.fecha_inicio_operaciones;
-      await createEmpresa.mutateAsync(payload);
-      setCreateOpen(false);
-    } catch (err) {
-      toast.error(getErrorMessage(err).message);
+      const created = await createEmpresa.mutateAsync(payload);
+      closeCreate();
+
+      if (isOnboarding && created?.empresa_id) {
+        if (requiereSeleccionEmpresa) {
+          await completeEmpresaSelection(created.empresa_id);
+        } else {
+          await cambiarEmpresaActiva(created.empresa_id);
+        }
+        toast.success('Empresa creada. Bienvenido al sistema.');
+        navigate(APP_HOME, { replace: true });
+      }
+    } catch {
+      /* toast de error: onError en useCreateEmpresa */
     }
   };
 
@@ -266,112 +343,117 @@ export default function EmpresaPage() {
       if (payload.fecha_constitucion === '') delete payload.fecha_constitucion;
       if (payload.fecha_inicio_operaciones === '') delete payload.fecha_inicio_operaciones;
       await updateEmpresa.mutateAsync({ empresaId: editing.empresa_id, payload });
-      setEditOpen(false);
-      setEditing(null);
+      closeEdit();
     } catch (err) {
-      const { message, fieldErrors: nextErrors } = getValidationErrors(err);
+      const { fieldErrors: nextErrors } = getValidationErrors(err);
       setEditFieldErrors(nextErrors);
-      toast.error(message);
     }
   };
 
   const inputClass = (key: string, isEdit = false) =>
-    `mt-1 block w-full px-3 py-2 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm ${(isEdit ? editFieldErrors : fieldErrors)[key] ? 'border-red-500 dark:border-red-400' : 'border border-gray-300 dark:border-gray-600'}`;
+    `mt-1 block w-full px-3 py-2 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm ${(isEdit ? editFieldErrors : fieldErrors)[key] ? 'border-error' : 'border border-border-base'}`;
 
   return (
-    <OrgPageLayout
-      title="Mi Empresa"
-      description="Cree primero la empresa; luego configure monedas en Monedas y asigne la moneda base al editar."
-      action={
-        canCrear ? (
-          <Button onClick={openCreate} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
+    <OrgPageLayout>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3 min-w-0">
+          <OrgToolbarSearch
+            value={buscar}
+            onChange={setBuscar}
+            placeholder="Código, razón social, RUC..."
+            aria-label="Buscar empresas"
+            disabled={discardPending !== null}
+          />
+          <label className="flex shrink-0 items-center gap-1.5 text-sm text-text-soft cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={includeInactive}
+              onChange={(e) => setIncludeInactive(e.target.checked)}
+              className="rounded border border-border-base"
+            />
+            Ver inactivos
+          </label>
+        </div>
+        {canCrear && (
+          <Button
+            onClick={openCreate}
+            disabled={discardPending !== null}
+            className="shrink-0 bg-brand-primary hover:bg-brand-primary-hover text-white"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Crear empresa
           </Button>
-        ) : null
-      }
-    >
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="include_inactive"
-            checked={includeInactive}
-            onChange={(e) => setIncludeInactive(e.target.checked)}
-            className="rounded border-gray-300 dark:border-gray-600"
-          />
-          <Label htmlFor="include_inactive">Ver inactivos</Label>
-        </div>
-        <div className="w-full md:w-80">
-          <Label htmlFor="buscar_empresa">Buscar</Label>
-          <input
-            id="buscar_empresa"
-            type="text"
-            value={buscar}
-            onChange={(e) => setBuscar(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
-            placeholder="Código, razón social, RUC..."
-          />
-        </div>
+        )}
       </div>
-      {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader className="h-8 w-8 animate-spin text-brand-primary" />
-        </div>
-      )}
+      {loading && <OrgTableSkeleton columns={TABLE_COLSPAN} />}
       {error && !loading && (
-        <p className="text-center text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+        <p className="text-center text-error bg-error/10 p-4 rounded-lg">
           {error}
         </p>
       )}
       {!loading && !error && (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+        <div className="overflow-x-auto rounded-lg border border-border-base shadow">
+          <table className="min-w-full divide-y divide-border-base">
+            <thead className="bg-subtle">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                   Código
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                   Razón social
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                   RUC
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                   Moneda
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
                   Estado
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-4 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
                   Acciones
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-surface divide-y divide-border-base">
               {list.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                    <Building2 className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                    {includeInactive ? 'No hay empresas.' : 'No hay empresas. Crea una para comenzar.'}
-                  </td>
-                </tr>
+                <IamTableEmptyState
+                  colSpan={TABLE_COLSPAN}
+                  icon={Building2}
+                  title={
+                    hasSearch
+                      ? 'No se encontraron empresas que coincidan con la búsqueda.'
+                      : includeInactive
+                        ? 'No hay empresas registradas.'
+                        : 'No hay empresas activas.'
+                  }
+                  description={
+                    hasSearch ? 'Pruebe con otro término o limpie el filtro de búsqueda.' : undefined
+                  }
+                  actionLabel={!hasSearch && !includeInactive && canCrear ? 'Crear empresa' : undefined}
+                  onAction={!hasSearch && !includeInactive && canCrear ? openCreate : undefined}
+                  actionDisabled={discardPending !== null}
+                />
               ) : (
                 list.map((row) => (
-                  <tr key={row.empresa_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                  <tr key={row.empresa_id} className="hover:bg-overlay dark:hover:bg-overlay">
+                    <td className="px-4 py-3 text-sm font-medium text-text-base">
                       {row.codigo_empresa}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                    <td className="px-4 py-3 text-sm text-text-base">
                       {row.razon_social}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{row.ruc}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                    <td className="px-4 py-3 text-sm text-text-base">{row.ruc}</td>
+                    <td className="px-4 py-3 text-sm text-text-base">
                       {row.moneda_base ?? '-'}
                     </td>
-                    <td className="px-4 py-3 text-center text-sm">
-                      {row.es_activo ? 'Activa' : 'Inactiva'}
+                    <td className="px-4 py-3 text-center">
+                      {row.es_activo ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">Activa</span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-error/10 text-error">Inactiva</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 flex items-center justify-center gap-1">
                       {canEditar && (
@@ -379,6 +461,7 @@ export default function EmpresaPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => openEdit(row)}
+                          disabled={discardPending !== null}
                           className="text-brand-primary hover:text-brand-primary/80"
                           title="Editar"
                         >
@@ -391,7 +474,7 @@ export default function EmpresaPage() {
                           size="icon"
                           onClick={() => handleReactivar(row)}
                           disabled={!!reactivatingId}
-                          className="text-green-600 hover:text-green-700"
+                          className="text-success hover:text-success/80"
                           title="Reactivar"
                         >
                           <RotateCcw className="h-4 w-4" />
@@ -402,8 +485,9 @@ export default function EmpresaPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => setDeleteTarget(row)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          title="Eliminar"
+                          disabled={discardPending !== null}
+                          className="text-error hover:text-error hover:bg-error/10"
+                          title="Desactivar"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -417,8 +501,14 @@ export default function EmpresaPage() {
         </div>
       )}
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0">
+      <OrgDiscardConfirmDialog
+        discardPending={discardPending}
+        entityLabel="la empresa"
+        onClose={handleDiscardCancel}
+        onConfirm={handleDiscardConfirm}
+      />
+      <Dialog open={createOpen} onOpenChange={handleCreateDialogOpenChange}>
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0" {...orgDialogGuardProps}>
           <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
             <DialogTitle>Crear empresa</DialogTitle>
           </DialogHeader>
@@ -433,10 +523,10 @@ export default function EmpresaPage() {
                       type="text"
                       value={form.codigo_empresa}
                       onChange={(e) => { updateForm('codigo_empresa', e.target.value); setFieldErrors((p) => ({ ...p, codigo_empresa: '' })); }}
-                      className={inputClass('codigo_empresa')}
+                      className={`${inputClass('codigo_empresa')} uppercase`}
                       disabled={submitting}
                     />
-                    {fieldErrors.codigo_empresa && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.codigo_empresa}</p>}
+                    {fieldErrors.codigo_empresa && <p className="mt-1 text-xs text-error">{fieldErrors.codigo_empresa}</p>}
                   </div>
                   <div>
                     <Label htmlFor="razon_social">Razón social *</Label>
@@ -445,11 +535,11 @@ export default function EmpresaPage() {
                       type="text"
                       value={form.razon_social}
                       onChange={(e) => { updateForm('razon_social', e.target.value); setFieldErrors((p) => ({ ...p, razon_social: '' })); }}
-                      className={inputClass('razon_social')}
+                      className={`${inputClass('razon_social')} uppercase`}
                       disabled={submitting}
                       placeholder="En MAYÚSCULAS según SUNAT"
                     />
-                    {fieldErrors.razon_social && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.razon_social}</p>}
+                    {fieldErrors.razon_social && <p className="mt-1 text-xs text-error">{fieldErrors.razon_social}</p>}
                   </div>
                   <div>
                     <Label htmlFor="ruc">RUC *</Label>
@@ -458,11 +548,11 @@ export default function EmpresaPage() {
                       type="text"
                       value={form.ruc}
                       onChange={(e) => { updateForm('ruc', e.target.value); setFieldErrors((p) => ({ ...p, ruc: '' })); }}
-                      className={inputClass('ruc')}
+                      className={`${inputClass('ruc')} uppercase`}
                       disabled={submitting}
                     />
-                    {fieldErrors.ruc && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.ruc}</p>}
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">11 dígitos. No podrá modificarse después de crear.</p>
+                    {fieldErrors.ruc && <p className="mt-1 text-xs text-error">{fieldErrors.ruc}</p>}
+                    <p className="mt-1 text-xs text-text-soft">11 dígitos. No podrá modificarse después de crear.</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
@@ -471,7 +561,7 @@ export default function EmpresaPage() {
                         id="tipo_documento_tributario"
                         value={form.tipo_documento_tributario ?? 'RUC'}
                         onChange={(e) => updateForm('tipo_documento_tributario', e.target.value)}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="RUC">RUC</option>
@@ -486,7 +576,7 @@ export default function EmpresaPage() {
                         type="text"
                         value={form.tipo_empresa ?? ''}
                         onChange={(e) => updateForm('tipo_empresa', e.target.value)}
-                        className={inputClass('tipo_empresa')}
+                        className={`${inputClass('tipo_empresa')} uppercase`}
                         disabled={submitting}
                         placeholder="SAC, SRL, EIRL..."
                       />
@@ -503,17 +593,6 @@ export default function EmpresaPage() {
                       disabled={submitting}
                     />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="es_activo"
-                      checked={form.es_activo ?? true}
-                      onChange={(e) => updateForm('es_activo', e.target.checked)}
-                      disabled={submitting}
-                      className="rounded border-gray-300 dark:border-gray-600"
-                    />
-                    <Label htmlFor="es_activo">Activo</Label>
-                  </div>
                 </div>
               </FormSection>
 
@@ -526,7 +605,7 @@ export default function EmpresaPage() {
                       type="text"
                       value={form.direccion_fiscal ?? ''}
                       onChange={(e) => updateForm('direccion_fiscal', e.target.value)}
-                      className={inputClass('direccion_fiscal')}
+                      className={`${inputClass('direccion_fiscal')} uppercase`}
                       disabled={submitting}
                     />
                   </div>
@@ -543,7 +622,7 @@ export default function EmpresaPage() {
                           setSelectedProvinciaId('');
                           setSelectedDistritoId('');
                         }}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="">— Seleccionar —</option>
@@ -563,7 +642,7 @@ export default function EmpresaPage() {
                           setSelectedProvinciaId('');
                           setSelectedDistritoId('');
                         }}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="">— Seleccionar —</option>
@@ -582,7 +661,7 @@ export default function EmpresaPage() {
                           setSelectedProvinciaId(id);
                           setSelectedDistritoId('');
                         }}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="">— Seleccionar —</option>
@@ -597,7 +676,7 @@ export default function EmpresaPage() {
                         id="distrito_select"
                         value={selectedDistritoId}
                         onChange={(e) => setSelectedDistritoId(e.target.value)}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="">— Seleccionar —</option>
@@ -615,7 +694,7 @@ export default function EmpresaPage() {
                         type="text"
                         value={form.codigo_postal ?? ''}
                         onChange={(e) => updateForm('codigo_postal', e.target.value)}
-                        className={inputClass('codigo_postal')}
+                        className={`${inputClass('codigo_postal')} uppercase`}
                         disabled={submitting}
                       />
                     </div>
@@ -626,7 +705,7 @@ export default function EmpresaPage() {
                         type="text"
                         value={form.ubigeo ?? ''}
                         onChange={(e) => updateForm('ubigeo', e.target.value)}
-                        className={inputClass('ubigeo')}
+                        className={`${inputClass('ubigeo')} uppercase`}
                         disabled={submitting}
                         placeholder="Ej. 150101"
                       />
@@ -666,10 +745,10 @@ export default function EmpresaPage() {
                       type="email"
                       value={form.email_principal ?? ''}
                       onChange={(e) => { updateForm('email_principal', e.target.value); setFieldErrors((p) => ({ ...p, email_principal: '' })); }}
-                      className={inputClass('email_principal')}
+                      className={`${inputClass('email_principal')} lowercase`}
                       disabled={submitting}
                     />
-                    {fieldErrors.email_principal && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{fieldErrors.email_principal}</p>}
+                    {fieldErrors.email_principal && <p className="mt-1 text-xs text-error">{fieldErrors.email_principal}</p>}
                   </div>
                   <div>
                     <Label htmlFor="email_facturacion">Email facturación</Label>
@@ -678,7 +757,7 @@ export default function EmpresaPage() {
                       type="email"
                       value={form.email_facturacion ?? ''}
                       onChange={(e) => updateForm('email_facturacion', e.target.value)}
-                      className={inputClass('email_facturacion')}
+                      className={`${inputClass('email_facturacion')} lowercase`}
                       disabled={submitting}
                     />
                   </div>
@@ -689,7 +768,7 @@ export default function EmpresaPage() {
                       type="url"
                       value={form.sitio_web ?? ''}
                       onChange={(e) => updateForm('sitio_web', e.target.value)}
-                      className={inputClass('sitio_web')}
+                      className={`${inputClass('sitio_web')} lowercase`}
                       disabled={submitting}
                       placeholder="https://"
                     />
@@ -718,7 +797,7 @@ export default function EmpresaPage() {
                         type="text"
                         value={form.codigo_ciiu ?? ''}
                         onChange={(e) => updateForm('codigo_ciiu', e.target.value)}
-                        className={inputClass('codigo_ciiu')}
+                        className={`${inputClass('codigo_ciiu')} uppercase`}
                         disabled={submitting}
                       />
                     </div>
@@ -757,7 +836,7 @@ export default function EmpresaPage() {
                       type="text"
                       value={form.representante_legal_dni ?? ''}
                       onChange={(e) => updateForm('representante_legal_dni', e.target.value)}
-                      className={inputClass('representante_legal_dni')}
+                      className={`${inputClass('representante_legal_dni')} uppercase`}
                       disabled={submitting}
                     />
                   </div>
@@ -784,7 +863,7 @@ export default function EmpresaPage() {
                         id="moneda_base_id"
                         value={form.moneda_base_id ?? ''}
                         onChange={(e) => updateForm('moneda_base_id', e.target.value || undefined)}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="">— Seleccionar —</option>
@@ -793,7 +872,7 @@ export default function EmpresaPage() {
                         ))}
                       </select>
                     ) : (
-                      <p className="text-sm text-amber-600 dark:text-amber-400">Configure monedas en <strong>Monedas</strong> para asignar moneda base.</p>
+                      <p className="text-sm text-warning">Configure monedas en <strong>Monedas</strong> para asignar moneda base.</p>
                     )}
                   </div>
                   <div>
@@ -815,7 +894,7 @@ export default function EmpresaPage() {
                         id="idioma_sistema"
                         value={form.idioma_sistema ?? 'es'}
                         onChange={(e) => updateForm('idioma_sistema', e.target.value)}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="es">Español</option>
@@ -829,7 +908,7 @@ export default function EmpresaPage() {
                         id="formato_fecha"
                         value={form.formato_fecha ?? 'DD/MM/YYYY'}
                         onChange={(e) => updateForm('formato_fecha', e.target.value)}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="DD/MM/YYYY">DD/MM/YYYY</option>
@@ -875,7 +954,7 @@ export default function EmpresaPage() {
                       />
                     </div>
                   </div>
-                  <div className="rounded-md border border-gray-200 dark:border-gray-600 p-3 space-y-2 bg-gray-50 dark:bg-gray-800/50">
+                  <div className="rounded-md border border-border-base p-3 space-y-2 bg-subtle/50">
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -883,11 +962,11 @@ export default function EmpresaPage() {
                         checked={form.maneja_multimoneda ?? false}
                         onChange={(e) => updateForm('maneja_multimoneda', e.target.checked)}
                         disabled={submitting}
-                        className="rounded border-gray-300 dark:border-gray-600"
+                        className="rounded border border-border-base"
                       />
                       <Label htmlFor="maneja_multimoneda">Multi-moneda (facturar en USD, EUR, etc.)</Label>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-text-soft">
                       Activo: documentos con Moneda y tipo de cambio. Inactivo: solo moneda base. Empresa 100% local → desactivar.
                     </p>
                   </div>
@@ -903,7 +982,7 @@ export default function EmpresaPage() {
                       type="url"
                       value={form.logo_url ?? ''}
                       onChange={(e) => updateForm('logo_url', e.target.value)}
-                      className={inputClass('logo_url')}
+                      className={`${inputClass('logo_url')} lowercase`}
                       disabled={submitting}
                       placeholder="https://"
                     />
@@ -915,7 +994,7 @@ export default function EmpresaPage() {
                       type="url"
                       value={form.logo_secundario_url ?? ''}
                       onChange={(e) => updateForm('logo_secundario_url', e.target.value)}
-                      className={inputClass('logo_secundario_url')}
+                      className={`${inputClass('logo_secundario_url')} lowercase`}
                       disabled={submitting}
                       placeholder="https://"
                     />
@@ -927,7 +1006,7 @@ export default function EmpresaPage() {
                       type="url"
                       value={form.favicon_url ?? ''}
                       onChange={(e) => updateForm('favicon_url', e.target.value)}
-                      className={inputClass('favicon_url')}
+                      className={`${inputClass('favicon_url')} lowercase`}
                       disabled={submitting}
                       placeholder="https://"
                     />
@@ -962,11 +1041,11 @@ export default function EmpresaPage() {
                 </div>
               </FormSection>
             </DialogBody>
-            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-gray-200 dark:border-gray-700">
-              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base">
+              <Button type="button" variant="outline" onClick={handleRequestCloseCreate}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">
+              <Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
                 Crear
               </Button>
             </DialogFooter>
@@ -974,8 +1053,8 @@ export default function EmpresaPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={editOpen} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0">
+      <Dialog open={editOpen} onOpenChange={handleEditDialogOpenChange}>
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0" {...orgDialogGuardProps}>
           <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
             <DialogTitle>Editar empresa</DialogTitle>
           </DialogHeader>
@@ -990,10 +1069,10 @@ export default function EmpresaPage() {
                       type="text"
                       value={editForm.codigo_empresa ?? ''}
                       onChange={(e) => { updateEditForm('codigo_empresa', e.target.value); setEditFieldErrors((p) => ({ ...p, codigo_empresa: '' })); }}
-                      className={inputClass('codigo_empresa', true)}
+                      className={`${inputClass('codigo_empresa', true)} uppercase`}
                       disabled={submitting}
                     />
-                    {editFieldErrors.codigo_empresa && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{editFieldErrors.codigo_empresa}</p>}
+                    {editFieldErrors.codigo_empresa && <p className="mt-1 text-xs text-error">{editFieldErrors.codigo_empresa}</p>}
                   </div>
                   <div>
                     <Label htmlFor="edit-razon_social">Razón social *</Label>
@@ -1002,11 +1081,11 @@ export default function EmpresaPage() {
                       type="text"
                       value={editForm.razon_social ?? ''}
                       onChange={(e) => { updateEditForm('razon_social', e.target.value); setEditFieldErrors((p) => ({ ...p, razon_social: '' })); }}
-                      className={inputClass('razon_social', true)}
+                      className={`${inputClass('razon_social', true)} uppercase`}
                       disabled={submitting}
                       placeholder="En MAYÚSCULAS según SUNAT"
                     />
-                    {editFieldErrors.razon_social && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{editFieldErrors.razon_social}</p>}
+                    {editFieldErrors.razon_social && <p className="mt-1 text-xs text-error">{editFieldErrors.razon_social}</p>}
                   </div>
                   <div>
                     <Label htmlFor="edit-ruc">RUC *</Label>
@@ -1015,10 +1094,10 @@ export default function EmpresaPage() {
                       type="text"
                       value={editForm.ruc ?? ''}
                       readOnly
-                      className="mt-1 block w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-white text-sm"
+                      className="mt-1 block w-full px-3 py-2 rounded-md border border-border-base bg-subtle dark:bg-subtle text-text-base text-sm uppercase"
                       disabled
                     />
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Inmutable; no puede modificarse.</p>
+                    <p className="mt-1 text-xs text-text-soft">Inmutable; no puede modificarse.</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
@@ -1027,7 +1106,7 @@ export default function EmpresaPage() {
                         id="edit-tipo_documento_tributario"
                         value={editForm.tipo_documento_tributario ?? 'RUC'}
                         onChange={(e) => updateEditForm('tipo_documento_tributario', e.target.value)}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="RUC">RUC</option>
@@ -1042,7 +1121,7 @@ export default function EmpresaPage() {
                         type="text"
                         value={editForm.tipo_empresa ?? ''}
                         onChange={(e) => updateEditForm('tipo_empresa', e.target.value)}
-                        className={inputClass('tipo_empresa', true)}
+                        className={`${inputClass('tipo_empresa', true)} uppercase`}
                         disabled={submitting}
                         placeholder="SAC, SRL, EIRL..."
                       />
@@ -1059,17 +1138,6 @@ export default function EmpresaPage() {
                       disabled={submitting}
                     />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="edit_es_activo"
-                      checked={editForm.es_activo ?? true}
-                      onChange={(e) => updateEditForm('es_activo', e.target.checked)}
-                      disabled={submitting}
-                      className="rounded border-gray-300 dark:border-gray-600"
-                    />
-                    <Label htmlFor="edit_es_activo">Activo</Label>
-                  </div>
                 </div>
               </FormSection>
 
@@ -1082,7 +1150,7 @@ export default function EmpresaPage() {
                       type="text"
                       value={editForm.direccion_fiscal ?? ''}
                       onChange={(e) => updateEditForm('direccion_fiscal', e.target.value)}
-                      className={inputClass('direccion_fiscal', true)}
+                      className={`${inputClass('direccion_fiscal', true)} uppercase`}
                       disabled={submitting}
                     />
                   </div>
@@ -1103,7 +1171,7 @@ export default function EmpresaPage() {
                           updateEditForm('provincia_id', undefined);
                           updateEditForm('distrito_id', undefined);
                         }}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="">— Seleccionar —</option>
@@ -1126,7 +1194,7 @@ export default function EmpresaPage() {
                           updateEditForm('provincia_id', undefined);
                           updateEditForm('distrito_id', undefined);
                         }}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="">— Seleccionar —</option>
@@ -1147,7 +1215,7 @@ export default function EmpresaPage() {
                           updateEditForm('provincia_id', id || undefined);
                           updateEditForm('distrito_id', undefined);
                         }}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="">— Seleccionar —</option>
@@ -1166,7 +1234,7 @@ export default function EmpresaPage() {
                           setSelectedDistritoId(id);
                           updateEditForm('distrito_id', id || undefined);
                         }}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="">— Seleccionar —</option>
@@ -1182,7 +1250,7 @@ export default function EmpresaPage() {
                         type="text"
                         value={editForm.codigo_postal ?? ''}
                         onChange={(e) => updateEditForm('codigo_postal', e.target.value)}
-                        className={inputClass('codigo_postal', true)}
+                        className={`${inputClass('codigo_postal', true)} uppercase`}
                         disabled={submitting}
                       />
                     </div>
@@ -1193,7 +1261,7 @@ export default function EmpresaPage() {
                         type="text"
                         value={editForm.ubigeo ?? ''}
                         onChange={(e) => updateEditForm('ubigeo', e.target.value)}
-                        className={inputClass('ubigeo', true)}
+                        className={`${inputClass('ubigeo', true)} uppercase`}
                         disabled={submitting}
                         placeholder="Ej. 150101"
                       />
@@ -1233,10 +1301,10 @@ export default function EmpresaPage() {
                       type="email"
                       value={editForm.email_principal ?? ''}
                       onChange={(e) => { updateEditForm('email_principal', e.target.value); setEditFieldErrors((p) => ({ ...p, email_principal: '' })); }}
-                      className={inputClass('email_principal', true)}
+                      className={`${inputClass('email_principal', true)} lowercase`}
                       disabled={submitting}
                     />
-                    {editFieldErrors.email_principal && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{editFieldErrors.email_principal}</p>}
+                    {editFieldErrors.email_principal && <p className="mt-1 text-xs text-error">{editFieldErrors.email_principal}</p>}
                   </div>
                   <div>
                     <Label htmlFor="edit-email_facturacion">Email facturación</Label>
@@ -1245,7 +1313,7 @@ export default function EmpresaPage() {
                       type="email"
                       value={editForm.email_facturacion ?? ''}
                       onChange={(e) => updateEditForm('email_facturacion', e.target.value)}
-                      className={inputClass('email_facturacion', true)}
+                      className={`${inputClass('email_facturacion', true)} lowercase`}
                       disabled={submitting}
                     />
                   </div>
@@ -1256,7 +1324,7 @@ export default function EmpresaPage() {
                       type="url"
                       value={editForm.sitio_web ?? ''}
                       onChange={(e) => updateEditForm('sitio_web', e.target.value)}
-                      className={inputClass('sitio_web', true)}
+                      className={`${inputClass('sitio_web', true)} lowercase`}
                       disabled={submitting}
                       placeholder="https://"
                     />
@@ -1285,7 +1353,7 @@ export default function EmpresaPage() {
                         type="text"
                         value={editForm.codigo_ciiu ?? ''}
                         onChange={(e) => updateEditForm('codigo_ciiu', e.target.value)}
-                        className={inputClass('codigo_ciiu', true)}
+                        className={`${inputClass('codigo_ciiu', true)} uppercase`}
                         disabled={submitting}
                       />
                     </div>
@@ -1324,7 +1392,7 @@ export default function EmpresaPage() {
                       type="text"
                       value={editForm.representante_legal_dni ?? ''}
                       onChange={(e) => updateEditForm('representante_legal_dni', e.target.value)}
-                      className={inputClass('representante_legal_dni', true)}
+                      className={`${inputClass('representante_legal_dni', true)} uppercase`}
                       disabled={submitting}
                     />
                   </div>
@@ -1351,7 +1419,7 @@ export default function EmpresaPage() {
                         id="edit-moneda_base_id"
                         value={editForm.moneda_base_id ?? ''}
                         onChange={(e) => updateEditForm('moneda_base_id', e.target.value || undefined)}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="">— Seleccionar —</option>
@@ -1360,10 +1428,10 @@ export default function EmpresaPage() {
                         ))}
                       </select>
                     ) : (
-                      <p className="text-sm text-amber-600 dark:text-amber-400">Configure monedas en <strong>Monedas</strong> para asignar moneda base.</p>
+                      <p className="text-sm text-warning">Configure monedas en <strong>Monedas</strong> para asignar moneda base.</p>
                     )}
                     {(editFieldErrors.moneda_base || editFieldErrors.moneda_base_id) && (
-                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">{editFieldErrors.moneda_base || editFieldErrors.moneda_base_id}</p>
+                      <p className="mt-1 text-xs text-error">{editFieldErrors.moneda_base || editFieldErrors.moneda_base_id}</p>
                     )}
                   </div>
                   <div>
@@ -1385,7 +1453,7 @@ export default function EmpresaPage() {
                         id="edit-idioma_sistema"
                         value={editForm.idioma_sistema ?? 'es'}
                         onChange={(e) => updateEditForm('idioma_sistema', e.target.value)}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="es">Español</option>
@@ -1399,7 +1467,7 @@ export default function EmpresaPage() {
                         id="edit-formato_fecha"
                         value={editForm.formato_fecha ?? 'DD/MM/YYYY'}
                         onChange={(e) => updateEditForm('formato_fecha', e.target.value)}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
                         disabled={submitting}
                       >
                         <option value="DD/MM/YYYY">DD/MM/YYYY</option>
@@ -1445,7 +1513,7 @@ export default function EmpresaPage() {
                       />
                     </div>
                   </div>
-                  <div className="rounded-md border border-gray-200 dark:border-gray-600 p-3 space-y-2 bg-gray-50 dark:bg-gray-800/50">
+                  <div className="rounded-md border border-border-base p-3 space-y-2 bg-subtle/50">
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -1453,11 +1521,11 @@ export default function EmpresaPage() {
                         checked={editForm.maneja_multimoneda ?? false}
                         onChange={(e) => updateEditForm('maneja_multimoneda', e.target.checked)}
                         disabled={submitting}
-                        className="rounded border-gray-300 dark:border-gray-600"
+                        className="rounded border border-border-base"
                       />
                       <Label htmlFor="edit_maneja_multimoneda">Multi-moneda (documentos con Moneda y tipo de cambio)</Label>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Activo: factura en USD, EUR, etc. Inactivo: todo en moneda base. Empresa local Perú → desactivar.</p>
+                    <p className="text-xs text-text-soft">Activo: factura en USD, EUR, etc. Inactivo: todo en moneda base. Empresa local Perú → desactivar.</p>
                   </div>
                 </div>
               </FormSection>
@@ -1471,7 +1539,7 @@ export default function EmpresaPage() {
                       type="url"
                       value={editForm.logo_url ?? ''}
                       onChange={(e) => updateEditForm('logo_url', e.target.value)}
-                      className={inputClass('logo_url', true)}
+                      className={`${inputClass('logo_url', true)} lowercase`}
                       disabled={submitting}
                       placeholder="https://"
                     />
@@ -1483,7 +1551,7 @@ export default function EmpresaPage() {
                       type="url"
                       value={editForm.logo_secundario_url ?? ''}
                       onChange={(e) => updateEditForm('logo_secundario_url', e.target.value)}
-                      className={inputClass('logo_secundario_url', true)}
+                      className={`${inputClass('logo_secundario_url', true)} lowercase`}
                       disabled={submitting}
                       placeholder="https://"
                     />
@@ -1495,7 +1563,7 @@ export default function EmpresaPage() {
                       type="url"
                       value={editForm.favicon_url ?? ''}
                       onChange={(e) => updateEditForm('favicon_url', e.target.value)}
-                      className={inputClass('favicon_url', true)}
+                      className={`${inputClass('favicon_url', true)} lowercase`}
                       disabled={submitting}
                       placeholder="https://"
                     />
@@ -1530,11 +1598,11 @@ export default function EmpresaPage() {
                 </div>
               </FormSection>
             </DialogBody>
-            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-gray-200 dark:border-gray-700">
-              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
+            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base">
+              <Button type="button" variant="outline" onClick={handleRequestCloseEdit}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">
+              <Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
                 Guardar
               </Button>
             </DialogFooter>
@@ -1543,16 +1611,16 @@ export default function EmpresaPage() {
       </Dialog>
 
       <ConfirmDialog
-        isOpen={!!deleteTarget}
+        isOpen={!!deleteTarget && discardPending === null}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDeleteConfirm}
-        title="Eliminar empresa"
+        title="Desactivar empresa"
         message={
           deleteTarget
-            ? `¿Eliminar la empresa "${deleteTarget.razon_social}"? Esta acción no se puede deshacer y puede afectar sucursales, monedas y otros datos vinculados.`
+            ? `¿Desactivar empresa '${deleteTarget.razon_social}'? Podrá reactivarla después.`
             : ''
         }
-        confirmText="Eliminar"
+        confirmText="Desactivar"
         cancelText="Cancelar"
         variant="danger"
         loading={deleting}

@@ -1,206 +1,302 @@
 // src/features/auth/services/auth.service.ts
 import api from '../../../core/api/api';
-import { LoginCredentials, AuthResponse, UserData } from '../types/auth.types';
+import { apiSelection } from '../../../core/api/axios-instances';
+import {
+  LoginCredentials,
+  LoginResponse,
+  LoginEmpresaSelectionResponse,
+  Token,
+  UserData,
+  isLoginEmpresaSelectionResponse,
+} from '../types/auth.types';
 import { AxiosError, AxiosRequestConfig } from 'axios';
+import {
+  logAuthContext,
+  logAuthError,
+  logAuthResponse,
+  logRefreshResult,
+} from '@/core/auth/utils/auth-debug';
+import { normalizeEmpresasElegibles } from '@/core/auth/utils/empresa-eligibles';
 
-// Definición de tipo para la configuración de la petición con la propiedad _retry
-// que usamos en el interceptor, aunque no la necesitemos aquí.
 interface RefreshRequestConfig extends AxiosRequestConfig {
-    _retry?: boolean;
+  _retry?: boolean;
 }
 
-// ✅ NUEVO: Interfaz extendida para la respuesta de login con campos de nivel de acceso
-interface ExtendedAuthResponse extends AuthResponse {
-    user_data: UserData & {
-        access_level?: number;
-        is_super_admin?: boolean;
-        user_type?: string;
-        cliente?: {
-            id: number;
-            nombre: string;
-            subdominio: string;
-        };
+const WEB_HEADERS = {
+  'X-Client-Type': 'web',
+} as const;
+
+/** Solo headers que el backend ya expone en Access-Control-Allow-Headers (evita fallo preflight CORS). */
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  return { ...WEB_HEADERS, ...extra };
+}
+
+/** Coerce API boolean (true, 1, "true") — evita perder es_admin_cliente por tipos raros. */
+function toApiBoolean(value: unknown): boolean {
+  if (value === true || value === 1) return true;
+  if (typeof value === 'string') {
+    const s = value.trim().toLowerCase();
+    return s === 'true' || s === '1';
+  }
+  return false;
+}
+
+function normalizeEmpresaActiva(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const s = String(value).trim();
+  return s.length > 0 ? s : null;
+}
+
+function normalizeUserData(raw: UserData & Record<string, unknown>): UserData {
+  const usuario_id =
+    raw.usuario_id ?? (raw as Record<string, unknown>).user_id ?? (raw as Record<string, unknown>).id;
+  const cliente_id =
+    raw.cliente_id ?? (raw as Record<string, unknown>).client_id ?? (raw as Record<string, unknown>).tenant_id;
+  const record = raw as Record<string, unknown>;
+
+  return {
+    ...raw,
+    usuario_id: String(usuario_id ?? ''),
+    cliente_id: String(cliente_id ?? raw.cliente_id ?? ''),
+    access_level: raw.access_level ?? 0,
+    is_super_admin: raw.is_super_admin ?? false,
+    user_type: raw.user_type ?? 'user',
+    cliente: raw.cliente ?? null,
+    empresa_activa: normalizeEmpresaActiva(raw.empresa_activa ?? record.empresa_activa),
+    empresas_disponibles: normalizeEmpresasElegibles(
+      raw.empresas_disponibles ?? record.empresas_disponibles,
+    ),
+    es_admin_cliente: toApiBoolean(raw.es_admin_cliente ?? record.es_admin_cliente),
+  };
+}
+
+/**
+ * Login — respuesta A (Token) o B (LoginEmpresaSelectionResponse).
+ */
+const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
+  logAuthContext('login BEFORE', { username: credentials.username });
+
+  const params = new URLSearchParams();
+  params.append('username', credentials.username);
+  params.append('password', credentials.password);
+
+  try {
+    const response = await api.post<LoginResponse>('/auth/login/', params, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...WEB_HEADERS,
+      },
+    });
+    logAuthResponse('login', response);
+    const { data } = response;
+
+    if (isLoginEmpresaSelectionResponse(data)) {
+      const selection = data as LoginEmpresaSelectionResponse;
+      return {
+        requiere_seleccion_empresa: selection.requiere_seleccion_empresa ?? true,
+        empresas_disponibles: selection.empresas_disponibles ?? [],
+        selection_token: selection.selection_token,
+        token_type: selection.token_type ?? 'bearer',
+        user_data: selection.user_data
+          ? normalizeUserData(selection.user_data as UserData & Record<string, unknown>)
+          : null,
+      };
+    }
+
+    const token = data as Token;
+    return {
+      access_token: token.access_token,
+      token_type: token.token_type ?? 'bearer',
+      user_data: token.user_data
+        ? normalizeUserData(token.user_data as UserData & Record<string, unknown>)
+        : null,
     };
-}
-
-/**
- * Servicio de autenticación
- * Este servicio asume que el Refresh Token es manejado automáticamente
- * por el navegador a través de cookies HttpOnly (debido a withCredentials: true en api.ts).
- */
-
-/**
- * Login de usuario.
- *
- * Multi-tenant: el backend deduce el tenant del header Host (subdominio), no del body.
- * No se envía subdominio ni cliente_id en el body; solo username y password (estándar OAuth2).
- * El frontend debe llamar al login contra la URL del tenant (mismo host que la app).
- *
- * @param credentials - Credenciales de usuario (username, password)
- * @returns Promise con la respuesta de autenticación (debería incluir Access Token)
- */
-const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
-	try {
-		// Crear FormData para enviar como application/x-www-form-urlencoded (solo username + password)
-		const params = new URLSearchParams();
-		params.append('username', credentials.username);
-		params.append('password', credentials.password);
-
-		// Realizar petición de login. El Refresh Token se recibe como cookie HttpOnly.
-		// ✅ MODIFICADO: Usar ExtendedAuthResponse para tipar la respuesta
-		const { data } = await api.post<ExtendedAuthResponse>('/auth/login/', params, {
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-				'X-Client-Type': 'web',
-			},
-		});
-
-		// ✅ NUEVO: Validar y normalizar campos de nivel de acceso
-		const normalizedResponse: AuthResponse = {
-			...data,
-			user_data: {
-				...data.user_data,
-				// Asegurar que los campos de nivel de acceso estén presentes
-				access_level: data.user_data.access_level || 0,
-				is_super_admin: data.user_data.is_super_admin || false,
-				user_type: data.user_data.user_type || 'user',
-				cliente: data.user_data.cliente || null,
-			}
-		};
-
-		console.log('✅ Login exitoso - Nivel de acceso:', normalizedResponse.user_data.access_level, 
-			'Super Admin:', normalizedResponse.user_data.is_super_admin,
-			'Tipo:', normalizedResponse.user_data.user_type);
-
-		return normalizedResponse;
-	} catch (error) {
-		const axiosError = error as AxiosError<{ detail?: string }>;
-		console.error('Login failed:', axiosError.response?.data || axiosError.message);
-		throw error;
-	}
+  } catch (error) {
+    logAuthError('login', error);
+    throw error;
+  }
 };
 
-/**
- * Obtener perfil del usuario actual desde /auth/me/
- * El Access Token es inyectado por el Request Interceptor en AuthContext.
- * @returns Promise con los datos del usuario o null si no está autenticado.
- */
 const getCurrentUserProfile = async (): Promise<UserData | null> => {
-	try {
-		// ✅ MODIFICADO: Usar ExtendedAuthResponse para tipar la respuesta
-		const response = await api.get<UserData & {
-			access_level?: number;
-			is_super_admin?: boolean;
-			user_type?: string;
-			cliente?: {
-				id: number;
-				nombre: string;
-				subdominio: string;
-			};
-		}>('/auth/me/');
-		
-		// ✅ Normalizar claves de IDs (compat backend)
-		// Algunos backends devuelven user_id/id en lugar de usuario_id.
-		const raw: any = response.data as any;
-		const usuario_id = raw.usuario_id ?? raw.user_id ?? raw.id ?? raw.userId;
-		const cliente_id = raw.cliente_id ?? raw.client_id ?? raw.tenant_id ?? raw.tenantId;
-
-		// ✅ Normalizar campos de nivel de acceso
-		const userData: UserData = {
-			...response.data,
-			usuario_id: usuario_id,
-			cliente_id: cliente_id ?? raw.cliente_id,
-			access_level: response.data.access_level || 0,
-			is_super_admin: response.data.is_super_admin || false,
-			user_type: response.data.user_type || 'user',
-			cliente: response.data.cliente || null,
-		};
-
-		console.log('✅ Perfil obtenido - Nivel de acceso:', userData.access_level, 
-			'Super Admin:', userData.is_super_admin,
-			'Tipo:', userData.user_type);
-
-		return userData;
-	} catch (error) {
-		const axiosError = error as AxiosError;
-		console.error('Error fetching user profile:', axiosError.response?.data || axiosError.message);
-		
-		// Si es 401 o 403, el token es inválido. Retornar null para que el AuthContext
-		// sepa que la sesión falló y debe limpiar el estado (si es que no lo ha hecho ya).
-		if (axiosError.response?.status === 401 || axiosError.response?.status === 403) {
-			console.warn('Token might be invalid or expired. Returning null.');
-			return null;
-		}
-		
-		// Para cualquier otro error (ej: 500, network), lanzar el error
-		throw error;
-	}
+  try {
+    const response = await api.get<UserData>('/auth/me/');
+    if (import.meta.env.DEV) {
+      console.log('[/auth/me] response crudo:', response.data);
+    }
+    return normalizeUserData(response.data as UserData & Record<string, unknown>);
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    console.error('Error fetching user profile:', axiosError.response?.data || axiosError.message);
+    if (axiosError.response?.status === 401 || axiosError.response?.status === 403) {
+      return null;
+    }
+    throw error;
+  }
 };
 
-/**
- * Logout del usuario
- * Llama al endpoint de logout del backend para invalidar las cookies del refresh token.
- */
 const logout = async (): Promise<void> => {
-	try {
-		await api.post('/auth/logout/', {}, {
-			headers: {
-				'X-Client-Type': 'web',
-			},
-		});
-		console.log('✅ Logout exitoso en servidor');
-	} catch (error) {
-		const axiosError = error as AxiosError;
-		console.error('Logout error:', axiosError.response?.data || axiosError.message);
-		// Continuar con el logout local aunque falle el servidor
-	}
+  try {
+    await api.post('/auth/logout/', {}, { headers: authHeaders() });
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    console.error('Logout error:', axiosError.response?.data || axiosError.message);
+  }
 };
 
-/**
- * Refresh del access token
- * El Refresh Token se envía automáticamente por cookies HttpOnly.
- * @returns Promise con el nuevo access token
- */
 const refreshToken = async (): Promise<string> => {
-	// No necesitamos enviar el Refresh Token explícitamente, Axios lo hace.
-	try {
-        // ✅ CORREGIDO: Usamos el tipo inferido '{ access_token: string }' para la respuesta
-        // y el tipo 'RefreshRequestConfig' para la configuración para solucionar los errores.
-		const { data } = await api.post<{ access_token: string }>('/auth/refresh/', {}, {
-			headers: {
-				'X-Client-Type': 'web',
-			},
-            // Usamos una aserción de tipo para la configuración temporal
-            _retry: true 
-		} as RefreshRequestConfig); // Añadir aserción de tipo aquí
-		
-		// Si el backend es exitoso, solo devuelve el nuevo Access Token
-		console.log('✅ Token refrescado exitosamente');
-		return data.access_token;
-	} catch (error) {
-		const axiosError = error as AxiosError;
-		const status = axiosError.response?.status;
-		
-		// 401 es normal si no hay sesión activa, solo log en desarrollo
-		if (import.meta.env.DEV) {
-			if (status === 401) {
-				console.log('ℹ️ [AuthService] No hay sesión activa (401 en refresh) - Normal si no hay cookie');
-			} else {
-				console.error('❌ [AuthService] Token refresh failed:', axiosError.response?.data || axiosError.message);
-			}
-		}
-		
-		// Si el refresh falla (ej: cookie expirada o invalidada por el servidor)
-		// PROPAGAMOS el error para que el AuthContext lo capture y fuerce el logout.
-		throw error;
-	}
+  logAuthContext('refresh BEFORE');
+
+  try {
+    const response = await api.post<{ access_token: string }>(
+      '/auth/refresh/',
+      {},
+      {
+        headers: authHeaders(),
+        _retry: true,
+      } as RefreshRequestConfig,
+    );
+    logAuthResponse('refresh', response);
+    const token = response.data.access_token;
+    logRefreshResult('ok', { tokenPrefix: token?.slice(0, 24) });
+    return token;
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    logAuthError('refresh', error);
+    logRefreshResult('fail', {
+      status: axiosError.response?.status,
+      message: axiosError.message,
+    });
+    throw error;
+  }
 };
 
-// Exportar el servicio de autenticación
+/** POST /auth/empresa/seleccionar/ — Bearer selection_token (sin interceptores ERP). */
+const seleccionarEmpresa = async (
+  empresaId: string,
+  selectionToken: string,
+): Promise<Token> => {
+  const { data } = await apiSelection.post<Token>(
+    '/auth/empresa/seleccionar/',
+    { empresa_id: empresaId },
+    {
+      headers: {
+        ...WEB_HEADERS,
+        Authorization: `Bearer ${selectionToken}`,
+      },
+    },
+  );
+  return {
+    access_token: data.access_token,
+    token_type: data.token_type ?? 'bearer',
+    user_data: data.user_data
+      ? normalizeUserData(data.user_data as UserData & Record<string, unknown>)
+      : null,
+  };
+};
+
+/** POST /auth/impersonate/{cliente_id}/ — misma forma que login (Schema A o B). Sin refresh. */
+const startImpersonation = async (
+  clienteId: string,
+  accessToken: string,
+): Promise<LoginResponse> => {
+  const url = `/auth/impersonate/${encodeURIComponent(clienteId)}/`;
+  const bearer = `Bearer ${accessToken}`;
+
+  if (import.meta.env.DEV) {
+    console.log('[IMPERSONATE-FE]', {
+      hasAccessToken: Boolean(accessToken?.trim()),
+      tokenPrefix: accessToken?.slice(0, 20),
+      url,
+    });
+  }
+
+  const requestConfig = {
+    headers: {
+      ...WEB_HEADERS,
+      Authorization: bearer,
+    },
+  };
+
+  if (import.meta.env.DEV) {
+    console.log('[IMPERSONATE-FE] Authorization header', requestConfig.headers.Authorization);
+  }
+
+  const { data } = await api.post<LoginResponse>(url, {}, requestConfig);
+
+  if (isLoginEmpresaSelectionResponse(data)) {
+    const selection = data as LoginEmpresaSelectionResponse;
+    return {
+      requiere_seleccion_empresa: selection.requiere_seleccion_empresa ?? true,
+      empresas_disponibles: selection.empresas_disponibles ?? [],
+      selection_token: selection.selection_token,
+      token_type: selection.token_type ?? 'bearer',
+      user_data: selection.user_data
+        ? normalizeUserData(selection.user_data as UserData & Record<string, unknown>)
+        : null,
+    };
+  }
+
+  const token = data as Token;
+  return {
+    access_token: token.access_token,
+    token_type: token.token_type ?? 'bearer',
+    user_data: token.user_data
+      ? normalizeUserData(token.user_data as UserData & Record<string, unknown>)
+      : null,
+  };
+};
+
+/** POST /auth/impersonate/end/ — Bearer token impersonado. */
+const endImpersonation = async (accessToken: string): Promise<void> => {
+  const url = '/auth/impersonate/end/';
+  const bearer = `Bearer ${accessToken}`;
+
+  if (import.meta.env.DEV) {
+    console.log('[IMPERSONATE-FE] end', {
+      hasAccessToken: Boolean(accessToken?.trim()),
+      tokenPrefix: accessToken?.slice(0, 20),
+      url,
+    });
+    console.log('[IMPERSONATE-FE] end Authorization header', bearer);
+  }
+
+  try {
+    await api.post(url, {}, { headers: { ...WEB_HEADERS, Authorization: bearer } });
+  } catch (error) {
+    const axiosError = error as AxiosError;
+    if (import.meta.env.DEV) {
+      console.warn('[endImpersonation]', axiosError.response?.status, axiosError.message);
+    }
+    throw error;
+  }
+};
+
+/** POST /auth/empresa/cambiar/ — sesión completa. */
+const cambiarEmpresa = async (empresaId: string, refreshTokenBody?: string): Promise<Token> => {
+  const body: { empresa_id: string; refresh_token?: string } = { empresa_id: empresaId };
+  if (refreshTokenBody) {
+    body.refresh_token = refreshTokenBody;
+  }
+  const { data } = await api.post<Token>('/auth/empresa/cambiar/', body, {
+    headers: WEB_HEADERS,
+  });
+  return {
+    access_token: data.access_token,
+    token_type: data.token_type ?? 'bearer',
+    user_data: data.user_data
+      ? normalizeUserData(data.user_data as UserData & Record<string, unknown>)
+      : null,
+  };
+};
+
 export const authService = {
-	login,
-	me: getCurrentUserProfile,
-	getCurrentUserProfile,
-	logout,
-	refreshToken,
+  login,
+  me: getCurrentUserProfile,
+  getCurrentUserProfile,
+  logout,
+  refreshToken,
+  seleccionarEmpresa,
+  cambiarEmpresa,
+  startImpersonation,
+  endImpersonation,
 };

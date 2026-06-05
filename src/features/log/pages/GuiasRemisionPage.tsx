@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { Loader, FileText, Pencil, Search, Eye, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toAppPath } from '@/core/routing/post-login-path';
 import { empresaService } from '@/features/org/services/org.service';
 import { vehiculoService } from '../services/log.service';
 import { transportistaService } from '../services/log.service';
@@ -267,7 +268,7 @@ export default function GuiasRemisionPage() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => navigate(`/log/guias-remision/${row.guia_remision_id}/detalles`)} className="text-brand-primary hover:text-brand-primary/80" title="Ver detalles"><Eye className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => navigate(toAppPath(`/log/guias-remision/${row.guia_remision_id}/detalles`))} className="text-brand-primary hover:text-brand-primary/80" title="Ver detalles"><Eye className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => openEdit(row)} className="text-brand-primary hover:text-brand-primary/80"><Pencil className="h-4 w-4" /></Button>
                       </div>
                     </td>
@@ -323,7 +324,7 @@ export default function GuiasRemisionPage() {
               <div><Label>Total Bultos</Label><input type="number" min="0" value={form.total_bultos ?? ''} onChange={(e) => setForm((p) => ({ ...p, total_bultos: e.target.value ? parseInt(e.target.value) : undefined }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" /></div>
               <div><Label>Peso Total (kg)</Label><input type="number" step="0.01" min="0" value={form.peso_total_kg ?? ''} onChange={(e) => setForm((p) => ({ ...p, peso_total_kg: e.target.value ? parseFloat(e.target.value) : undefined }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" /></div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Crear</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -335,7 +336,7 @@ export default function GuiasRemisionPage() {
               <div><Label>Fecha Traslado</Label><input type="date" value={editForm.fecha_traslado ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, fecha_traslado: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" /></div>
               <div><Label>Estado</Label><select value={editForm.estado ?? 'borrador'} onChange={(e) => setEditForm((p) => ({ ...p, estado: e.target.value as any }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm">{ESTADOS.map((e) => <option key={e} value={e}>{e}</option>)}</select></div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

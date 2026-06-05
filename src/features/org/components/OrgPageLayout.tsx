@@ -1,36 +1,15 @@
-/**
- * Layout estándar para páginas del módulo ORG.
- * Título, descripción opcional y contenido con estilo consistente.
- */
 import React from 'react';
 
-interface OrgPageLayoutProps {
-  title: string;
-  description?: string;
+export interface OrgPageLayoutProps {
   children: React.ReactNode;
+  /** @deprecated El layout global ya muestra el breadcrumb. No renderizar título aquí. */
+  title?: string;
+  /** @deprecated No renderizar subtítulo en el body de la página. */
+  description?: string;
+  /** @deprecated Mover el botón de acción al toolbar inline de cada página. */
   action?: React.ReactNode;
 }
 
-export const OrgPageLayout: React.FC<OrgPageLayoutProps> = ({
-  title,
-  description,
-  children,
-  action,
-}) => (
-  <div className="w-full">
-    <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">
-          {title}
-        </h1>
-        {description && (
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {description}
-          </p>
-        )}
-      </div>
-      {action && <div className="flex-shrink-0">{action}</div>}
-    </div>
-    {children}
-  </div>
+export const OrgPageLayout: React.FC<OrgPageLayoutProps> = ({ children }) => (
+  <div className="w-full">{children}</div>
 );

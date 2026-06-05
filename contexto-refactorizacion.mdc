@@ -1,0 +1,55 @@
+---
+alwaysApply: false
+---
+## PROYECTO
+Sistema SaaS ERP multi-tenant. Stack: FastAPI + SQL Server (backend),
+React + TypeScript + Vite + Tailwind (frontend).
+
+## REFACTORIZACIÓN EN CURSO
+Objetivo: separar correctamente 3 contextos:
+- /super-admin/* → Panel Super Admin CAXIS
+- /admin/* → Panel Admin del cliente (tenant)
+- /app/* → Panel ERP operativo (módulos)
+
+## PUNTOS COMPLETADOS
+
+### Punto 1 — JWT y multi-empresa ✅
+- Backend: empresa_id, es_admin_cliente, selection token, POST seleccionar/cambiar (ver `docs/FLUJO_AUTH_MULTIEMPRESA_FE.md`)
+- Frontend Fase 2 (mayo 2026): login A/B, `/app/seleccionar-empresa`, contexto `empresaActivaId`, selector Header, guards, sin menú con selection token
+- Auditoría: `docs/frontend/auditoria/AUDITORIA_EMPRESA_JWT.md`
+
+### Punto 2 — Onboarding automático ✅
+- POST /api/v1/clientes/ ahora ejecuta en una sola transacción:
+  roles base (ADMIN_TENANT, MANAGER_TENANT, USER_TENANT),
+  usuario admin, asignación usuario-rol sin empresa,
+  cliente_auth_config, seeds en cfg_codigo_secuencia
+- Repositorio CfgCodigoSecuenciaRepository creado con 5 métodos
+
+### Punto 3 — Separación de rutas y layouts frontend ✅
+- Rutas ERP bajo `/app/*`; shells `AppLayout`, `AdminLayout`, `SuperAdminLayout` (base `NewLayout` + `LayoutShellVariant`).
+- Redirects legacy activos (`/inv/*` → `/app/inv/*`, `/home` → `/app/home`, etc.).
+- Post-login unificado (`resolvePostLoginPath`); guard `requireOperationalUser` en `/app/*`.
+- Menú BD (`GET /auth/menu`) **sin migrar**: normalización en frontend (`normalizeNavRoute` / `mapLegacyErpPath`).
+- Auditoría: `docs/frontend/auditoria/AUDITORIA_RUTAS_LAYOUTS.md`
+
+### Punto 4 — Sidebar y contextos ✅
+- Menú único `GET /auth/menu` → `AuthContext.menuModulos`; partición por shell vía `menu-shell.utils` (payload + metadata/ruta; sin `ERP_CODES`).
+- Breadcrumbs centralizados en `Header` (`useShellBreadcrumbs`).
+- Enlaces internos ERP con `toAppPath`; doc `docs/SIDEBAR_ENDPOINTS_MENU.md` actualizada.
+- Auditoría: `docs/frontend/auditoria/AUDITORIA_SIDEBAR_CONTEXTO.md`
+
+## PUNTOS PENDIENTES
+
+### Punto 5 — Impersonación (Fase 1 auditoría, sin implementar)
+- **Hallazgo:** no existe impersonación en frontend ni en contrato OpenAPI (`/auth/impersonate`, headers act-as, UI «entrar como»).
+- **Relacionado hoy:** gestión de sesiones (`/auth/sessions/*`), auditoría auth super-admin, SSO, shells que bloquean admins en `/app/*`.
+- **Recomendación:** diferir implementación hasta diseño backend (JWT dual + audit); no hacer atajos solo en FE.
+- Auditoría: `docs/frontend/auditoria/AUDITORIA_IMPERSONACION.md`
+
+## REGLAS DEL PROYECTO (resumidas)
+- Frontend usa rules en .cursor/rules/ (activar manualmente)
+- Prompt maestro frontend en .cursor/rules/frontend-maestro.mdc
+- Nunca consumir endpoints deprecated
+- Nunca mostrar UUIDs en UI
+- Sistema de diseño de dos capas (tokens semánticos + brand)
+- Un solo submit para cabecera+detalle embebido

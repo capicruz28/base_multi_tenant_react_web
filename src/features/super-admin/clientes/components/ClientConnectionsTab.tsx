@@ -103,7 +103,7 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
     if (!conexion.es_activo) {
       return {
         label: 'Inactiva',
-        color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+        color: 'bg-subtle text-text-base',
         icon: XCircle
       };
     }
@@ -111,7 +111,7 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
     if (conexion.ultimo_error) {
       return {
         label: 'Error',
-        color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+        color: 'bg-error/10 text-error',
         icon: AlertTriangle
       };
     }
@@ -119,14 +119,14 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
     if (conexion.ultima_conexion_exitosa) {
       return {
         label: 'Conectada',
-        color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+        color: 'bg-success/10 text-success',
         icon: CheckCircle
       };
     }
     
     return {
       label: 'No probada',
-      color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+      color: 'bg-warning/10 text-warning',
       icon: AlertTriangle
     };
   };
@@ -135,7 +135,7 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
     return (
       <div className="flex items-center justify-center py-12">
         <Loader className="animate-spin h-8 w-8 text-brand-primary" />
-        <span className="ml-3 text-gray-600 dark:text-gray-400">Cargando conexiones...</span>
+        <span className="ml-3 text-text-soft">Cargando conexiones...</span>
       </div>
     );
   }
@@ -143,7 +143,7 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
   if (error) {
     return (
       <div className="p-6 text-center">
-        <div className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+        <div className="text-error bg-error/10 p-4 rounded-lg">
           {error}
         </div>
         <button
@@ -160,32 +160,32 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
     <div className="space-y-6">
       {/* Estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-surface rounded-lg shadow-sm border border-border-base p-4">
           <div className="flex items-center">
             <Database className="h-8 w-8 text-brand-primary" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Conexiones</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{conexiones.length}</p>
+              <p className="text-sm font-medium text-text-soft">Total Conexiones</p>
+              <p className="text-2xl font-semibold text-text-base">{conexiones.length}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-surface rounded-lg shadow-sm border border-border-base p-4">
           <div className="flex items-center">
-            <CheckCircle className="h-8 w-8 text-green-600" />
+            <CheckCircle className="h-8 w-8 text-success" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Activas</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-text-soft">Activas</p>
+              <p className="text-2xl font-semibold text-text-base">
                 {conexiones.filter(c => c.es_activo).length}
               </p>
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-surface rounded-lg shadow-sm border border-border-base p-4">
           <div className="flex items-center">
-            <Server className="h-8 w-8 text-blue-600" />
+            <Server className="h-8 w-8 text-info" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Principales</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-text-soft">Principales</p>
+              <p className="text-2xl font-semibold text-text-base">
                 {conexiones.filter(c => c.es_conexion_principal).length}
               </p>
             </div>
@@ -194,18 +194,18 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
       </div>
 
       {/* Barra de herramientas */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-surface rounded-lg shadow-sm border border-border-base p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           {/* Búsqueda */}
           <div className="flex-1 flex gap-2">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-soft" />
               <input
                 type="text"
                 placeholder="Buscar conexiones por servidor o base de datos..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+                className="pl-10 pr-4 py-2 w-full border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
               />
             </div>
           </div>
@@ -215,14 +215,14 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
             <button
               onClick={fetchConexiones}
               disabled={loading}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="p-2 text-text-soft hover:text-text-base hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors"
               title="Actualizar"
             >
               <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-surface transition-colors"
             >
               <Plus className="h-4 w-4" />
               Nueva Conexión
@@ -232,49 +232,49 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
       </div>
 
       {/* Lista de conexiones */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-surface rounded-lg shadow-sm border border-border-base overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
+          <table className="min-w-full divide-y divide-border-base">
+            <thead className="bg-subtle">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                   Conexión
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                   Estado
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                   Última Conexión
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-text-soft uppercase tracking-wider">
                   Acciones
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-surface divide-y divide-border-base">
               {filteredConexiones.length > 0 ? (
                 filteredConexiones.map((conexion) => {
                   const estado = getEstadoConexion(conexion);
                   const EstadoIcon = estado.icon;
                   
                   return (
-                    <tr key={conexion.conexion_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <tr key={conexion.conexion_id} className="hover:bg-overlay/50 dark:hover:bg-overlay/50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 bg-brand-primary/10 dark:bg-brand-primary/20 rounded-lg flex items-center justify-center">
                             <Database className="h-6 w-6 text-brand-primary dark:text-brand-primary" />
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            <div className="text-sm font-medium text-text-base">
                               {conexion.nombre_bd}
                             </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                            <div className="text-sm text-text-soft">
                               {conexion.servidor}:{conexion.puerto}
                             </div>
-                            <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                            <div className="text-xs text-text-soft mt-1">
                               {conexion.tipo_bd.toUpperCase()}
                               {conexion.es_conexion_principal && (
-                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-info/10 text-info">
                                   Principal
                                 </span>
                               )}
@@ -288,33 +288,33 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
                           {estado.label}
                         </span>
                         {conexion.ultimo_error && (
-                          <div className="text-xs text-red-600 dark:text-red-400 mt-1 max-w-xs truncate">
+                          <div className="text-xs text-error mt-1 max-w-xs truncate">
                             {conexion.ultimo_error}
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
                         {conexion.ultima_conexion_exitosa ? (
                           <div>
                             <div>{new Date(conexion.ultima_conexion_exitosa).toLocaleDateString()}</div>
                             <div className="text-xs">{new Date(conexion.ultima_conexion_exitosa).toLocaleTimeString()}</div>
                           </div>
                         ) : (
-                          <span className="text-gray-400">Nunca</span>
+                          <span className="text-text-soft">Nunca</span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end items-center gap-2">
                           <button
                             onClick={() => handleEdit(conexion)}
-                            className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                            className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-overlay dark:hover:bg-overlay"
                             title="Editar"
                           >
                             <Edit3 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(conexion)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                            className="text-error hover:bg-overlay dark:hover:bg-overlay p-1 rounded hover:bg-overlay dark:hover:bg-overlay"
                             title="Desactivar"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -326,8 +326,8 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
                 })
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                    <Database className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <td colSpan={4} className="px-6 py-8 text-center text-sm text-text-soft">
+                    <Database className="mx-auto h-12 w-12 text-text-soft mb-4" />
                     <p>No se encontraron conexiones</p>
                     {searchTerm && (
                       <p className="mt-1">Intenta ajustar los términos de búsqueda</p>

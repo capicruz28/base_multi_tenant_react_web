@@ -4,22 +4,42 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation, NavLink } from 'react-router-dom';
 import { useTheme } from '../../../shared/context/ThemeContext';
 import { useAuth } from '../../../shared/context/AuthContext';
-import { useBreadcrumb } from '../../../shared/context/BreadcrumbContext';
 import { Popover } from 'react-tiny-popover';
 import * as LucideIcons from 'lucide-react';
 import { useBranding } from '../../../features/tenant/hooks/useBranding';
+import caxisIconLight from '@/assets/images/caxis-icon-light.svg';
+import caxisIconDark from '@/assets/images/caxis-icon-dark.svg';
+import caxisLogoLight from '@/assets/images/caxis-logo-light.svg';
+import caxisLogoDark from '@/assets/images/caxis-logo-dark.svg';
 
 import type {
   SidebarMenuItem,
   SidebarProps,
   PopoverContentProps,
 } from '@/features/admin/types/menu.types';
-import type { AuthMenuModulo, AuthMenuItem } from '@/core/auth/types/auth-menu.types';
 import { useAdminMenuItems } from './MenuSelector';
+import { useLayoutShell } from './LayoutShellContext';
+import {
+  filterModulosForShell,
+  transformAuthMenuToSidebarItems,
+} from './sidebar-menu.utils';
+import {
+  SHELL_ADMIN_SECTION_TITLE,
+  SHELL_MODULE_SECTION_TITLE,
+} from './layout-shell.types';
+import {
+    navItemActive,
+    navItemActiveBar,
+    navItemExpandActive,
+    navItemExpandIdle,
+    navItemIdle,
+    navItemParentActive,
+    navItemTransition,
+} from './nav-item-classes';
 
 // --- CLASES Y UTILIDADES COMUNES ---
 const baseIconClasses = "w-5 h-5 text-current opacity-100 inline-block"; 
-const transitionClass = 'transition-all duration-200 ease-in-out'; 
+const transitionClass = navItemTransition; 
 
 // Función utilitaria para obtener el ícono (SIN CAMBIOS)
 const getIcon = (iconName: string | null | undefined, FallbackIcon: React.ElementType = LucideIcons.Circle) => {
@@ -61,7 +81,7 @@ const PopoverContent: React.FC<PopoverContentProps> = React.memo(({
     if (!item.children || item.children.length === 0) return null;
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-100 dark:border-gray-700 p-1.5 min-w-[280px] max-w-sm z-50">
+        <div className="bg-brand-surface rounded-lg shadow-xl border border-brand-border p-1.5 min-w-[280px] max-w-sm z-50">
             {item.children.map((child: SidebarMenuItem) => { 
                 const itemIdentifier = getItemIdentifier(child);
                 const childPath = child.ruta ? (child.ruta.startsWith('/') ? child.ruta : `/${child.ruta}`) : '#';
@@ -94,13 +114,13 @@ const PopoverContent: React.FC<PopoverContentProps> = React.memo(({
                                 }
                             }}
                             className={`
-                                flex items-center px-3 py-2 rounded-md transition-colors duration-150 group relative
+                                group
                                 ${hasValidRoute ? 'cursor-pointer' : 'cursor-default'}
                                 ${isChildActive 
-                                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium before:content-[""] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-[60%] before:w-[3px] before:bg-blue-600 dark:before:bg-blue-500 before:rounded-r-sm' 
+                                    ? navItemActiveBar
                                     : hasValidRoute 
-                                    ? 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                                    : 'text-gray-400 dark:text-gray-500'
+                                    ? navItemIdle
+                                    : `${navItemIdle} opacity-80 pointer-events-none`
                                 }
                             `}
                             title={child.nombre}
@@ -109,7 +129,7 @@ const PopoverContent: React.FC<PopoverContentProps> = React.memo(({
                                 {child.nombre}
                             </span>
                             {hasChildren && (
-                                <LucideIcons.ChevronRight className="w-4 h-4 ml-2 flex-shrink-0 text-gray-500 dark:text-gray-400 mt-0.5" />
+                                <LucideIcons.ChevronRight className="w-4 h-4 ml-2 flex-shrink-0 text-brand-text-secondary mt-0.5" />
                             )}
                         </div>
                         
@@ -132,115 +152,27 @@ const PopoverContent: React.FC<PopoverContentProps> = React.memo(({
     );
 });
 
-/** Códigos de módulos de administración: no se muestran como módulos de producto (solo en AdminSection). */
-const ADMIN_MODULE_CODES = new Set<string>(['SYS_ADMIN', 'ADMIN_SYSTEM', 'ADMINISTRACION']);
-
-/** Convierte AuthMenuModulo[] (desde /auth/menu vía AuthContext) en SidebarMenuItem[]. Filtra por is_visible && is_enabled únicamente. */
-function transformAuthMenuToSidebarItems(modulos: AuthMenuModulo[]): SidebarMenuItem[] {
-    const items: SidebarMenuItem[] = [];
-    for (const modulo of modulos) {
-        const moduloItem: SidebarMenuItem = {
-            menu_id: `modulo-${modulo.modulo_id}`,
-            nombre: modulo.nombre,
-            icono: modulo.icono,
-            ruta: null,
-            orden: modulo.orden,
-            level: 0,
-            es_activo: true,
-            padre_menu_id: null,
-            area_id: modulo.modulo_id,
-            area_nombre: modulo.nombre,
-            children: [],
-        };
-        for (const seccion of modulo.secciones || []) {
-            const seccionItem: SidebarMenuItem = {
-                menu_id: `seccion-${seccion.seccion_id}`,
-                nombre: seccion.nombre,
-                icono: seccion.icono,
-                ruta: null,
-                orden: seccion.orden,
-                level: 1,
-                es_activo: true,
-                padre_menu_id: moduloItem.menu_id,
-                area_id: modulo.modulo_id,
-                area_nombre: modulo.nombre,
-                children: [],
-            };
-            for (const menu of seccion.menus || []) {
-                if (!menu.is_visible || !menu.is_enabled) continue;
-                const menuItem: SidebarMenuItem = {
-                    menu_id: menu.menu_id,
-                    nombre: menu.nombre,
-                    icono: menu.icono,
-                    ruta: menu.ruta,
-                    orden: menu.orden,
-                    level: 2,
-                    es_activo: true,
-                    padre_menu_id: seccionItem.menu_id,
-                    area_id: modulo.modulo_id,
-                    area_nombre: modulo.nombre,
-                    children: (menu.submenus || [])
-                        .filter((sub: AuthMenuItem) => sub.is_visible && sub.is_enabled)
-                        .map((sub: AuthMenuItem) => ({
-                            menu_id: sub.menu_id,
-                            nombre: sub.nombre,
-                            icono: sub.icono,
-                            ruta: sub.ruta,
-                            orden: sub.orden,
-                            level: 3,
-                            es_activo: true,
-                            padre_menu_id: menu.menu_id,
-                            area_id: modulo.modulo_id,
-                            area_nombre: modulo.nombre,
-                            children: [],
-                        })),
-                };
-                seccionItem.children.push(menuItem);
-            }
-            if (seccionItem.children.length > 0) {
-                moduloItem.children.push(seccionItem);
-            }
-        }
-        if (moduloItem.children.length > 0) {
-            items.push(moduloItem);
-        }
-    }
-    const sortByOrder = (list: SidebarMenuItem[]): SidebarMenuItem[] =>
-        [...list]
-            .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
-            .map((item) => ({ ...item, children: sortByOrder(item.children || []) }));
-    return sortByOrder(items);
-}
-
 const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
+    const shell = useLayoutShell();
     const { isDarkMode } = useTheme();
-    const { auth, menuModulos, userType } = useAuth();
+    const { auth, menuModulos } = useAuth();
     const { items: adminMenuItems } = useAdminMenuItems();
-    const { setBreadcrumbs } = useBreadcrumb();
     const navigate = useNavigate();
     const location = useLocation();
     const currentPath = location.pathname;
     const { branding } = useBranding();
 
-    // Menú de producto desde GET /auth/menu (excluye SYS_ADMIN, ADMIN_SYSTEM, ADMINISTRACION)
+    // Menú operativo: payload /auth/menu particionado por shell (metadata o prefijo de ruta)
     const menuItems = useMemo(
         () =>
-            menuModulos
-                ? transformAuthMenuToSidebarItems(
-                      menuModulos.filter((m) => !ADMIN_MODULE_CODES.has(m.codigo ?? ''))
-                  )
+            shell === 'app' && menuModulos
+                ? transformAuthMenuToSidebarItems(filterModulosForShell(menuModulos, 'app'), 'app')
                 : [],
-        [menuModulos]
+        [menuModulos, shell]
     );
-    const normalizedMenu = menuItems;
-
-    if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
-        console.log('MENU FROM AUTH (modulos):', menuModulos);
-        // eslint-disable-next-line no-console
-        console.log('MENU RENDER FINAL:', normalizedMenu);
-    }
     const menuLoading = !!auth.user && menuModulos === null;
+    const menuEmptyAfterLoad =
+        !menuLoading && shell === 'app' && menuModulos !== null && menuItems.length === 0;
 
     // ✅ ACTUALIZADO: Inicializar vacío para que todo esté colapsado por defecto
     const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
@@ -248,74 +180,6 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
     const [popoverItem, setPopoverItem] = useState<SidebarMenuItem | null>(null);
     const [nestedPopover, setNestedPopover] = useState<string | null>(null);
     
-    // ✅ ACTUALIZADO: Función para buscar breadcrumb incluyendo módulos y secciones
-    const findBreadcrumbPath = useCallback((
-        items: SidebarMenuItem[], 
-        targetPath: string, 
-        currentBreadcrumb: Array<{nombre: string, ruta?: string | null}> = []
-    ): Array<{nombre: string, ruta?: string | null}> | null => {
-        for (const item of items) {
-            const itemPath = item.ruta ? (item.ruta.startsWith('/') ? item.ruta : `/${item.ruta}`) : '#';
-            // Saltar el nivel de sección (menu_id empieza con 'seccion-') para que el
-            // breadcrumb muestre Módulo → Ítem de menú, sin el nodo intermedio "Principal".
-            const isSection = item.menu_id.startsWith('seccion-');
-            const newBreadcrumb = isSection
-                ? currentBreadcrumb
-                : [...currentBreadcrumb, { nombre: item.nombre, ruta: item.ruta || null }];
-            
-            // Si el item tiene ruta y coincide exactamente con el path actual
-            if (item.ruta && itemPath === targetPath) {
-                return newBreadcrumb;
-            }
-            
-            // Buscar recursivamente en hijos (incluye módulos → secciones → menús → submenús)
-            if (item.children && item.children.length > 0) {
-                const childResult = findBreadcrumbPath(item.children, targetPath, newBreadcrumb);
-                if (childResult) {
-                    return childResult;
-                }
-            }
-            
-            // Si el path actual comienza con el path del item (para rutas anidadas)
-            if (item.ruta && targetPath.startsWith(itemPath) && itemPath !== '/') {
-                return newBreadcrumb;
-            }
-        }
-        return null;
-    }, []);
-
-    // ✅ ACTUALIZADO: Actualizar breadcrumb para TODOS los tipos de usuario
-    useEffect(() => {
-        // 1. Buscar breadcrumb en la estructura jerárquica de módulos (funciona para todos los usuarios)
-        let breadcrumb = findBreadcrumbPath(menuItems, currentPath);
-        
-        // 2. Si no se encuentra y hay menú de administración, intentar resolver ahí
-        if (!breadcrumb && adminMenuItems.length > 0) {
-            const adminItem = adminMenuItems.find(item => {
-                if (item.isSeparator) return false;
-                const itemPath = item.ruta ? (item.ruta.startsWith('/') ? item.ruta : `/${item.ruta}`) : '#';
-                return currentPath === itemPath || currentPath.startsWith(itemPath);
-            });
-            
-            if (adminItem) {
-                const adminTitle = (adminItem.ruta ?? '').startsWith('/super-admin')
-                    ? 'Administración Global'
-                    : 'Administración General';
-                breadcrumb = [
-                    { nombre: adminTitle, ruta: null },
-                    { nombre: adminItem.nombre, ruta: adminItem.ruta || null }
-                ];
-            }
-        }
-        
-        // 3. Establecer breadcrumb (vacío si no se encuentra nada)
-        if (breadcrumb && breadcrumb.length > 0) {
-            setBreadcrumbs(breadcrumb);
-        } else {
-            setBreadcrumbs([]);
-        }
-    }, [currentPath, menuItems, adminMenuItems, findBreadcrumbPath, setBreadcrumbs]);
-
     const handleNavigate = useCallback((path: string) => {
         const normalizedPath = path.startsWith('/') ? path : `/${path}`;
         navigate(normalizedPath);
@@ -404,22 +268,17 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         const isActive = exactMatch ? currentPath === normalizedPath : currentPath.startsWith(normalizedPath);
         
         return `
-            flex items-center px-3 py-2 rounded-lg relative
-            ${isCollapsed ? 'justify-center' : 'w-full'}
-            ${transitionClass}
-            ${isActive
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium before:content-[""] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-[60%] before:w-[3px] before:bg-blue-600 dark:before:bg-blue-500 before:rounded-r-sm'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-            }
+            ${isCollapsed ? 'justify-center' : ''}
+            ${isActive ? navItemActiveBar : navItemIdle}
         `;
-    }, [currentPath, isCollapsed, transitionClass]);
+    }, [currentPath, isCollapsed]);
 
     // ✅ MEJORADO: Función auxiliar para renderizar el contenido del item de menú con mejor UX
     const renderLinkContent = (item: SidebarMenuItem, hasChildren: boolean, isExpanded: boolean) => {
         const Icon = getIcon(item.icono, LucideIcons.Circle);
         return (
             <>
-                <div className="flex-shrink-0 text-current">
+                <div className="flex-shrink-0 text-inherit [&_svg]:opacity-100">
                     {Icon}
                 </div>
                 {!isCollapsed && (
@@ -432,7 +291,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                         </span>
                         {hasChildren && (
                             <LucideIcons.ChevronDown 
-                                className={`w-4 h-4 ml-auto flex-shrink-0 text-gray-400 dark:text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                                className={`w-4 h-4 ml-auto flex-shrink-0 text-brand-text-secondary transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
                             />
                         )}
                     </>
@@ -453,33 +312,29 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         const itemPath = rawPath === '#' ? '#' : (rawPath.startsWith('/') ? rawPath : `/${rawPath}`);
         const hasValidRoute = item.ruta && item.ruta !== '#' && item.es_activo;
         const hasChildren = item.children && item.children.length > 0;
-        
+        const isSelfActive = hasValidRoute && currentPath === itemPath;
+        const parentNavLinkClasses =
+            isSelfActive || !(hasChildren && isChildActive)
+                ? `flex-1 min-w-0 ${getLinkClasses(itemPath, true)}`
+                : `flex-1 min-w-0 ${navItemParentActive}`;
+
         // Opción 1: Tiene ruta (NavLink)
         if (hasValidRoute) {
             return (
                 <div className={`flex items-stretch gap-1 ${indentClass}`}>
                     <NavLink
                         to={itemPath}
-                        className={`flex-1 text-left ${getLinkClasses(itemPath, true)}`}
+                        className={parentNavLinkClasses}
                         end={true}
                         title={item.nombre}
                     >
-                        <div className="flex items-center w-full">
-                            {renderLinkContent(item, false, false)} 
-                        </div>
+                        {renderLinkContent(item, false, false)}
                     </NavLink>
                     
                     {hasChildren && (
                         <button
                             onClick={() => toggleExpanded(itemIdentifier)}
-                            className={`
-                                flex items-center justify-center p-2 rounded-lg flex-shrink-0 w-8
-                                ${transitionClass}
-                                ${isChildActive
-                                    ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400'
-                                    : 'text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'
-                                }
-                            `}
+                            className={isChildActive ? navItemExpandActive : navItemExpandIdle}
                             title={isExpanded ? 'Colapsar' : 'Expandir'}
                         >
                             <LucideIcons.ChevronDown 
@@ -497,12 +352,8 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                 <button
                     onClick={() => toggleExpanded(itemIdentifier)}
                     className={`
-                        flex items-center px-3 py-2 rounded-lg w-full text-left relative
-                        ${transitionClass} ${indentClass}
-                        ${isChildActive
-                            ? 'bg-blue-50 dark:bg-blue-900/20 font-medium text-blue-600 dark:text-blue-400 before:content-[""] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-[60%] before:w-[3px] before:bg-blue-600 dark:before:bg-blue-500 before:rounded-r-sm' 
-                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                        }
+                        w-full text-left ${indentClass}
+                        ${isChildActive ? navItemActiveBar : navItemIdle}
                     `}
                     title={item.nombre}
                 >
@@ -512,7 +363,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         }
         
         return null; 
-    }, [getItemIdentifier, getLinkClasses, toggleExpanded, transitionClass, renderLinkContent]);
+    }, [getItemIdentifier, getLinkClasses, toggleExpanded, transitionClass, renderLinkContent, currentPath]);
 
 
     const renderMenuItem = useCallback((item: SidebarMenuItem, level: number = 0) => {
@@ -587,7 +438,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                     <button
                       className={`
                         ${getLinkClasses(itemPath)}
-                        ${isActive ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium' : ''}
+                        ${isActive ? navItemActive : ''}
                       `}
                       title={item.nombre}
                       onMouseEnter={() => handleMouseEnter(item)}
@@ -639,8 +490,8 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                                 ${isExpanded ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 pointer-events-none'} 
                                 overflow-hidden ${transitionClass}
                                 mt-1 space-y-0.5
-                                ${level === 0 ? 'ml-3 border-l border-gray-200 dark:border-gray-700 pl-2' : ''}
-                                ${level === 1 ? 'ml-3 border-l border-gray-200 dark:border-gray-700 pl-2' : ''}
+                                ${level === 0 ? 'ml-3 border-l border-brand-border pl-2' : ''}
+                                ${level === 1 ? 'ml-3 border-l border-brand-border pl-2' : ''}
                                 ${level >= 2 ? 'ml-2' : ''}
                             `}
                         >
@@ -686,9 +537,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         );
     }, [menuItems, renderMenuItem]);
 
-    // ✅ RBAC Wave 3: separar ítems por access_level (global vs tenant).
-    // Filtro solo por ruta: los separadores tienen ruta del primer menú de su sección,
-    // así "Administración del Tenant" (ruta /admin/...) no entra en global.
+    // Admin: ítems ya filtrados por shell en useAdminMenuItems; refino por prefijo de ruta.
     const globalAdminItems = useMemo(
         () => adminMenuItems.filter((item) => (item.ruta ?? '').startsWith('/super-admin')),
         [adminMenuItems]
@@ -702,17 +551,17 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         (title: string, items: typeof adminMenuItems) => {
             if (items.length === 0) return null;
             return (
-                <div className="mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
+                <div className="mb-3 border-b border-brand-border pb-3">
                     {!isCollapsed && (
                         <div className="mb-2 pl-2">
-                            <h2 className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                            <h2 className="text-[11px] font-semibold uppercase tracking-widest text-brand-text-secondary">
                                 {title}
                             </h2>
                         </div>
                     )}
                     {isCollapsed && (
                         <div className="mb-3 px-1">
-                            <div className="p-2 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                            <div className="p-2 flex items-center justify-center text-brand-text-secondary">
                                 <LucideIcons.Shield className="w-4 h-4" />
                             </div>
                         </div>
@@ -724,7 +573,7 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                                 return (
                                     <h3
                                         key={item.menu_id}
-                                        className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1 pl-2 mt-3"
+                                        className="text-[10px] font-semibold uppercase tracking-widest text-brand-text-secondary mb-1 pl-2 mt-3"
                                     >
                                         {item.nombre}
                                     </h3>
@@ -755,20 +604,34 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
         [isCollapsed, getLinkClasses]
     );
 
-    const renderAdminGlobalMenu = useMemo(
-        () => (userType === 'platform_admin' ? renderAdminBlock('Administración Global', globalAdminItems) : null),
-        [userType, renderAdminBlock, globalAdminItems]
+    const adminSectionTitle = SHELL_ADMIN_SECTION_TITLE[shell];
+    const adminSectionItems = useMemo(() => {
+        if (shell === 'super-admin') return globalAdminItems;
+        if (shell === 'admin') return tenantAdminItems;
+        return [];
+    }, [shell, globalAdminItems, tenantAdminItems]);
+
+    const renderShellAdminMenu = useMemo(
+        () =>
+            adminSectionTitle
+                ? renderAdminBlock(adminSectionTitle, adminSectionItems)
+                : null,
+        [adminSectionTitle, renderAdminBlock, adminSectionItems]
     );
-    const renderAdminTenantMenu = useMemo(
-        () => (userType === 'tenant_admin' ? renderAdminBlock('Administración General', tenantAdminItems) : null),
-        [userType, renderAdminBlock, tenantAdminItems]
-    );
+
+    const moduleSectionTitle = SHELL_MODULE_SECTION_TITLE[shell];
+
+    const caxisIconSrc = isDarkMode ? caxisIconDark : caxisIconLight;
+    const caxisLogoSrc = isDarkMode ? caxisLogoDark : caxisLogoLight;
 
     return (
         <div 
             className={`
-                fixed top-0 left-0 h-full z-30 
-                bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 
+                fixed left-0 z-30 overflow-visible
+                top-[var(--support-banner-h,0px)]
+                h-[calc(100vh-var(--support-banner-h,0px))]
+                max-h-[calc(100dvh-var(--support-banner-h,0px))]
+                bg-brand-surface border-r border-brand-border 
                 flex flex-col flex-shrink-0
                 ${widthClass} ${transitionClass}
             `}
@@ -783,8 +646,8 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
             `}</style>
             
             <div className={`
-                flex items-center h-16 flex-shrink-0 border-b border-gray-200 dark:border-gray-800
-                ${isCollapsed ? 'justify-center' : 'justify-between px-4'}
+                flex items-center h-16 flex-shrink-0 border-b border-brand-border
+                ${isCollapsed ? 'justify-center' : 'px-4'}
             `}>
                 {!isCollapsed && (
                     branding?.logo_url ? (
@@ -806,32 +669,43 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                         />
                     ) : null
                 )}
-                {!isCollapsed && (
-                    <div 
-                        className="font-bold text-lg text-gray-900 dark:text-white truncate"
+                {isCollapsed ? (
+                    <img
+                        src={caxisIconSrc}
+                        alt="CAXIS"
+                        className="h-8 w-8 object-contain"
+                    />
+                ) : (
+                    <img
+                        src={caxisLogoSrc}
+                        alt="CAXIS"
+                        className="h-auto max-h-14 w-[200px] max-w-full object-contain object-left"
                         style={{ display: branding?.logo_url ? 'none' : 'block' }}
-                    >
-                        CAXIS
-                    </div>
+                    />
                 )}
-                <button
-                    onClick={toggleSidebar} 
-                    className={`
-                        flex items-center p-2 rounded-lg 
-                        ${transitionClass} 
-                        hover:bg-gray-100 dark:hover:bg-gray-700
-                        text-gray-500 dark:text-gray-400 flex-shrink-0
-                        ${isCollapsed ? 'justify-center' : ''}
-                    `}
-                    title={isCollapsed ? 'Expandir' : 'Colapsar'}
-                >
-                    {isCollapsed ? (
-                        <LucideIcons.Menu className="w-5 h-5" />
-                    ) : (
-                        <LucideIcons.PanelLeftClose className="w-5 h-5" />
-                    )}
-                </button>
             </div>
+
+            <button
+                type="button"
+                onClick={toggleSidebar}
+                className={`
+                    absolute top-16 right-0 z-40
+                    flex h-8 w-8 -translate-y-1/2 translate-x-1/2
+                    items-center justify-center
+                    rounded-full border border-brand-border
+                    bg-brand-surface text-brand-text-secondary shadow-md
+                    ${transitionClass}
+                    hover:bg-brand-surface-secondary hover:text-brand-text-primary
+                `}
+                title={isCollapsed ? 'Expandir' : 'Colapsar'}
+                aria-label={isCollapsed ? 'Expandir menú lateral' : 'Colapsar menú lateral'}
+            >
+                {isCollapsed ? (
+                    <LucideIcons.ChevronRight className="h-4 w-4" strokeWidth={2} />
+                ) : (
+                    <LucideIcons.ChevronLeft className="h-4 w-4" strokeWidth={2} />
+                )}
+            </button>
 
 
             <div
@@ -846,25 +720,31 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                 {menuLoading && (
                     <div className={`p-4 flex flex-col items-center justify-center text-center ${widthClass}`}>
                         <LucideIcons.Loader2 className="w-6 h-6 animate-spin text-brand-primary" />
-                        <span className="mt-2 text-sm text-gray-500 dark:text-gray-400">Cargando...</span>
+                        <span className="mt-2 text-sm text-brand-text-secondary">Cargando...</span>
                     </div>
                 )}
 
                 {!menuLoading && (
                     <nav className="px-2 pb-4">
                         {/* SECCIÓN 1: ProductModulesSection — solo módulos de producto (GET /auth/menu sin admin) */}
-                        {menuItems.length > 0 && (
-                            <div className="space-y-1 mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
+                        {shell === 'app' && menuEmptyAfterLoad && (
+                            <div className={`p-4 text-center text-sm text-brand-text-secondary ${isCollapsed ? 'px-1' : ''}`}>
+                                {!isCollapsed && <p>Sin módulos disponibles</p>}
+                            </div>
+                        )}
+
+                        {shell === 'app' && menuItems.length > 0 && moduleSectionTitle && (
+                            <div className="space-y-1 mb-3 border-b border-brand-border pb-3">
                                 {!isCollapsed && (
-                                    <div className="pl-2 mb-3">
-                                        <h2 className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                                            Módulos
+                                    <div className="mb-2 pl-2">
+                                        <h2 className="text-[11px] font-semibold uppercase tracking-widest text-brand-text-secondary">
+                                            {moduleSectionTitle}
                                         </h2>
                                     </div>
                                 )}
                                 {isCollapsed && (
-                                    <div className="px-1 mb-1">
-                                        <div className="p-2 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                                    <div className="mb-3 px-1">
+                                        <div className="flex items-center justify-center p-2 text-brand-text-secondary">
                                             <LucideIcons.Boxes className="w-4 h-4" />
                                         </div>
                                     </div>
@@ -873,12 +753,8 @@ const NewSidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar }) => {
                             </div>
                         )}
 
-                        {/* SECCIÓN 2: AdminSection — por user_type (/auth/me); hasPermission dentro de cada menú */}
-                        {userType === 'platform_admin' ? (
-                            renderAdminGlobalMenu
-                        ) : userType === 'tenant_admin' ? (
-                            renderAdminTenantMenu
-                        ) : null}
+                        {/* SECCIÓN 2: menús de administración (admin / super-admin) */}
+                        {renderShellAdminMenu}
                     </nav>
                 )}
             </div>

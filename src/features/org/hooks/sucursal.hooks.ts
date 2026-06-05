@@ -1,45 +1,41 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useTenantQuery } from '@/core/hooks/useTenantQuery';
-import { getErrorMessage } from '@/core/services/error.service';
+import { toastOrgApiError } from '../utils/org-api-error';
 import { sucursalService } from '../services/org.service';
 import type { Sucursal, SucursalCreate, SucursalUpdate } from '../types/org.types';
+import { useOrgCompanyQueryGate } from './org-company-query-gate';
 
 const qk = {
-  list: (empresaId: string | undefined, soloActivos: boolean, buscar?: string) =>
-    ['org', 'sucursal', 'list', empresaId ?? '', soloActivos, (buscar ?? '').trim()] as const,
-  detail: (sucursalId: string, empresaId?: string) =>
-    ['org', 'sucursal', 'detail', sucursalId, empresaId ?? ''] as const,
+  list: (scopeEmpresaId: string, soloActivos: boolean, buscar?: string) =>
+    ['org', 'sucursal', 'list', scopeEmpresaId, soloActivos, (buscar ?? '').trim()] as const,
+  detail: (sucursalId: string, scopeEmpresaId: string) =>
+    ['org', 'sucursal', 'detail', sucursalId, scopeEmpresaId] as const,
 };
 
 export function useSucursales(options?: {
-  empresa_id?: string;
   solo_activos?: boolean;
   buscar?: string;
   enabled?: boolean;
 }) {
-  const empresaId = options?.empresa_id;
+  const { scopeEmpresaId, enabled } = useOrgCompanyQueryGate(options);
   const soloActivos = options?.solo_activos ?? true;
   const buscar = options?.buscar;
-  const enabled = options?.enabled ?? true;
 
   return useTenantQuery<Sucursal[], Error>({
-    queryKey: qk.list(empresaId, soloActivos, buscar),
-    queryFn: () => sucursalService.list({ empresa_id: empresaId, solo_activos: soloActivos, buscar }),
+    queryKey: qk.list(scopeEmpresaId ?? '', soloActivos, buscar),
+    queryFn: () => sucursalService.list({ solo_activos: soloActivos, buscar }),
     enabled,
   });
 }
 
-export function useSucursal(
-  sucursalId: string | null | undefined,
-  options?: { empresa_id?: string; enabled?: boolean }
-) {
-  const empresaId = options?.empresa_id;
-  const enabled = (options?.enabled ?? true) && !!sucursalId;
+export function useSucursal(sucursalId: string | null | undefined, options?: { enabled?: boolean }) {
+  const { scopeEmpresaId, enabled: gateEnabled } = useOrgCompanyQueryGate(options);
+  const enabled = gateEnabled && !!sucursalId;
 
   return useTenantQuery<Sucursal, Error>({
-    queryKey: qk.detail(sucursalId ?? '', empresaId),
-    queryFn: () => sucursalService.getById(sucursalId ?? '', { empresa_id: empresaId }),
+    queryKey: qk.detail(sucursalId ?? '', scopeEmpresaId ?? ''),
+    queryFn: () => sucursalService.getById(sucursalId ?? ''),
     enabled,
   });
 }
@@ -54,57 +50,64 @@ export function useCreateSucursal() {
       toast.success('Sucursal creada.');
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err).message);
+      toastOrgApiError(err);
     },
   });
 }
 
 export function useUpdateSucursal() {
   const qc = useQueryClient();
+  const { scopeEmpresaId } = useOrgCompanyQueryGate();
 
-  return useMutation<Sucursal, Error, { sucursalId: string; payload: SucursalUpdate; empresa_id?: string }>({
-    mutationFn: ({ sucursalId, payload, empresa_id }) =>
-      sucursalService.update(sucursalId, payload, { empresa_id }),
+  return useMutation<Sucursal, Error, { sucursalId: string; payload: SucursalUpdate }>({
+    mutationFn: ({ sucursalId, payload }) => sucursalService.update(sucursalId, payload),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['org', 'sucursal', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.sucursalId, vars.empresa_id) });
+      qc.invalidateQueries({
+        queryKey: qk.detail(vars.sucursalId, scopeEmpresaId ?? ''),
+      });
       toast.success('Sucursal actualizada.');
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err).message);
+      toastOrgApiError(err);
     },
   });
 }
 
 export function useDeleteSucursal() {
   const qc = useQueryClient();
+  const { scopeEmpresaId } = useOrgCompanyQueryGate();
 
-  return useMutation<void, Error, { sucursalId: string; empresa_id?: string }>({
-    mutationFn: ({ sucursalId, empresa_id }) => sucursalService.delete(sucursalId, { empresa_id }),
+  return useMutation<void, Error, { sucursalId: string }>({
+    mutationFn: ({ sucursalId }) => sucursalService.delete(sucursalId),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['org', 'sucursal', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.sucursalId, vars.empresa_id) });
+      qc.invalidateQueries({
+        queryKey: qk.detail(vars.sucursalId, scopeEmpresaId ?? ''),
+      });
       toast.success('Sucursal eliminada.');
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err).message);
+      toastOrgApiError(err);
     },
   });
 }
 
 export function useReactivarSucursal() {
   const qc = useQueryClient();
+  const { scopeEmpresaId } = useOrgCompanyQueryGate();
 
-  return useMutation<Sucursal, Error, { sucursalId: string; empresa_id?: string }>({
-    mutationFn: ({ sucursalId, empresa_id }) => sucursalService.reactivar(sucursalId, { empresa_id }),
+  return useMutation<Sucursal, Error, { sucursalId: string }>({
+    mutationFn: ({ sucursalId }) => sucursalService.reactivar(sucursalId),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['org', 'sucursal', 'list'] });
-      qc.invalidateQueries({ queryKey: qk.detail(vars.sucursalId, vars.empresa_id) });
+      qc.invalidateQueries({
+        queryKey: qk.detail(vars.sucursalId, scopeEmpresaId ?? ''),
+      });
       toast.success('Sucursal reactivada.');
     },
     onError: (err) => {
-      toast.error(getErrorMessage(err).message);
+      toastOrgApiError(err);
     },
   });
 }
-

@@ -145,26 +145,26 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-surface rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-border-base">
           <div className="flex items-center gap-3">
             <Package className="h-6 w-6 text-brand-primary" />
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-xl font-semibold text-text-base">
                 Editar Configuración
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-text-soft">
                 {modulo.nombre}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors"
             disabled={loading}
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5 text-text-soft" />
           </button>
         </div>
 
@@ -174,7 +174,7 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
             {/* Límites */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="limite_usuarios" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="limite_usuarios" className="block text-sm font-medium text-text-soft mb-1">
                   Límite de Usuarios
                 </label>
                 <input
@@ -183,20 +183,20 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
                   name="limite_usuarios"
                   value={formData.limite_usuarios || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                    errors.limite_usuarios ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                    errors.limite_usuarios ? 'border-error' : 'border-border-base'
                   }`}
                   placeholder="Ilimitado (dejar vacío)"
                   min="1"
                   disabled={loading}
                 />
                 {errors.limite_usuarios && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.limite_usuarios}</p>
+                  <p className="mt-1 text-sm text-error">{errors.limite_usuarios}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="limite_registros" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="limite_registros" className="block text-sm font-medium text-text-soft mb-1">
                   Límite de Registros
                 </label>
                 <input
@@ -205,20 +205,20 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
                   name="limite_registros"
                   value={formData.limite_registros || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                    errors.limite_registros ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                    errors.limite_registros ? 'border-error' : 'border-border-base'
                   }`}
                   placeholder="Ilimitado (dejar vacío)"
                   min="0"
                   disabled={loading}
                 />
                 {errors.limite_registros && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.limite_registros}</p>
+                  <p className="mt-1 text-sm text-error">{errors.limite_registros}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="fecha_vencimiento" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="fecha_vencimiento" className="block text-sm font-medium text-text-soft mb-1">
                   Fecha de Vencimiento
                 </label>
                 <input
@@ -227,16 +227,16 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
                   name="fecha_vencimiento"
                   value={formData.fecha_vencimiento ? formData.fecha_vencimiento.split('T')[0] : ''}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground ${
-                    errors.fecha_vencimiento ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${
+                    errors.fecha_vencimiento ? 'border-error' : 'border-border-base'
                   }`}
                   min={new Date().toISOString().split('T')[0]}
                   disabled={loading}
                 />
                 {errors.fecha_vencimiento && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.fecha_vencimiento}</p>
+                  <p className="mt-1 text-sm text-error">{errors.fecha_vencimiento}</p>
                 )}
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-xs text-text-soft">
                   Dejar vacío para licencia ilimitada
                 </p>
               </div>
@@ -244,7 +244,7 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
 
             {/* Configuración JSON */}
             <div>
-              <label htmlFor="configuracion_json" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="configuracion_json" className="block text-sm font-medium text-text-soft mb-1">
                 Configuración Personalizada (JSON)
               </label>
               <textarea
@@ -252,33 +252,33 @@ const EditModuleActivoModal: React.FC<EditModuleActivoModalProps> = ({
                 name="configuracion_json"
                 value={configJson}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-brand-input-bg dark:text-foreground font-mono text-sm ${
-                  errors.configuracion_json ? 'border-red-500' : 'border-brand-input-border dark:border-brand-input-border'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base font-mono text-sm ${
+                  errors.configuracion_json ? 'border-error' : 'border-border-base'
                 }`}
                 placeholder='{"clave": "valor"}'
                 rows={6}
                 disabled={loading}
               />
               {errors.configuracion_json && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.configuracion_json}</p>
+                <p className="mt-1 text-sm text-error">{errors.configuracion_json}</p>
               )}
             </div>
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+          <div className="flex justify-end gap-3 p-6 border-t border-border-base bg-subtle">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-secondary disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-brand-secondary border border-transparent rounded-lg hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-secondary disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-primary disabled:opacity-50"
             >
               {loading && <Loader className="h-4 w-4 animate-spin" />}
               {loading ? 'Guardando...' : 'Guardar Cambios'}

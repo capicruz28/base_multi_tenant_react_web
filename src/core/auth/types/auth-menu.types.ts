@@ -3,7 +3,10 @@
  * Fuente única de menú y permisos efectivos del usuario.
  */
 
-/** Permisos efectivos por ítem de menú (derivados desde RBAC / overrides en backend). */
+/** Shell de presentación del menú (metadata opcional del backend). */
+export type MenuShellScope = 'app' | 'admin' | 'platform';
+
+/** Permisos efectivos por ítem de menú (ya resueltos en backend; el FE solo los indexa para guards). */
 export interface MenuPermisos {
   ver: boolean;
   crear: boolean;
@@ -27,6 +30,8 @@ export interface AuthMenuItem {
   is_visible: boolean;
   is_enabled: boolean;
   required_permission?: string;
+  /** Shell de UI: app | admin | platform (opcional; fallback por prefijo de ruta). */
+  menu_scope?: MenuShellScope | string | null;
   permisos: MenuPermisos;
   submenus: AuthMenuItem[];
 }
@@ -52,6 +57,10 @@ export interface AuthMenuModulo {
   color: string;
   categoria: string;
   orden: number;
+  /** Shell de UI a nivel módulo (opcional). */
+  menu_scope?: MenuShellScope | string | null;
+  /** Tipo semántico: erp | admin | platform (opcional; alias de menu_scope). */
+  tipo_modulo?: string | null;
   secciones: AuthMenuSeccion[];
 }
 

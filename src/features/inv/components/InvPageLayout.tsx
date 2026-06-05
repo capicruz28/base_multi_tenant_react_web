@@ -1,36 +1,6 @@
 /**
- * Layout estándar para páginas del módulo INV.
- * Título, descripción opcional y contenido con estilo consistente.
+ * Layout de páginas INV — alias de `OrgPageLayout` para alinear estructura y convenciones con ORG
+ * (toolbar como primer bloque, sin H1 en body; breadcrumb global).
  */
-import React from 'react';
-
-interface InvPageLayoutProps {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}
-
-export const InvPageLayout: React.FC<InvPageLayoutProps> = ({
-  title,
-  description,
-  children,
-  action,
-}) => (
-  <div className="w-full">
-    <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">
-          {title}
-        </h1>
-        {description && (
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {description}
-          </p>
-        )}
-      </div>
-      {action && <div className="flex-shrink-0">{action}</div>}
-    </div>
-    {children}
-  </div>
-);
+export { OrgPageLayout as InvPageLayout } from '@/features/org/components/OrgPageLayout';
+export type { OrgPageLayoutProps as InvPageLayoutProps } from '@/features/org/components/OrgPageLayout';

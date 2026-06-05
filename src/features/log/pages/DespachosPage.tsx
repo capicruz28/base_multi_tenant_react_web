@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { Loader, Truck, Pencil, Search, Eye, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toAppPath } from '@/core/routing/post-login-path';
 import { empresaService } from '@/features/org/services/org.service';
 import { rutaService } from '../services/log.service';
 import { vehiculoService } from '../services/log.service';
@@ -245,7 +246,7 @@ export default function DespachosPage() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => navigate(`/log/despachos/${row.despacho_id}/guias`)} className="text-brand-primary hover:text-brand-primary/80" title="Ver guías"><Eye className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => navigate(toAppPath(`/log/despachos/${row.despacho_id}/guias`))} className="text-brand-primary hover:text-brand-primary/80" title="Ver guías"><Eye className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => openEdit(row)} className="text-brand-primary hover:text-brand-primary/80"><Pencil className="h-4 w-4" /></Button>
                       </div>
                     </td>
@@ -269,7 +270,7 @@ export default function DespachosPage() {
               <div><Label>Vehículo</Label><select value={form.vehiculo_id ?? ''} onChange={(e) => setForm((p) => ({ ...p, vehiculo_id: e.target.value || undefined }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm"><option value="">Seleccionar</option>{vehiculos.filter(v => v.estado_vehiculo === 'disponible').map((v) => <option key={v.vehiculo_id} value={v.vehiculo_id}>{v.placa} - {v.marca} {v.modelo}</option>)}</select></div>
               <div><Label>Conductor</Label><input type="text" value={form.conductor_nombre ?? ''} onChange={(e) => setForm((p) => ({ ...p, conductor_nombre: e.target.value || undefined }))} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-gray-700 dark:text-white text-sm" /></div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Crear</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -297,7 +298,7 @@ export default function DespachosPage() {
                 </>
               )}
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover">Guardar</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

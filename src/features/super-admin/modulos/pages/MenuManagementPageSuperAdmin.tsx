@@ -469,9 +469,9 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <Menu className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Acceso restringido</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <Menu className="mx-auto h-12 w-12 text-text-soft" />
+          <h3 className="mt-2 text-sm font-medium text-text-base">Acceso restringido</h3>
+          <p className="mt-1 text-sm text-text-soft">
             No tienes permisos para acceder a la gestión de menús.
           </p>
         </div>
@@ -526,26 +526,26 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
       {/* Header */}
       {/*
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-2xl font-bold text-text-base">
           Gestión de Menús
         </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-sm text-text-soft">
           Administra los menús del sistema con estructura jerárquica (Módulo → Sección → Menú)
         </p>
       </div>
       */}
       {/* Selectores de Módulo y Sección */}
-      <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="mb-6 bg-surface rounded-lg shadow-sm border border-border-base p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="modulo-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="modulo-select" className="block text-sm font-medium text-text-soft mb-1">
               Seleccionar Módulo
             </label>
             <select
               id="modulo-select"
               value={selectedModuloId}
               onChange={handleModuloChange}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+              className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
             >
               <option value="">-- Seleccione un módulo --</option>
                     {modulos && modulos.length > 0 && modulos.map((modulo) => (
@@ -557,17 +557,17 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="seccion-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="seccion-select" className="block text-sm font-medium text-text-soft mb-1">
               Seleccionar Sección
             </label>
             {isLoadingTree ? (
-              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <div className="h-10 bg-subtle dark:bg-subtle rounded animate-pulse"></div>
             ) : selectedModuloId && secciones && secciones.length > 0 ? (
               <select
                 id="seccion-select"
                 value={selectedSeccionId}
                 onChange={handleSeccionChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white"
+                className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
               >
                 <option value="">-- Seleccione una sección --</option>
                 {secciones.map((seccion) => (
@@ -577,16 +577,16 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
                 ))}
               </select>
             ) : selectedModuloId ? (
-              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">No hay secciones disponibles.</p>
+              <p className="text-text-soft text-sm mt-1">No hay secciones disponibles.</p>
             ) : (
-              <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">Seleccione un módulo primero.</p>
+              <p className="text-text-soft text-sm mt-1">Seleccione un módulo primero.</p>
             )}
           </div>
         </div>
 
         {/* Información del módulo y sección seleccionados */}
         {(selectedModulo || selectedSeccion) && (
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="mt-4 pt-4 border-t border-border-base">
             <div className="flex items-center gap-4">
               {selectedModulo && (
                 <div className="flex items-center gap-2">
@@ -596,19 +596,19 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
                   >
                     {getIcon(selectedModulo.icono, Menu)}
                   </div>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  <span className="text-sm font-medium text-text-base">
                     {selectedModulo.nombre}
                   </span>
                 </div>
               )}
               {selectedSeccion && (
                 <>
-                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                  <ChevronRight className="h-4 w-4 text-text-soft" />
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                    <div className="h-8 w-8 bg-subtle rounded-lg flex items-center justify-center">
                       {getIcon(selectedSeccion.icono, Menu)}
                     </div>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                    <span className="text-sm font-medium text-text-base">
                       {selectedSeccion.nombre}
                     </span>
                   </div>
@@ -621,7 +621,7 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
 
       {/* Error */}
       {error && (
-        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 rounded">
+        <div className="mb-4 p-3 bg-error/10 border border-error/30 text-error rounded">
           {error}
         </div>
       )}
@@ -630,7 +630,7 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
       {selectedModuloId && (
         <>
           <div className="mb-4 flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-lg font-semibold text-text-base">
               {selectedSeccionId ? 'Menús de la Sección' : 'Menús del Módulo'}
             </h2>
             <button
@@ -638,7 +638,7 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
                 setParentMenuForCreate(null);
                 setIsCreateModalOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-surface transition-colors"
               disabled={isLoadingTree}
             >
               <Plus className="h-4 w-4" />
@@ -647,48 +647,48 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
           </div>
 
           {isLoadingTree ? (
-            <div className="flex items-center justify-center h-60 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800">
+            <div className="flex items-center justify-center h-60 border border-border-base rounded-md bg-surface">
               <RefreshCw className="animate-spin h-6 w-6 text-brand-primary" />
-              <span className="ml-2 text-gray-600 dark:text-gray-400">Cargando menús...</span>
+              <span className="ml-2 text-text-soft">Cargando menús...</span>
             </div>
           ) : selectedSeccionId && flatMenusList.length > 0 ? (
             // ✅ NUEVO: Tabla de menús cuando hay sección seleccionada
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="bg-surface rounded-lg shadow-sm border border-border-base overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
+                <table className="min-w-full divide-y divide-border-base">
+                  <thead className="bg-subtle">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                         Menú
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                         Ruta
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                         Orden
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
                         Estado
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-soft uppercase tracking-wider">
                         Acciones
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="bg-surface divide-y divide-border-base">
                     {flatMenusList.map((menu) => (
-                      <tr key={menu.menu_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <tr key={menu.menu_id} className="hover:bg-overlay/50 dark:hover:bg-overlay/50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                            <div className="flex-shrink-0 h-10 w-10 bg-subtle rounded-lg flex items-center justify-center">
                               {getIcon(menu.icono, Menu, { size: 20 })}
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              <div className="text-sm font-medium text-text-base">
                                 {menu.nombre}
                               </div>
                               {menu.padre_menu_id && (
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                <div className="text-xs text-text-soft">
                                   Submenú
                                 </div>
                               )}
@@ -697,21 +697,21 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {menu.ruta ? (
-                            <code className="text-sm font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                            <code className="text-sm font-mono bg-subtle px-2 py-1 rounded">
                               {menu.ruta}
                             </code>
                           ) : (
-                            <span className="text-sm text-gray-400 dark:text-gray-500">-</span>
+                            <span className="text-sm text-text-soft">-</span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm text-gray-900 dark:text-white">{menu.orden ?? '-'}</span>
+                          <span className="text-sm text-text-base">{menu.orden ?? '-'}</span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             menu.es_activo
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              ? 'bg-success/10 text-success'
+                              : 'bg-error/10 text-error'
                           }`}>
                             {menu.es_activo ? (
                               <>
@@ -730,7 +730,7 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
                           <div className="flex justify-end items-center gap-2">
                             <button
                               onClick={() => openEditModal(menu)}
-                              className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                              className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-overlay dark:hover:bg-overlay"
                               title="Editar"
                             >
                               <Edit3 className="h-4 w-4" />
@@ -738,10 +738,10 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
 
                             <button
                               onClick={() => handleToggleActivation(menu)}
-                              className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                              className={`p-1 rounded hover:bg-overlay dark:hover:bg-overlay ${
                                 menu.es_activo
-                                  ? 'text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300'
-                                  : 'text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300'
+                                  ? 'text-error hover:bg-overlay dark:hover:bg-overlay'
+                                  : 'text-success hover:bg-overlay dark:hover:bg-overlay'
                               }`}
                               title={menu.es_activo ? 'Desactivar' : 'Activar'}
                             >
@@ -750,7 +750,7 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
 
                             <button
                               onClick={() => openDeleteConfirm(menu)}
-                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                              className="text-error hover:bg-overlay dark:hover:bg-overlay p-1 rounded hover:bg-overlay dark:hover:bg-overlay"
                               title="Eliminar"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -765,9 +765,9 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
             </div>
           ) : selectedSeccionId && flatMenusList.length === 0 ? (
             // ✅ NUEVO: Estado vacío cuando hay sección pero no hay menús
-            <div className="border border-gray-200 dark:border-gray-700 rounded-md p-8 bg-white dark:bg-gray-800 text-center">
-              <Menu className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-gray-500 dark:text-gray-400">No hay menús en esta sección</p>
+            <div className="border border-border-base rounded-md p-8 bg-surface text-center">
+              <Menu className="mx-auto h-12 w-12 text-text-soft mb-4" />
+              <p className="text-text-soft">No hay menús en esta sección</p>
               <button
                 onClick={() => {
                   setParentMenuForCreate(null);
@@ -780,7 +780,7 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
             </div>
           ) : !selectedSeccionId && treeViewData.length > 0 ? (
             // ✅ Árbol cuando NO hay sección seleccionada (vista jerárquica completa)
-            <div className="border border-gray-200 dark:border-gray-700 rounded-md p-3 min-h-[300px] bg-white dark:bg-gray-800 shadow-sm">
+            <div className="border border-border-base rounded-md p-3 min-h-[300px] bg-surface shadow-sm">
               <Tree<MenuNodeData>
                 ref={treeRef}
                 tree={treeViewData}
@@ -802,12 +802,12 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
                   return (
                     <div
                       style={{ marginLeft: depth * 20 }}
-                      className={`flex items-center justify-between py-1.5 px-2 rounded group hover:bg-gray-100 dark:hover:bg-gray-700 ${!node.data?.es_activo ? 'opacity-60 italic' : ''}`}
+                      className={`flex items-center justify-between py-1.5 px-2 rounded group hover:bg-overlay dark:hover:bg-overlay ${!node.data?.es_activo ? 'opacity-60 italic' : ''}`}
                     >
                       <div className="flex items-center truncate min-w-0 flex-1">
                         <span
                           style={{ width: '24px', textAlign: 'center', cursor: hasChildren ? 'pointer' : 'default' }}
-                          className="inline-block mr-1 text-gray-500 dark:text-gray-400 flex-shrink-0"
+                          className="inline-block mr-1 text-text-soft flex-shrink-0"
                           onClick={hasChildren ? onToggle : undefined}
                         >
                           {hasChildren ? (isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />) : <span className="w-4" />}
@@ -817,34 +817,34 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
                             {getIcon(node.data.icono, Menu)}
                           </span>
                         )}
-                        <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        <span className="text-sm font-medium text-text-base truncate">
                           {node.text}
                         </span>
                         {node.data?.ruta && (
-                          <span className="ml-2 text-xs text-gray-500 dark:text-gray-400 truncate">
+                          <span className="ml-2 text-xs text-text-soft truncate">
                             ({node.data.ruta})
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${node.data?.es_activo
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          ? 'bg-success/10 text-success'
+                          : 'bg-error/10 text-error'
                           }`}>
                           {node.data?.es_activo ? 'Activo' : 'Inactivo'}
                         </span>
                         <button
                           onClick={() => node.data && openEditModal(node.data)}
-                          className="p-1 text-brand-primary hover:text-brand-primary/80 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                          className="p-1 text-brand-primary hover:text-brand-primary/80 rounded hover:bg-overlay dark:hover:bg-overlay"
                           title="Editar"
                         >
                           <Edit3 className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => node.data && handleToggleActivation(node.data)}
-                          className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${node.data?.es_activo
-                            ? 'text-red-600 hover:text-red-900'
-                            : 'text-green-600 hover:text-green-900'
+                          className={`p-1 rounded hover:bg-overlay dark:hover:bg-overlay ${node.data?.es_activo
+                            ? 'text-error hover:bg-overlay'
+                            : 'text-success hover:bg-overlay'
                             }`}
                           title={node.data?.es_activo ? 'Desactivar' : 'Activar'}
                         >
@@ -852,7 +852,7 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
                         </button>
                         <button
                           onClick={() => node.data && openDeleteConfirm(node.data)}
-                          className="p-1 text-red-600 hover:text-red-900 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                          className="p-1 text-error hover:bg-overlay rounded hover:bg-overlay dark:hover:bg-overlay"
                           title="Eliminar"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -865,9 +865,9 @@ const MenuManagementPageSuperAdmin: React.FC = () => {
             </div>
           ) : !selectedSeccionId && treeViewData.length === 0 ? (
             // ✅ Estado vacío cuando NO hay sección y no hay menús
-            <div className="border border-gray-200 dark:border-gray-700 rounded-md p-8 bg-white dark:bg-gray-800 text-center">
-              <Menu className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-gray-500 dark:text-gray-400">
+            <div className="border border-border-base rounded-md p-8 bg-surface text-center">
+              <Menu className="mx-auto h-12 w-12 text-text-soft mb-4" />
+              <p className="text-text-soft">
                 Selecciona una sección para ver los menús o crea un menú principal
               </p>
               <button

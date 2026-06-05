@@ -35,6 +35,8 @@ export interface Role {
   
   // (Opcional) Para el formulario de creación/edición si lo añades después
   export interface UserFormData {
+      /** Inyectado en submit desde sesión; no es campo visible del formulario. */
+      cliente_id?: string;
       nombre_usuario: string;
       correo: string;
       nombre?: string;
