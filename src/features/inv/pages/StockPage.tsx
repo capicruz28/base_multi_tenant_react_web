@@ -12,8 +12,13 @@ import { getErrorMessage } from '@/core/services/error.service';
 import { useNavigate } from 'react-router-dom';
 import { toAppPath } from '@/core/routing/post-login-path';
 import { useAlmacenes } from '../hooks/almacenes.hooks';
-import { useStockAlertas, useStocks } from '../hooks/stock.hooks';
+import {
+  useStockAlertasErpList,
+  useStocksErpList,
+  STOCK_LIST_CONFIG,
+} from '../hooks/stock.hooks';
 import { useInvSessionScope, useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
+import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 
 export default function StockPage() {
   const navigate = useNavigate();
@@ -22,29 +27,43 @@ export default function StockPage() {
   const [productosMap, setProductosMap] = useState<Record<string, Producto>>({});
   const [verAlertas, setVerAlertas] = useState(false);
 
+  const stocksList = useStocksErpList({
+    almacen_id: almacenFilter || undefined,
+    enabled: !verAlertas,
+  });
+  const alertasList = useStockAlertasErpList({
+    almacen_id: almacenFilter || undefined,
+    enabled: verAlertas,
+  });
+  const activeList = verAlertas ? alertasList : stocksList;
+
   const resetPageFilters = useCallback(() => {
     setAlmacenFilter('');
     setVerAlertas(false);
+    stocksList.setPage(1);
+    stocksList.resetSortState();
+    alertasList.setPage(1);
+    alertasList.resetSortState();
     setProductosMap({});
-  }, []);
+  }, [
+    stocksList.setPage,
+    stocksList.resetSortState,
+    alertasList.setPage,
+    alertasList.resetSortState,
+  ]);
   useInvScopeEmpresaReset(resetPageFilters);
+
+  useEffect(() => {
+    stocksList.setPage(1);
+    alertasList.setPage(1);
+  }, [verAlertas, stocksList.setPage, alertasList.setPage]);
 
   const almacenesQuery = useAlmacenes({
     solo_activos: true,
   });
   const almacenes = (almacenesQuery.data ?? []) as Almacen[];
 
-  const stocksQuery = useStocks({
-    almacen_id: almacenFilter || undefined,
-    enabled: !verAlertas,
-  });
-  const alertasQuery = useStockAlertas({
-    almacen_id: almacenFilter || undefined,
-    enabled: verAlertas,
-  });
-
-  const activeQuery = verAlertas ? alertasQuery : stocksQuery;
-  const list = (activeQuery.data ?? []) as Stock[];
+  const list = activeList.items;
 
   const almacenNombre = (id: string) => almacenes.find((a) => a.almacen_id === id)?.nombre ?? '—';
   const tieneStockBajo = (stock: Stock) =>
@@ -143,23 +162,37 @@ export default function StockPage() {
         </div>
       </div>
 
-      {activeQuery.isLoading && <InvTableSkeleton columns={8} />}
-      {activeQuery.error && !activeQuery.isLoading && (
+      {activeList.isLoading && <InvTableSkeleton columns={8} />}
+      {activeList.isError && !activeList.isLoading && (
         <p className="text-error bg-error/10 p-4 rounded-lg">
-          {getErrorMessage(activeQuery.error).message}
+          {getErrorMessage(activeList.error).message}
         </p>
       )}
-      {!activeQuery.isLoading && !activeQuery.error && (
+      {!activeList.isLoading && !activeList.isError && (
         <div className="overflow-x-auto rounded-lg border border-border-base shadow">
           <table className="min-w-full divide-y divide-border-base">
             <thead className="bg-subtle">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Producto</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Almacén</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-text-soft uppercase">Actual</th>
+                <ErpSortableHeader
+                  column="cantidad_actual"
+                  label="Actual"
+                  sortableColumns={STOCK_LIST_CONFIG.sortableColumns}
+                  sort={activeList.sort}
+                  onSort={activeList.toggleSort}
+                  className="text-right"
+                />
                 <th className="px-4 py-3 text-right text-xs font-medium text-text-soft uppercase">Reservado</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-text-soft uppercase">Disponible</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-text-soft uppercase">Mínimo</th>
+                <ErpSortableHeader
+                  column="stock_minimo"
+                  label="Mínimo"
+                  sortableColumns={STOCK_LIST_CONFIG.sortableColumns}
+                  sort={activeList.sort}
+                  onSort={activeList.toggleSort}
+                  className="text-right"
+                />
                 <th className="px-4 py-3 text-right text-xs font-medium text-text-soft uppercase">Valor total</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-text-soft uppercase">Kardex</th>
               </tr>
@@ -210,6 +243,14 @@ export default function StockPage() {
               )}
             </tbody>
           </table>
+          {activeList.pagination ? (
+            <ErpPagination
+              pagination={activeList.pagination}
+              onPageChange={activeList.setPage}
+              onLimitChange={activeList.setLimit}
+              disabled={activeList.isFetching}
+            />
+          ) : null}
         </div>
       )}
       {list.some(tieneStockBajo) && (

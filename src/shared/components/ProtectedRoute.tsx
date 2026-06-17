@@ -11,6 +11,7 @@ import {
 import { useEmpresaSelectionStore } from '@/features/auth/stores/empresa-selection.store';
 import { useEmpresaSelectionHydrated } from '@/features/auth/stores/empresa-selection-hydration';
 import { logPostLoginDiag, warnPostLoginDiag } from '@/core/auth/utils/post-login-diag-log';
+import { APP_CHANGE_PASSWORD } from '@/features/auth/types/auth.types';
 
 interface ProtectedRouteProps {
   requiredRole?: string;
@@ -46,6 +47,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     requiereSeleccionEmpresa,
     empresasDisponibles,
     menuPermissionsReady,
+    requiresPasswordChange,
   } = useAuth();
   const { permissionsInitialized } = usePermission();
   const location = useLocation();
@@ -111,6 +113,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
     const redirectState = location.pathname !== '/unauthorized' ? { from: location } : undefined;
     return <Navigate to="/login" state={redirectState} replace />;
+  }
+
+  if (requiresPasswordChange && !location.pathname.startsWith(APP_CHANGE_PASSWORD)) {
+    return <Navigate to={APP_CHANGE_PASSWORD} replace />;
   }
 
   if (requiredLevel !== undefined) {

@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { X, Building, CheckCircle, XCircle, Loader, Palette, Calendar, Server } from 'lucide-react';
 import { clienteService } from '../services/cliente.service';
-import { ClienteCreate } from '../types/cliente.types';
-import { useCreateCliente } from '@/core/hooks/useClienteMutations';
+import type { ClienteCreate, ClienteCreateResult } from '../types/cliente.types';
+import { useProvisionCliente } from '../hooks/useProvisionCliente';
+import ClientCredentialsRevealModal from './ClientCredentialsRevealModal';
 import { getValidationErrors } from '@/core/services/error.service';
 import { InstallationType, AuthenticationMode, SubscriptionPlan, SubscriptionStatus } from '@/core/constants';
 import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
@@ -27,8 +28,12 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
   onSuccess,
   onDiscardPendingChange,
 }) => {
-  const createMutation = useCreateCliente();
-  const isSubmitting = createMutation.isPending;
+  const provisionMutation = useProvisionCliente();
+  const isSubmitting = provisionMutation.isPending;
+
+  type ModalPhase = 'form' | 'reveal';
+  const [phase, setPhase] = useState<ModalPhase>('form');
+  const [provisionResult, setProvisionResult] = useState<ClienteCreateResult | null>(null);
 
   const [validatingSubdomain, setValidatingSubdomain] = useState<boolean>(false);
   const [subdomainAvailable, setSubdomainAvailable] = useState<boolean | null>(null);
@@ -40,6 +45,26 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const isDirty = useMemo(() => isCreateClienteDirty(formData), [formData]);
+  const effectiveDirty = phase === 'form' && isDirty;
+
+  useEffect(() => {
+    if (!isOpen) {
+      setPhase('form');
+      setProvisionResult(null);
+    }
+  }, [isOpen]);
+
+  const handleRevealComplete = () => {
+    setProvisionResult(null);
+    setPhase('form');
+    setFormData({ ...CREATE_CLIENT_DEFAULT });
+    setErrors({});
+    setSubdomainAvailable(null);
+    setSubdomainMessage('');
+    setActiveSection('basic');
+    onSuccess();
+    onClose();
+  };
 
   const {
     discardPending,
@@ -49,8 +74,8 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
     handleDiscardConfirm,
     handleBackdropClick,
   } = useClienteModalDiscard({
-    isOpen,
-    isDirty,
+    isOpen: isOpen && phase === 'form',
+    isDirty: effectiveDirty,
     isSubmitting,
     mode: 'create',
     onClose,
@@ -251,9 +276,9 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
 
     setErrors({});
     try {
-      await createMutation.mutateAsync(dataToSend);
-      onSuccess();
-      onClose();
+      const result = await provisionMutation.mutateAsync(dataToSend);
+      setProvisionResult(result);
+      setPhase('reveal');
     } catch (err) {
       const { fieldErrors: nextErrors } = getValidationErrors(err);
       if (Object.keys(nextErrors).length > 0) {
@@ -263,6 +288,16 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
   };
 
   if (!isOpen) return null;
+
+  if (phase === 'reveal' && provisionResult) {
+    return (
+      <ClientCredentialsRevealModal
+        isOpen
+        result={provisionResult}
+        onComplete={handleRevealComplete}
+      />
+    );
+  }
 
   const sections = [
     { id: 'basic', name: 'Información Básica', icon: Building },

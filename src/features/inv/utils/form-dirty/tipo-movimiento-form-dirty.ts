@@ -33,7 +33,7 @@ const CREATE_BASELINE = normalizeDialogFields({
   empresa_id: '',
   codigo: '',
   nombre: '',
-  clase_movimiento: 'entrada',
+  clase_movimiento: 'ENTRADA',
   afecta_costo: true,
   requiere_autorizacion: false,
   genera_asiento_contable: false,

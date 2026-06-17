@@ -1,11 +1,21 @@
+import { useEffect, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useTenantQuery } from '@/core/hooks/useTenantQuery';
+import { useErpListQuery, type ErpListResourceConfig } from '@/core/list';
 import { getErrorMessage } from '@/core/services/error.service';
-import { categoriaService } from '../services/inv.service';
+import { buildInvListQuery, categoriaService, invFetchList } from '../services/inv.service';
+import type { Categoria, CategoriaCreate, CategoriaUpdate, InvListParams } from '../types/inv.types';
 import { INV_LIST_STALE_TIME_MS } from './inv-query-defaults';
 import { useInvCompanyQueryGate } from './inv-company-query-gate';
-import type { Categoria, CategoriaCreate, CategoriaUpdate } from '../types/inv.types';
+
+/** Whitelist sort — FRONTEND_LISTADOS_CONTRACT_V1 §4 INV categorías. */
+export const CATEGORIAS_LIST_CONFIG: ErpListResourceConfig = {
+  tier: 'B',
+  sortableColumns: ['codigo', 'nombre', 'nivel', 'fecha_creacion'],
+  defaultLimit: 50,
+  forcePagination: true,
+};
 
 const qk = {
   list: (scopeEmpresaId: string, soloActivos: boolean) =>
@@ -13,6 +23,43 @@ const qk = {
   detail: (categoriaId: string, scopeEmpresaId: string) =>
     ['inv', 'categoria', 'detail', categoriaId, scopeEmpresaId] as const,
 };
+
+export function useCategoriasErpList(options?: {
+  solo_activos?: boolean;
+  debouncedBuscar?: string;
+  enabled?: boolean;
+}) {
+  const { scopeEmpresaId, enabled: gateEnabled } = useInvCompanyQueryGate(options);
+  const soloActivos = options?.solo_activos ?? true;
+  const debouncedBuscar = options?.debouncedBuscar;
+
+  const baseFilters = useMemo(
+    () => ({
+      solo_activos: soloActivos,
+      empresa_id: scopeEmpresaId ?? undefined,
+    }),
+    [soloActivos, scopeEmpresaId],
+  );
+
+  const listQuery = useErpListQuery<Categoria, typeof baseFilters>({
+    queryKeyPrefix: ['inv', 'categoria', 'list', scopeEmpresaId ?? ''],
+    fetcher: (params) =>
+      invFetchList<Categoria>('/categorias', buildInvListQuery(params as InvListParams)),
+    baseFilters,
+    debouncedBuscar,
+    config: CATEGORIAS_LIST_CONFIG,
+    enabled: gateEnabled,
+    staleTime: INV_LIST_STALE_TIME_MS,
+  });
+
+  const { setPage } = listQuery;
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedBuscar, soloActivos, setPage]);
+
+  return listQuery;
+}
 
 export function useCategorias(options?: { solo_activos?: boolean; enabled?: boolean }) {
   const { scopeEmpresaId, enabled: gateEnabled } = useInvCompanyQueryGate(options);

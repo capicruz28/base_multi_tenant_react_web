@@ -40,7 +40,8 @@ import { Button } from '@/shared/components/ui/button';
 
 import { Label } from '@/shared/components/ui/label';
 
-import { usePermissions } from '@/core/auth/hooks/usePermissions';
+import { usePermission } from '@/core/auth/PermissionContext';
+import { INV_PERMISSIONS } from '../constants/inv-permissions';
 
 import { useAlmacenes } from '../hooks/almacenes.hooks';
 
@@ -61,6 +62,7 @@ import {
 } from '../hooks/movimientos.hooks';
 
 import { useInvSessionScope } from '../hooks/useInvSessionScope';
+import { useInvRbacFormAccess } from '../hooks/useInvRbacFormAccess';
 
 import { useInvTransactionalFormGuard } from '../hooks/useInvTransactionalFormGuard';
 
@@ -198,7 +200,7 @@ export default function MovimientoFormPage() {
 
   const navigate = useNavigate();
 
-  const { can } = usePermissions();
+  const { hasPermission } = usePermission();
 
   const isEdit = Boolean(movimientoId);
 
@@ -692,7 +694,17 @@ export default function MovimientoFormPage() {
 
 
 
-  const canSubmit = can('inv', isEdit ? 'editar' : 'crear');
+  const canSubmit = isEdit
+    ? hasPermission(INV_PERMISSIONS.MOVIMIENTO_ACTUALIZAR)
+    : hasPermission(INV_PERMISSIONS.MOVIMIENTO_CREAR);
+
+  const requiredPermission = isEdit
+    ? INV_PERMISSIONS.MOVIMIENTO_ACTUALIZAR
+    : INV_PERMISSIONS.MOVIMIENTO_CREAR;
+  const { waiting: rbacWaiting, allowed: rbacAllowed } = useInvRbacFormAccess(
+    requiredPermission,
+    LIST_PATH,
+  );
 
 
 
@@ -791,6 +803,24 @@ export default function MovimientoFormPage() {
     }
 
   };
+
+
+
+  if (rbacWaiting) {
+
+    return (
+
+      <div className="flex justify-center py-24">
+
+        <Loader className="h-8 w-8 animate-spin text-brand-primary" />
+
+      </div>
+
+    );
+
+  }
+
+  if (!rbacAllowed) return null;
 
 
 

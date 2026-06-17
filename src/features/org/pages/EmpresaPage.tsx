@@ -7,6 +7,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { Building2, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { useDebouncedSearch } from '@/core/list';
 import { OrgToolbarSearch } from '../components/OrgToolbarSearch';
 import type { Empresa, EmpresaCreate, EmpresaUpdate } from '../types/org.types';
 import type { CatMoneda, CatPais, CatDepartamento, CatProvincia, CatDistrito } from '@/types/catalogos.types';
@@ -59,7 +60,7 @@ export default function EmpresaPage() {
   const { completeEmpresaSelection, cambiarEmpresaActiva, requiereSeleccionEmpresa } = useAuth();
 
   const [includeInactive, setIncludeInactive] = useState(false);
-  const [buscar, setBuscar] = useState('');
+  const search = useDebouncedSearch();
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Empresa | null>(null);
@@ -67,6 +68,7 @@ export default function EmpresaPage() {
   const [form, setForm] = useState<EmpresaCreate>(EMPRESA_DEFAULT);
   const [editForm, setEditForm] = useState<EmpresaUpdate>({});
   const [deleteTarget, setDeleteTarget] = useState<Empresa | null>(null);
+  const [reactivarTarget, setReactivarTarget] = useState<Empresa | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
   const [paises, setPaises] = useState<CatPais[]>([]);
@@ -85,7 +87,7 @@ export default function EmpresaPage() {
   const canEditar = can('org', 'editar');
   const canEliminar = can('org', 'eliminar');
 
-  const empresasQuery = useEmpresas({ solo_activos: !includeInactive, buscar });
+  const empresasQuery = useEmpresas({ solo_activos: !includeInactive, buscar: search.debouncedValue });
   const list = empresasQuery.data ?? [];
   const loading = empresasQuery.isLoading;
   const error = empresasQuery.error ? getErrorMessage(empresasQuery.error).message : null;
@@ -97,8 +99,7 @@ export default function EmpresaPage() {
 
   const submitting = createEmpresa.isPending || updateEmpresa.isPending;
   const deleting = deleteEmpresa.isPending;
-  const reactivatingId = reactivarEmpresa.variables?.empresaId ?? null;
-  const hasSearch = buscar.trim().length > 0;
+  const hasSearch = search.hasSearch;
   const TABLE_COLSPAN = 6;
 
   const empresaGeo = useMemo(
@@ -279,9 +280,11 @@ export default function EmpresaPage() {
     }
   };
 
-  const handleReactivar = async (empresa: Empresa) => {
+  const confirmarReactivar = async () => {
+    if (!reactivarTarget) return;
     try {
-      await reactivarEmpresa.mutateAsync({ empresaId: empresa.empresa_id });
+      await reactivarEmpresa.mutateAsync({ empresaId: reactivarTarget.empresa_id });
+      setReactivarTarget(null);
     } catch {
       /* toast de error: onError en useReactivarEmpresa */
     }
@@ -358,8 +361,8 @@ export default function EmpresaPage() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3 min-w-0">
           <OrgToolbarSearch
-            value={buscar}
-            onChange={setBuscar}
+            value={search.inputValue}
+            onChange={search.setInputValue}
             placeholder="Código, razón social, RUC..."
             aria-label="Buscar empresas"
             disabled={discardPending !== null}
@@ -456,41 +459,46 @@ export default function EmpresaPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 flex items-center justify-center gap-1">
-                      {canEditar && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEdit(row)}
-                          disabled={discardPending !== null}
-                          className="text-brand-primary hover:text-brand-primary/80"
-                          title="Editar"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canEditar && !row.es_activo && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleReactivar(row)}
-                          disabled={!!reactivatingId}
-                          className="text-success hover:text-success/80"
-                          title="Reactivar"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canEliminar && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteTarget(row)}
-                          disabled={discardPending !== null}
-                          className="text-error hover:text-error hover:bg-error/10"
-                          title="Desactivar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      {row.es_activo ? (
+                        <>
+                          {canEditar && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEdit(row)}
+                              disabled={discardPending !== null}
+                              className="text-brand-primary hover:text-brand-primary/80"
+                              title="Editar"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canEliminar && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteTarget(row)}
+                              disabled={discardPending !== null}
+                              className="text-error hover:text-error hover:bg-error/10"
+                              title="Desactivar"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        canEditar && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setReactivarTarget(row)}
+                            disabled={reactivarEmpresa.isPending || discardPending !== null}
+                            className="text-success hover:text-success/80"
+                            title="Reactivar"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )
                       )}
                     </td>
                   </tr>
@@ -1624,6 +1632,17 @@ export default function EmpresaPage() {
         cancelText="Cancelar"
         variant="danger"
         loading={deleting}
+      />
+      <ConfirmDialog
+        isOpen={!!reactivarTarget && discardPending === null}
+        onClose={() => setReactivarTarget(null)}
+        onConfirm={() => void confirmarReactivar()}
+        title="Reactivar empresa"
+        message={reactivarTarget ? `¿Reactivar empresa '${reactivarTarget.razon_social}'? Volverá a estar disponible.` : ''}
+        confirmText="Reactivar"
+        cancelText="Cancelar"
+        variant="info"
+        loading={reactivarEmpresa.isPending}
       />
     </OrgPageLayout>
   );

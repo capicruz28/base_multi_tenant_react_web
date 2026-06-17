@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { toAppPath } from '@/core/routing/post-login-path';
-import { Loader, ArrowLeftRight, Eye, Pencil } from 'lucide-react';
+import { Loader, ArrowLeftRight, Eye } from 'lucide-react';
 import type { Movimiento, MovimientoConDetalle, Producto } from '../types/inv.types';
 import { productoService } from '../services/inv.service';
 import { InvPageLayout } from '../components/InvPageLayout';
@@ -14,23 +14,47 @@ import { Button } from '@/shared/components/ui/button';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/shared/components/ui/dialog';
 import { Label } from '@/shared/components/ui/label';
-import { usePermissions } from '@/core/auth/hooks/usePermissions';
+import { usePermission } from '@/core/auth/PermissionContext';
+import { INV_PERMISSIONS } from '../constants/inv-permissions';
 import { useAlmacenes } from '../hooks/almacenes.hooks';
 import { useTiposMovimiento } from '../hooks/tipos-movimiento.hooks';
 import {
-  useMovimientos,
+  useMovimientosErpList,
   useMovimientoConDetalle,
   useAutorizarMovimiento,
   useProcesarMovimiento,
   useAnularMovimiento,
+  useEstornarMovimiento,
+  MOVIMIENTOS_LIST_CONFIG,
 } from '../hooks/movimientos.hooks';
+import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
+import {
+  puedeAnularMovimiento,
+  puedeAutorizarMovimiento,
+  puedeEditarMovimientoDocumento,
+  puedeEstornarMovimiento,
+  puedeProcesarMovimiento,
+  resolveRequiereAutorizacion,
+} from '../utils/movimiento-workflow.ui';
 import { useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
 import { resetMovimientosListUiState } from '../utils/inv-list-empresa-reset';
+import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
+import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
+import { scheduleModalStackValidation } from '@/features/admin/utils/iam-modal-stack-validation';
+
+interface AnularConfirmBaseline {
+  motivo: string;
+}
+
+interface EstornarConfirmBaseline {
+  motivo: string;
+}
 
 function fmtDecimal(v: string | number | null | undefined): string {
   if (v === null || v === undefined || v === '') return '-';
@@ -39,7 +63,7 @@ function fmtDecimal(v: string | number | null | undefined): string {
 }
 
 export default function MovimientosPage() {
-  const { can } = usePermissions();
+  const { hasPermission } = usePermission();
   const [almacenFilter, setAlmacenFilter] = useState<string>('');
   const [tipoFilter, setTipoFilter] = useState<string>('');
   const [estadoFilter, setEstadoFilter] = useState<string>('');
@@ -52,6 +76,20 @@ export default function MovimientosPage() {
   const [autorizarOpen, setAutorizarOpen] = useState(false);
   const [anularOpen, setAnularOpen] = useState(false);
   const [anularMotivo, setAnularMotivo] = useState('');
+  const [anularBaseline, setAnularBaseline] = useState<AnularConfirmBaseline | null>(null);
+  const [estornarOpen, setEstornarOpen] = useState(false);
+  const [estornarMotivo, setEstornarMotivo] = useState('');
+  const [estornarBaseline, setEstornarBaseline] = useState<EstornarConfirmBaseline | null>(null);
+  const [discardPending, setDiscardPending] = useState<OrgDiscardPending>(null);
+
+  const movimientosList = useMovimientosErpList({
+    almacen_id: almacenFilter || undefined,
+    tipo_movimiento_id: tipoFilter || undefined,
+    estado: estadoFilter || undefined,
+    fecha_desde: fechaDesde || undefined,
+    fecha_hasta: fechaHasta || undefined,
+    enabled: true,
+  });
 
   const resetPageFilters = useCallback(() => {
     setAlmacenFilter('');
@@ -59,6 +97,8 @@ export default function MovimientosPage() {
     setEstadoFilter('');
     setFechaDesde('');
     setFechaHasta('');
+    movimientosList.setPage(1);
+    movimientosList.resetSortState();
     setProductosMap({});
     resetMovimientosListUiState({
       setDetailOpen,
@@ -67,8 +107,13 @@ export default function MovimientosPage() {
       setProcesarOpen,
       setAnularOpen,
       setAnularMotivo,
+      setEstornarOpen,
+      setEstornarMotivo,
     });
-  }, []);
+    setAnularBaseline(null);
+    setEstornarBaseline(null);
+    setDiscardPending(null);
+  }, [movimientosList.setPage, movimientosList.resetSortState]);
   useInvScopeEmpresaReset(resetPageFilters);
 
   const almacenesQuery = useAlmacenes({
@@ -80,15 +125,7 @@ export default function MovimientosPage() {
   });
   const tiposMovimiento = tiposMovimientoQuery.data ?? [];
 
-  const movimientosQuery = useMovimientos({
-    almacen_id: almacenFilter || undefined,
-    tipo_movimiento_id: tipoFilter || undefined,
-    estado: estadoFilter || undefined,
-    fecha_desde: fechaDesde || undefined,
-    fecha_hasta: fechaHasta || undefined,
-    enabled: true,
-  });
-  const list = movimientosQuery.data ?? [];
+  const list = movimientosList.items;
 
   const conDetalleQuery = useMovimientoConDetalle(selectedMovimientoId, {
     enabled: detailOpen && !!selectedMovimientoId,
@@ -147,6 +184,8 @@ export default function MovimientosPage() {
         return 'bg-subtle text-text-base dark:bg-subtle dark:text-text-base';
       case 'anulado':
         return 'bg-error/10 text-error';
+      case 'estornado':
+        return 'bg-warning/10 text-warning';
       default:
         return 'bg-subtle text-text-base dark:bg-subtle dark:text-text-base';
     }
@@ -160,36 +199,168 @@ export default function MovimientosPage() {
   const autorizarMutation = useAutorizarMovimiento();
   const procesarMutation = useProcesarMovimiento();
   const anularMutation = useAnularMovimiento();
+  const estornarMutation = useEstornarMovimiento();
 
-  const canEditar = can('inv', 'editar');
-  const canCrear = can('inv', 'crear');
+  const canCrearMovimiento = hasPermission(INV_PERMISSIONS.MOVIMIENTO_CREAR);
+  const canActualizarMovimiento = hasPermission(INV_PERMISSIONS.MOVIMIENTO_ACTUALIZAR);
+  const canAutorizar = hasPermission(INV_PERMISSIONS.MOVIMIENTO_AUTORIZAR);
+  const canProcesar = hasPermission(INV_PERMISSIONS.MOVIMIENTO_PROCESAR);
+  const canAnular = hasPermission(INV_PERMISSIONS.MOVIMIENTO_ANULAR);
+  const canEstornar = hasPermission(INV_PERMISSIONS.MOVIMIENTO_ESTORNAR);
 
   const selectedCabecera: Movimiento | MovimientoConDetalle | null = detalleData;
-  const puedeAutorizar =
-    !selectedCabecera?.estado || selectedCabecera.estado === 'borrador';
-  const puedeProcesar = selectedCabecera?.estado === 'autorizado';
-  const puedeAnular = selectedCabecera?.estado !== 'procesado' && selectedCabecera?.estado !== 'anulado';
-  const puedeEditarForm =
-    canEditar && (selectedCabecera?.estado === 'borrador' || !selectedCabecera?.estado);
+  const selectedTipoMovimiento = selectedCabecera?.tipo_movimiento_id
+    ? tiposMovimiento.find((t) => t.tipo_movimiento_id === selectedCabecera.tipo_movimiento_id)
+    : undefined;
+  const requiereAutorizacion = selectedCabecera
+    ? resolveRequiereAutorizacion(selectedCabecera, selectedTipoMovimiento)
+    : false;
+
+  const showAutorizar =
+    !!selectedCabecera && canAutorizar && puedeAutorizarMovimiento(selectedCabecera, requiereAutorizacion);
+  const showProcesar =
+    !!selectedCabecera && canProcesar && puedeProcesarMovimiento(selectedCabecera, requiereAutorizacion);
+  const showAnular = !!selectedCabecera && canAnular && puedeAnularMovimiento(selectedCabecera);
+  const showEstornar = !!selectedCabecera && canEstornar && puedeEstornarMovimiento(selectedCabecera);
+  const puedeEditarDocumento =
+    canActualizarMovimiento &&
+    !!selectedCabecera &&
+    puedeEditarMovimientoDocumento(selectedCabecera);
+
+  const isAnularConfirmDirty = useMemo(() => {
+    if (!anularBaseline) return false;
+    return anularMotivo.trim() !== anularBaseline.motivo.trim();
+  }, [anularBaseline, anularMotivo]);
+
+  const isEstornarConfirmDirty = useMemo(() => {
+    if (!estornarBaseline) return false;
+    return estornarMotivo.trim() !== estornarBaseline.motivo.trim();
+  }, [estornarBaseline, estornarMotivo]);
+
+  const workflowConfirmOpen = autorizarOpen || procesarOpen || anularOpen || estornarOpen;
+  const detailDialogOpen = detailOpen && !workflowConfirmOpen && discardPending === null;
+
+  const reopenDetailIfSelected = () => {
+    if (selectedMovimientoId) setDetailOpen(true);
+  };
+
+  const cerrarAutorizar = (reopenDetail = true) => {
+    setAutorizarOpen(false);
+    if (reopenDetail) reopenDetailIfSelected();
+  };
+
+  const cerrarProcesar = (reopenDetail = true) => {
+    setProcesarOpen(false);
+    if (reopenDetail) reopenDetailIfSelected();
+  };
+
+  const cerrarAnular = (reopenDetail = true) => {
+    setAnularOpen(false);
+    setAnularMotivo('');
+    setAnularBaseline(null);
+    setDiscardPending(null);
+    if (reopenDetail) reopenDetailIfSelected();
+  };
+
+  const handleOpenAnular = () => {
+    setAnularMotivo('');
+    setAnularBaseline({ motivo: '' });
+    setDiscardPending(null);
+    setDetailOpen(false);
+    setAnularOpen(true);
+  };
+
+  const handleRequestCloseAnular = () => {
+    if (anularMutation.isPending) return;
+    if (isAnularConfirmDirty) {
+      setAnularOpen(false);
+      setDiscardPending('edit');
+      scheduleModalStackValidation('inv-movimientos-anular-request-close-dirty');
+      return;
+    }
+    cerrarAnular(true);
+  };
+
+  const handleAnularDiscardCancel = () => {
+    setDiscardPending(null);
+    setAnularOpen(true);
+    scheduleModalStackValidation('inv-movimientos-anular-discard-cancel-resume');
+  };
+
+  const handleAnularDiscardConfirm = () => {
+    setDiscardPending(null);
+    cerrarAnular(true);
+    scheduleModalStackValidation('inv-movimientos-anular-discard-confirmed');
+  };
+
+  const cerrarEstornar = (reopenDetail = true) => {
+    setEstornarOpen(false);
+    setEstornarMotivo('');
+    setEstornarBaseline(null);
+    setDiscardPending(null);
+    if (reopenDetail) reopenDetailIfSelected();
+  };
+
+  const handleOpenEstornar = () => {
+    setEstornarMotivo('');
+    setEstornarBaseline({ motivo: '' });
+    setDiscardPending(null);
+    setDetailOpen(false);
+    setEstornarOpen(true);
+  };
+
+  const handleRequestCloseEstornar = () => {
+    if (estornarMutation.isPending) return;
+    if (isEstornarConfirmDirty) {
+      setEstornarOpen(false);
+      setDiscardPending('edit');
+      scheduleModalStackValidation('inv-movimientos-estornar-request-close-dirty');
+      return;
+    }
+    cerrarEstornar(true);
+  };
+
+  const handleEstornarDiscardCancel = () => {
+    setDiscardPending(null);
+    setEstornarOpen(true);
+    scheduleModalStackValidation('inv-movimientos-estornar-discard-cancel-resume');
+  };
+
+  const handleEstornarDiscardConfirm = () => {
+    setDiscardPending(null);
+    cerrarEstornar(true);
+    scheduleModalStackValidation('inv-movimientos-estornar-discard-confirmed');
+  };
 
   const ejecutarAutorizar = () => {
-    if (!selectedMovimientoId || !canEditar) return;
-    void autorizarMutation.mutateAsync({ movimientoId: selectedMovimientoId }).then(() => setAutorizarOpen(false));
+    if (!selectedMovimientoId || !canAutorizar) return;
+    void autorizarMutation
+      .mutateAsync({ movimientoId: selectedMovimientoId })
+      .then(() => cerrarAutorizar(false));
   };
 
   const ejecutarProcesar = () => {
-    if (!selectedMovimientoId || !canEditar) return;
-    void procesarMutation.mutateAsync({ movimientoId: selectedMovimientoId }).then(() => setProcesarOpen(false));
+    if (!selectedMovimientoId || !canProcesar) return;
+    void procesarMutation
+      .mutateAsync({ movimientoId: selectedMovimientoId })
+      .then(() => cerrarProcesar(false));
   };
 
   const ejecutarAnular = () => {
-    if (!selectedMovimientoId || !canEditar) return;
+    if (!selectedMovimientoId || !canAnular) return;
     void anularMutation
       .mutateAsync({ movimientoId: selectedMovimientoId, payload: { motivo: anularMotivo.trim() || null } })
-      .then(() => {
-        setAnularOpen(false);
-        setAnularMotivo('');
-      });
+      .then(() => cerrarAnular(false));
+  };
+
+  const ejecutarEstornar = () => {
+    if (!selectedMovimientoId || !canEstornar) return;
+    void estornarMutation
+      .mutateAsync({
+        movimientoId: selectedMovimientoId,
+        payload: { motivo: estornarMotivo.trim() || null },
+      })
+      .then(() => cerrarEstornar(false));
   };
 
   const movConfirmLabel = selectedCabecera?.numero_movimiento ?? '—';
@@ -235,6 +406,7 @@ export default function MovimientosPage() {
           <option value="autorizado">Autorizado</option>
           <option value="procesado">Procesado</option>
           <option value="anulado">Anulado</option>
+          <option value="estornado">Estornado</option>
         </select>
         <input
           type="date"
@@ -250,32 +422,38 @@ export default function MovimientosPage() {
           className="px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
           title="Fecha hasta"
         />
-        {canCrear ? (
+        {canCrearMovimiento ? (
           <Button asChild className="ml-auto bg-brand-primary hover:bg-brand-primary-hover text-white">
             <Link to="/app/inv/movimientos/nuevo">Nuevo movimiento</Link>
           </Button>
-        ) : (
-          <Button className="ml-auto bg-brand-primary text-white opacity-50" disabled>
-            Nuevo movimiento
-          </Button>
-        )}
+        ) : null}
       </div>
-      {movimientosQuery.isLoading && <InvTableSkeleton columns={9} />}
-      {movimientosQuery.error && !movimientosQuery.isLoading && (
+      {movimientosList.isLoading && <InvTableSkeleton columns={9} />}
+      {movimientosList.isError && !movimientosList.isLoading && (
         <p className="text-error bg-error/10 p-4 rounded-lg">
-          {getErrorMessage(movimientosQuery.error).message}
+          {getErrorMessage(movimientosList.error).message}
         </p>
       )}
-      {!movimientosQuery.isLoading && !movimientosQuery.error && (
+      {!movimientosList.isLoading && !movimientosList.isError && (
         <div className="overflow-x-auto rounded-lg border border-border-base shadow">
           <table className="min-w-full divide-y divide-border-base">
             <thead className="bg-subtle">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">
-                  Número
-                </th>
+                <ErpSortableHeader
+                  column="numero_movimiento"
+                  label="Número"
+                  sortableColumns={MOVIMIENTOS_LIST_CONFIG.sortableColumns}
+                  sort={movimientosList.sort}
+                  onSort={movimientosList.toggleSort}
+                />
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Tipo</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Fecha</th>
+                <ErpSortableHeader
+                  column="fecha_movimiento"
+                  label="Fecha"
+                  sortableColumns={MOVIMIENTOS_LIST_CONFIG.sortableColumns}
+                  sort={movimientosList.sort}
+                  onSort={movimientosList.toggleSort}
+                />
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">
                   Origen
                 </th>
@@ -286,7 +464,14 @@ export default function MovimientosPage() {
                 <th className="px-4 py-3 text-right text-xs font-medium text-text-soft uppercase">
                   Costo Total
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-text-soft uppercase">Estado</th>
+                <ErpSortableHeader
+                  column="estado"
+                  label="Estado"
+                  sortableColumns={MOVIMIENTOS_LIST_CONFIG.sortableColumns}
+                  sort={movimientosList.sort}
+                  onSort={movimientosList.toggleSort}
+                  className="text-center"
+                />
                 <th className="px-4 py-3 text-center text-xs font-medium text-text-soft uppercase">Acciones</th>
               </tr>
             </thead>
@@ -331,30 +516,38 @@ export default function MovimientosPage() {
                           size="icon"
                           className="text-brand-primary hover:text-brand-primary/80"
                           title="Ver detalle"
+                          aria-label="Ver detalle"
                           onClick={() => abrirDetalle(row)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {(row.estado === 'borrador' || !row.estado) && canEditar && (
-                          <Button variant="ghost" size="icon" asChild title="Editar">
-                            <Link to={toAppPath(`/inv/movimientos/${row.movimiento_id}/editar`)}>
-                              <Pencil className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                        )}
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+          {movimientosList.pagination ? (
+            <ErpPagination
+              pagination={movimientosList.pagination}
+              onPageChange={movimientosList.setPage}
+              onLimitChange={movimientosList.setLimit}
+              disabled={discardPending !== null || movimientosList.isFetching}
+            />
+          ) : null}
         </div>
       )}
-      <Dialog open={detailOpen} onOpenChange={(open) => { if (!open) setDetailOpen(false); }}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+      <Dialog
+        open={detailDialogOpen}
+        onOpenChange={(open) => {
+          if (!open && !workflowConfirmOpen && discardPending === null) setDetailOpen(false);
+        }}
+      >
+        <DialogContent className="max-w-xl max-h-[90vh] flex flex-col gap-0 p-0">
+          <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
             <DialogTitle>Detalle de movimiento</DialogTitle>
           </DialogHeader>
+          <DialogBody className="px-6 pb-6">
           {conDetalleQuery.isLoading ? (
             <div className="flex justify-center py-8">
               <Loader className="h-6 w-6 animate-spin text-brand-primary" />
@@ -368,33 +561,55 @@ export default function MovimientosPage() {
           ) : (
             <div className="space-y-4 text-sm text-text-base">
               <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setAutorizarOpen(true)}
-                  disabled={!canEditar || !puedeAutorizar || autorizarMutation.isPending}
-                >
-                  Autorizar
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setProcesarOpen(true)}
-                  disabled={!canEditar || !puedeProcesar || procesarMutation.isPending}
-                >
-                  Procesar
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => setAnularOpen(true)}
-                  disabled={!canEditar || !puedeAnular || anularMutation.isPending}
-                >
-                  Anular
-                </Button>
-                {puedeEditarForm && selectedMovimientoId ? (
+                {showAutorizar ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setDetailOpen(false);
+                      setAutorizarOpen(true);
+                    }}
+                    disabled={autorizarMutation.isPending}
+                  >
+                    Autorizar
+                  </Button>
+                ) : null}
+                {showProcesar ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setDetailOpen(false);
+                      setProcesarOpen(true);
+                    }}
+                    disabled={procesarMutation.isPending}
+                  >
+                    Procesar
+                  </Button>
+                ) : null}
+                {showAnular ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleOpenAnular}
+                    disabled={anularMutation.isPending || discardPending !== null}
+                  >
+                    Anular
+                  </Button>
+                ) : null}
+                {showEstornar ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleOpenEstornar}
+                    disabled={estornarMutation.isPending || discardPending !== null}
+                  >
+                    Estornar
+                  </Button>
+                ) : null}
+                {puedeEditarDocumento && selectedMovimientoId ? (
                   <Button variant="secondary" asChild>
-                    <Link to={toAppPath(`/inv/movimientos/${selectedMovimientoId}/editar`)}>Editar cabecera y líneas</Link>
+                    <Link to={toAppPath(`/inv/movimientos/${selectedMovimientoId}/editar`)}>Editar documento</Link>
                   </Button>
                 ) : null}
               </div>
@@ -477,39 +692,44 @@ export default function MovimientosPage() {
               </div>
             </div>
           )}
+          </DialogBody>
         </DialogContent>
       </Dialog>
 
       <ConfirmDialog
         isOpen={autorizarOpen}
-        onClose={() => setAutorizarOpen(false)}
+        onClose={() => cerrarAutorizar()}
         onConfirm={() => void ejecutarAutorizar()}
         title="Autorizar movimiento"
         message={`¿Autorizar el movimiento '${movConfirmLabel}'? Quedará listo para procesar y actualizar el stock.`}
         confirmText="Autorizar"
         cancelText="Cancelar"
-        variant="danger"
+        variant="warning"
         loading={autorizarMutation.isPending}
       />
 
       <ConfirmDialog
         isOpen={procesarOpen}
-        onClose={() => setProcesarOpen(false)}
+        onClose={() => cerrarProcesar()}
         onConfirm={() => void ejecutarProcesar()}
         title="Procesar movimiento"
         message={`¿Procesar el movimiento '${movConfirmLabel}'? Actualizará el stock según las líneas del movimiento.`}
         confirmText="Procesar"
         cancelText="Cancelar"
-        variant="danger"
+        variant="warning"
         loading={procesarMutation.isPending}
+      />
+
+      <OrgDiscardConfirmDialog
+        discardPending={discardPending}
+        entityLabel={estornarBaseline ? 'el estorno' : 'la anulación'}
+        onClose={estornarBaseline ? handleEstornarDiscardCancel : handleAnularDiscardCancel}
+        onConfirm={estornarBaseline ? handleEstornarDiscardConfirm : handleAnularDiscardConfirm}
       />
 
       <ConfirmDialog
         isOpen={anularOpen}
-        onClose={() => {
-          setAnularOpen(false);
-          setAnularMotivo('');
-        }}
+        onClose={handleRequestCloseAnular}
         onConfirm={() => void ejecutarAnular()}
         title="Anular movimiento"
         message={`¿Anular el movimiento '${movConfirmLabel}'? Podrá indicar un motivo opcional abajo.`}
@@ -523,6 +743,28 @@ export default function MovimientosPage() {
           <textarea
             value={anularMotivo}
             onChange={(e) => setAnularMotivo(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 border border-border-base rounded-md dark:bg-subtle dark:text-text-base text-sm"
+          />
+        </div>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        isOpen={estornarOpen}
+        onClose={handleRequestCloseEstornar}
+        onConfirm={() => void ejecutarEstornar()}
+        title="Estornar movimiento"
+        message={`¿Estornar el movimiento '${movConfirmLabel}'? Revertirá el efecto en stock mediante un movimiento compensatorio.`}
+        confirmText="Estornar"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={estornarMutation.isPending}
+      >
+        <div className="space-y-2">
+          <Label>Motivo (opcional)</Label>
+          <textarea
+            value={estornarMotivo}
+            onChange={(e) => setEstornarMotivo(e.target.value)}
             rows={3}
             className="w-full px-3 py-2 border border-border-base rounded-md dark:bg-subtle dark:text-text-base text-sm"
           />

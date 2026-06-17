@@ -26,7 +26,6 @@
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -47,7 +46,8 @@
     --color-primary-active-hsl: 210 79% 36%;
     --color-primary-light-hsl: 210 79% 86%; /* Para backgrounds suaves */
     --color-primary-dark-hsl: 210 79% 26%; /* Para textos sobre fondos claros */
-    
+    --ring: var(--color-primary-hsl);
+
     /* Tokens Secundarios */
     --color-secondary: #424242;
     --color-secondary-hsl: 0 0% 26%;
@@ -86,7 +86,6 @@
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -105,7 +104,8 @@
     --color-primary-active-hsl: 210 79% 71%; /* Ligeramente más oscuro en active */
     --color-primary-light-hsl: 210 79% 90%; /* Muy claro para backgrounds */
     --color-primary-dark-hsl: 210 79% 66%; /* Para textos sobre fondos oscuros */
-    
+    --ring: var(--color-primary-hsl);
+
     /* Tokens Secundarios (aclarados para dark mode) */
     --color-secondary: hsl(var(--color-secondary-dark-mode-hsl, 0 0% 56%));
     --color-secondary-hsl: var(--color-secondary-dark-mode-hsl, 0 0% 56%);
@@ -141,6 +141,10 @@
     font-feature-settings: "rlig" 1, "calt" 1;
     /* ✅ MEJORADO: Aplicar fuente body personalizada si está definida */
     font-family: var(--font-body, var(--font-family));
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--caxis-blue, var(--color-primary));
   }
 }
 

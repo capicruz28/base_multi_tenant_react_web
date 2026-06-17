@@ -4,6 +4,11 @@
  * Contrato Etapa B: company-scoped sin ?empresa_id (ámbito solo JWT).
  */
 import api from '@/core/api/api';
+import {
+  buildErpListQueryParams,
+  unwrapListItems,
+  type ErpPaginatedResponse,
+} from '@/core/list';
 import type {
   Empresa,
   EmpresaCreate,
@@ -30,28 +35,54 @@ import type {
 const BASE = '/org';
 
 function buildListQuery(
-  params?: OrgCompanyListParams & { buscar?: string; modulo_codigo?: string },
-): Record<string, string | boolean> {
-  const q: Record<string, string | boolean> = { solo_activos: params?.solo_activos ?? true };
-  if (params?.buscar) q.buscar = params.buscar;
-  if (params?.modulo_codigo) q.modulo_codigo = params.modulo_codigo;
-  return q;
+  params?: OrgCompanyListParams & { modulo_codigo?: string },
+): Record<string, string | number | boolean> {
+  return buildErpListQueryParams(
+    {
+      solo_activos: params?.solo_activos ?? true,
+      modulo_codigo: params?.modulo_codigo,
+    },
+    params,
+  );
 }
 
-function buildParametroListQuery(params?: OrgParametroListParams): Record<string, string | boolean> {
+function buildParametroListQuery(
+  params?: OrgParametroListParams,
+): Record<string, string | number | boolean> {
   const q = buildListQuery(params);
   if (params?.vista) q.vista = params.vista;
   return q;
 }
 
+/** Query HTTP parámetros (incl. `vista`) — usar con `orgFetchList` en ErpList. */
+export function buildOrgParametroListQuery(
+  params?: OrgParametroListParams,
+): Record<string, string | number | boolean> {
+  return buildParametroListQuery(params);
+}
+
+/** Fetch listado ORG — retorna `list[]` o envelope según `page` (PERF-01). */
+export async function orgFetchList<T>(
+  path: string,
+  params?: Record<string, string | number | boolean>,
+): Promise<T[] | ErpPaginatedResponse<T>> {
+  const { data } = await api.get<T[] | ErpPaginatedResponse<T>>(`${BASE}${path}`, { params });
+  return data;
+}
+
+function orgListItems<T>(data: T[] | ErpPaginatedResponse<T>): T[] {
+  return unwrapListItems(data);
+}
+
 // ─── Empresa (tenant-scoped) ─────────────────────────────────────────────
 
 export const empresaService = {
-  list: async (params?: { solo_activos?: boolean; buscar?: string }): Promise<Empresa[]> => {
-    const { data } = await api.get<Empresa[]>(`${BASE}/empresa`, {
-      params: { solo_activos: params?.solo_activos ?? true, buscar: params?.buscar },
-    });
-    return Array.isArray(data) ? data : [];
+  list: async (params?: OrgCompanyListParams): Promise<Empresa[]> => {
+    const data = await orgFetchList<Empresa>(
+      '/empresa',
+      buildErpListQueryParams({ solo_activos: params?.solo_activos ?? true }, params),
+    );
+    return orgListItems(data);
   },
 
   getById: async (empresaId: string): Promise<Empresa> => {
@@ -82,11 +113,8 @@ export const empresaService = {
 // ─── Sucursales (company-scoped, JWT) ─────────────────────────────────────
 
 export const sucursalService = {
-  list: async (params?: OrgCompanyListParams & { buscar?: string }): Promise<Sucursal[]> => {
-    const { data } = await api.get<Sucursal[]>(`${BASE}/sucursales`, {
-      params: buildListQuery(params),
-    });
-    return Array.isArray(data) ? data : [];
+  list: async (params?: OrgCompanyListParams): Promise<Sucursal[]> => {
+    return orgListItems(await orgFetchList<Sucursal>('/sucursales', buildListQuery(params)));
   },
 
   getById: async (sucursalId: string): Promise<Sucursal> => {
@@ -117,11 +145,10 @@ export const sucursalService = {
 // ─── Centros de costo (company-scoped, JWT) ───────────────────────────────
 
 export const centroCostoService = {
-  list: async (params?: OrgCompanyListParams & { buscar?: string }): Promise<CentroCosto[]> => {
-    const { data } = await api.get<CentroCosto[]>(`${BASE}/centros-costo`, {
-      params: buildListQuery(params),
-    });
-    return Array.isArray(data) ? data : [];
+  list: async (params?: OrgCompanyListParams): Promise<CentroCosto[]> => {
+    return orgListItems(
+      await orgFetchList<CentroCosto>('/centros-costo', buildListQuery(params)),
+    );
   },
 
   getById: async (centroCostoId: string): Promise<CentroCosto> => {
@@ -154,11 +181,10 @@ export const centroCostoService = {
 // ─── Departamentos (company-scoped, JWT) ──────────────────────────────────
 
 export const departamentoService = {
-  list: async (params?: OrgCompanyListParams & { buscar?: string }): Promise<Departamento[]> => {
-    const { data } = await api.get<Departamento[]>(`${BASE}/departamentos`, {
-      params: buildListQuery(params),
-    });
-    return Array.isArray(data) ? data : [];
+  list: async (params?: OrgCompanyListParams): Promise<Departamento[]> => {
+    return orgListItems(
+      await orgFetchList<Departamento>('/departamentos', buildListQuery(params)),
+    );
   },
 
   getById: async (departamentoId: string): Promise<Departamento> => {
@@ -194,9 +220,8 @@ export const departamentoService = {
 // ─── Cargos (company-scoped, JWT) ─────────────────────────────────────────
 
 export const cargoService = {
-  list: async (params?: OrgCompanyListParams & { buscar?: string }): Promise<Cargo[]> => {
-    const { data } = await api.get<Cargo[]>(`${BASE}/cargos`, { params: buildListQuery(params) });
-    return Array.isArray(data) ? data : [];
+  list: async (params?: OrgCompanyListParams): Promise<Cargo[]> => {
+    return orgListItems(await orgFetchList<Cargo>('/cargos', buildListQuery(params)));
   },
 
   getById: async (cargoId: string): Promise<Cargo> => {
@@ -228,10 +253,9 @@ export const cargoService = {
 
 export const parametroService = {
   list: async (params?: OrgParametroListParams): Promise<Parametro[]> => {
-    const { data } = await api.get<Parametro[]>(`${BASE}/parametros`, {
-      params: buildParametroListQuery(params),
-    });
-    return Array.isArray(data) ? data : [];
+    return orgListItems(
+      await orgFetchList<Parametro>('/parametros', buildParametroListQuery(params)),
+    );
   },
 
   getById: async (parametroId: string): Promise<Parametro> => {

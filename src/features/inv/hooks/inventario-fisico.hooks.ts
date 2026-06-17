@@ -1,12 +1,13 @@
+import { useEffect, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useTenantQuery } from '@/core/hooks/useTenantQuery';
+import { useErpListQuery, type ErpListResourceConfig } from '@/core/list';
 import { getErrorMessage } from '@/core/services/error.service';
-import { inventarioFisicoService } from '../services/inv.service';
-import { INV_LIST_STALE_TIME_MS } from './inv-query-defaults';
-import { useInvCompanyQueryGate } from './inv-company-query-gate';
+import { buildInvListQuery, invFetchList, inventarioFisicoService } from '../services/inv.service';
 import type {
   AprobarInventarioFisicoRequest,
+  InvListParams,
   InventarioFisico,
   InventarioFisicoConDetalle,
   InventarioFisicoConDetalleCreate,
@@ -14,6 +15,17 @@ import type {
   InventarioFisicoCreate,
   InventarioFisicoUpdate,
 } from '../types/inv.types';
+import { INV_LIST_STALE_TIME_MS } from './inv-query-defaults';
+import { useInvCompanyQueryGate } from './inv-company-query-gate';
+
+/** Whitelist sort + Tier C — FRONTEND_LISTADOS_CONTRACT_V1 §4 INV inventario-fisico. */
+export const INVENTARIO_FISICO_LIST_CONFIG: ErpListResourceConfig = {
+  tier: 'C',
+  sortableColumns: ['numero_inventario', 'fecha_inventario', 'estado', 'fecha_creacion'],
+  defaultLimit: 50,
+  forcePagination: true,
+  defaultSort: { sort_by: 'fecha_inventario', sort_dir: 'desc' },
+};
 
 const qk = {
   list: (
@@ -40,6 +52,61 @@ const qk = {
 };
 
 // ── Queries ───────────────────────────────────────────────────────────────
+
+export function useInventariosFisicosErpList(options?: {
+  almacen_id?: string;
+  estado?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  enabled?: boolean;
+}) {
+  const { scopeEmpresaId, enabled: gateEnabled } = useInvCompanyQueryGate(options);
+  const enabled = gateEnabled && (options?.enabled ?? true);
+
+  const baseFilters = useMemo(
+    () => ({
+      empresa_id: scopeEmpresaId ?? undefined,
+      almacen_id: options?.almacen_id,
+      estado: options?.estado,
+      fecha_desde: options?.fecha_desde,
+      fecha_hasta: options?.fecha_hasta,
+    }),
+    [
+      scopeEmpresaId,
+      options?.almacen_id,
+      options?.estado,
+      options?.fecha_desde,
+      options?.fecha_hasta,
+    ],
+  );
+
+  const listQuery = useErpListQuery<InventarioFisico, typeof baseFilters>({
+    queryKeyPrefix: ['inv', 'inventario-fisico', 'list', scopeEmpresaId ?? ''],
+    fetcher: (params) =>
+      invFetchList<InventarioFisico>(
+        '/inventario-fisico',
+        buildInvListQuery(params as InvListParams, { includeSoloActivosDefault: false }),
+      ),
+    baseFilters,
+    config: INVENTARIO_FISICO_LIST_CONFIG,
+    enabled,
+    staleTime: INV_LIST_STALE_TIME_MS,
+  });
+
+  const { setPage } = listQuery;
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    options?.almacen_id,
+    options?.estado,
+    options?.fecha_desde,
+    options?.fecha_hasta,
+    setPage,
+  ]);
+
+  return listQuery;
+}
 
 export function useInventariosFisicos(options?: {
   almacen_id?: string;
@@ -227,7 +294,7 @@ export function useAprobarInventarioFisico() {
       qc.invalidateQueries({ queryKey: ['inv', 'stock', 'list'] });
       qc.invalidateQueries({ queryKey: ['inv', 'stock', 'alertas'] });
       void qc.invalidateQueries({ queryKey: ['inv', 'kardex'] });
-      toast.success('Inventario físico aprobado y stock ajustado.');
+      toast.success('Inventario físico aprobado. Se registró el ajuste de stock.');
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });

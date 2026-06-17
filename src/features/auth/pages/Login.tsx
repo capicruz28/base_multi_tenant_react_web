@@ -10,6 +10,7 @@ import { getErrorMessage } from '../../../core/services/error.service';
 import {
   LoginCredentials,
   isLoginEmpresaSelectionResponse,
+  APP_CHANGE_PASSWORD,
 } from '../types/auth.types';
 import { useBranding } from '../../tenant/hooks/useBranding';
 import { useTenant } from '../../tenant/components/TenantContext';
@@ -84,6 +85,14 @@ const Login: React.FC = () => {
       // Schema A — selección pendiente: sin access_token, sin /auth/me
       if (isLoginEmpresaSelectionResponse(loginResult)) {
         setPendingSelection(loginResult);
+        if (loginResult.user_data?.requires_password_change) {
+          toast.success('Debe actualizar su contraseña para continuar', {
+            duration: 3000,
+            position: 'top-right',
+          });
+          navigate(APP_CHANGE_PASSWORD, { replace: true });
+          return;
+        }
         toast.success('Seleccione su empresa para continuar', { duration: 3000, position: 'top-right' });
         navigate('/app/seleccionar-empresa', { replace: true });
         return;
@@ -99,6 +108,11 @@ const Login: React.FC = () => {
         const userType = userData.user_type ?? 'user';
         const isSuperAdmin =
           userType === 'platform_admin' || Boolean(userData.is_super_admin);
+
+        if (userData.requires_password_change && userType !== 'platform_admin' && !isSuperAdmin) {
+          navigate(APP_CHANGE_PASSWORD, { replace: true });
+          return;
+        }
 
         const sinEmpresa = !userData.empresa_activa;
         const onboardingAdmin = userData.es_admin_cliente && sinEmpresa;

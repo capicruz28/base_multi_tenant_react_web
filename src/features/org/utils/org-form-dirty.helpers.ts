@@ -18,3 +18,8 @@ export function bool(value: boolean | null | undefined, fallback = false): boole
 export function numOrUndef(value: number | null | undefined): number | undefined {
   return value === null || value === undefined ? undefined : value;
 }
+
+/** true si el estado normalizado difiere del baseline (formulario con cambios). */
+export function isDirtyAgainstBaseline<T>(current: T, baseline: T): boolean {
+  return JSON.stringify(current) !== JSON.stringify(baseline);
+}

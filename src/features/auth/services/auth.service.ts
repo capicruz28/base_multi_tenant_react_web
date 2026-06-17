@@ -5,6 +5,7 @@ import {
   LoginCredentials,
   LoginResponse,
   LoginEmpresaSelectionResponse,
+  PasswordChangeRequest,
   Token,
   UserData,
   isLoginEmpresaSelectionResponse,
@@ -67,8 +68,31 @@ function normalizeUserData(raw: UserData & Record<string, unknown>): UserData {
       raw.empresas_disponibles ?? record.empresas_disponibles,
     ),
     es_admin_cliente: toApiBoolean(raw.es_admin_cliente ?? record.es_admin_cliente),
+    requires_password_change: toApiBoolean(
+      raw.requires_password_change ?? record.requires_password_change,
+    ),
   };
 }
+
+/** POST /auth/password/change/ — Bearer access_token o selection_token (Schema A). */
+const changePassword = async (
+  payload: PasswordChangeRequest,
+  accessToken: string,
+): Promise<Token> => {
+  const { data } = await api.post<Token>('/auth/password/change/', payload, {
+    headers: {
+      ...WEB_HEADERS,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  return {
+    access_token: data.access_token,
+    token_type: data.token_type ?? 'bearer',
+    user_data: data.user_data
+      ? normalizeUserData(data.user_data as UserData & Record<string, unknown>)
+      : null,
+  };
+};
 
 /**
  * Login — respuesta A (Token) o B (LoginEmpresaSelectionResponse).
@@ -299,4 +323,5 @@ export const authService = {
   cambiarEmpresa,
   startImpersonation,
   endImpersonation,
+  changePassword,
 };

@@ -9,6 +9,9 @@ import {
   ClienteStats,
   ClienteFilters,
   ClienteResponse,
+  ClienteCreateResponse,
+  ClienteCreateResult,
+  CredencialesInicialesRead,
   SubdomainValidationResponse,
 } from '../types/cliente.types';
 
@@ -81,6 +84,37 @@ export const clienteService = {
       return data.data;
     }
     throw new Error('Respuesta del servidor sin datos del cliente');
+  },
+
+  /**
+   * Provisionamiento completo — preserva credenciales_iniciales (única oportunidad de lectura).
+   */
+  async provisionCliente(clienteData: ClienteCreate): Promise<ClienteCreateResult> {
+    const { data } = await api.post<ClienteCreateResponse>(`${BASE_URL}/`, clienteData);
+    if (!data.data) {
+      throw new Error('Respuesta del servidor sin datos del cliente');
+    }
+    const rawCreds = data.credenciales_iniciales;
+    if (!rawCreds) {
+      throw new Error('Respuesta del servidor sin credenciales iniciales del administrador');
+    }
+    const contrasena = typeof rawCreds.contrasena === 'string' ? rawCreds.contrasena.trim() : '';
+    if (!contrasena) {
+      throw new Error('Respuesta del servidor sin contraseña inicial del administrador');
+    }
+    const credenciales: CredencialesInicialesRead = {
+      nombre_usuario:
+        typeof rawCreds.nombre_usuario === 'string' && rawCreds.nombre_usuario.trim()
+          ? rawCreds.nombre_usuario.trim()
+          : 'admin',
+      contrasena,
+      requiere_cambio: rawCreds.requiere_cambio ?? true,
+    };
+    return {
+      cliente: data.data,
+      credenciales,
+      message: data.message || 'Cliente creado exitosamente',
+    };
   },
 
   async updateCliente(id: string, clienteData: ClienteUpdate): Promise<Cliente> {

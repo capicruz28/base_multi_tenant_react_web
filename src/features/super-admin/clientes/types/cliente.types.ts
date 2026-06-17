@@ -132,6 +132,28 @@ export interface ClienteResponse {
   data?: Cliente;
 }
 
+/** Credenciales del admin inicial — solo en respuesta POST /clientes/. */
+export interface CredencialesInicialesRead {
+  nombre_usuario: string;
+  contrasena: string;
+  requiere_cambio: boolean;
+}
+
+/** Respuesta OpenAPI de POST /clientes/. */
+export interface ClienteCreateResponse {
+  success?: boolean;
+  message: string;
+  data: Cliente;
+  credenciales_iniciales: CredencialesInicialesRead;
+}
+
+/** Retorno del service de provisionamiento — consumo UI (memoria efímera). */
+export interface ClienteCreateResult {
+  cliente: Cliente;
+  credenciales: CredencialesInicialesRead;
+  message: string;
+}
+
 export interface SubdomainValidationResponse {
   disponible: boolean;
   mensaje?: string;

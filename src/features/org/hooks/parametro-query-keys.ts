@@ -42,6 +42,13 @@ export function listFiltersFromOptions(options?: {
 
 export type ParametroHybridTab = 'effective' | 'global' | 'override';
 
-export function vistaFromTab(tab: ParametroHybridTab): ParametroVista {
+/** Tab UI → query API `vista` (efectivo ≠ effective). */
+export function hybridTabToParametroVista(tab: ParametroHybridTab): ParametroVista {
+  if (tab === 'effective') return 'efectivo';
   return tab;
+}
+
+/** @deprecated Usar hybridTabToParametroVista — nombre tab ≠ vista API. */
+export function vistaFromTab(tab: ParametroHybridTab): ParametroVista {
+  return hybridTabToParametroVista(tab);
 }

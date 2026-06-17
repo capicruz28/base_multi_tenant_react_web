@@ -5,9 +5,10 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { ArrowLeftRight, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { useDebouncedSearch } from '@/core/list';
+import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
 import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
-import { matchesInvCatalogSearch } from '../utils/inv-catalog-client-search';
 import type { TipoMovimiento, TipoMovimientoCreate, TipoMovimientoUpdate } from '../types/inv.types';
 import { InvPageLayout } from '../components/InvPageLayout';
 import { InvTableSkeleton } from '../components/InvTableSkeleton';
@@ -24,10 +25,11 @@ import {
 import { Label } from '@/shared/components/ui/label';
 import { usePermissions } from '@/core/auth/hooks/usePermissions';
 import {
+  TIPOS_MOVIMIENTO_LIST_CONFIG,
   useCreateTipoMovimiento,
   useDeleteTipoMovimiento,
   useReactivarTipoMovimiento,
-  useTiposMovimiento,
+  useTiposMovimientoErpList,
   useUpdateTipoMovimiento,
 } from '../hooks/tipos-movimiento.hooks';
 import { useInvSessionScope, useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
@@ -44,13 +46,13 @@ import {
   type EditTipoMovimientoFormSnapshot,
 } from '../utils/form-dirty/tipo-movimiento-form-dirty';
 
-const CLASES_MOVIMIENTO = ['entrada', 'salida', 'transferencia', 'ajuste'] as const;
+const CLASES_MOVIMIENTO = ['ENTRADA', 'SALIDA', 'TRANSFERENCIA', 'AJUSTE'] as const;
 
 const DEFAULT: TipoMovimientoCreate = {
   empresa_id: '',
   codigo: '',
   nombre: '',
-  clase_movimiento: 'entrada',
+  clase_movimiento: 'ENTRADA',
   afecta_costo: true,
   requiere_autorizacion: false,
   genera_asiento_contable: false,
@@ -60,7 +62,7 @@ const DEFAULT: TipoMovimientoCreate = {
 export default function TiposMovimientoPage() {
   const { can } = usePermissions();
   const { scopeEmpresaId, canQueryCompanyScoped } = useInvSessionScope();
-  const [buscar, setBuscar] = useState('');
+  const search = useDebouncedSearch();
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -72,35 +74,26 @@ export default function TiposMovimientoPage() {
   const [bajaTarget, setBajaTarget] = useState<TipoMovimiento | null>(null);
   const [reactivarTarget, setReactivarTarget] = useState<TipoMovimiento | null>(null);
 
+  const tiposList = useTiposMovimientoErpList({
+    solo_activos: !mostrarInactivos,
+    debouncedBuscar: search.debouncedValue || undefined,
+  });
+
   const resetPageFilters = useCallback(() => {
-    setBuscar('');
+    search.clear();
+    tiposList.setPage(1);
+    tiposList.clearSort();
     setMostrarInactivos(false);
     setCreateOpen(false);
     setEditOpen(false);
     setEditing(null);
     setEditFormSnapshot(null);
     setDiscardPending(null);
-  }, []);
+  }, [search.clear, tiposList.setPage, tiposList.clearSort]);
   useInvScopeEmpresaReset(resetPageFilters);
 
-  const tiposQuery = useTiposMovimiento({
-    solo_activos: !mostrarInactivos,
-  });
-  const rawList = tiposQuery.data ?? [];
-  const hasSearch = buscar.trim().length > 0;
-  const list = useMemo(() => {
-    if (!hasSearch) return rawList;
-    return rawList.filter((row) =>
-      matchesInvCatalogSearch(
-        buscar,
-        row.codigo,
-        row.nombre,
-        row.clase_movimiento,
-        row.cuenta_contable_debito,
-        row.cuenta_contable_credito,
-      ),
-    );
-  }, [rawList, buscar, hasSearch]);
+  const list = tiposList.items;
+  const hasSearch = search.hasSearch;
 
   const createMutation = useCreateTipoMovimiento();
   const updateMutation = useUpdateTipoMovimiento();
@@ -271,8 +264,8 @@ export default function TiposMovimientoPage() {
         }
       >
         <OrgToolbarSearch
-          value={buscar}
-          onChange={setBuscar}
+          value={search.inputValue}
+          onChange={search.setInputValue}
           placeholder="Código, nombre, clase..."
           aria-label="Buscar tipos de movimiento"
           disabled={discardPending !== null}
@@ -288,20 +281,38 @@ export default function TiposMovimientoPage() {
         </label>
       </OrgCompanyToolbar>
 
-      {tiposQuery.isLoading && <InvTableSkeleton columns={TABLE_COLSPAN} />}
-      {tiposQuery.error && !tiposQuery.isLoading && (
+      {tiposList.isLoading && <InvTableSkeleton columns={TABLE_COLSPAN} />}
+      {tiposList.isError && !tiposList.isLoading && (
         <p className="text-error bg-error/10 p-4 rounded-lg">
-          {getErrorMessage(tiposQuery.error).message}
+          {getErrorMessage(tiposList.error).message}
         </p>
       )}
-      {!tiposQuery.isLoading && !tiposQuery.error && (
+      {!tiposList.isLoading && !tiposList.isError && (
         <div className="overflow-x-auto rounded-lg border border-border-base shadow">
           <table className="min-w-full divide-y divide-border-base">
             <thead className="bg-subtle">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Código</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Nombre</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Clase</th>
+                <ErpSortableHeader
+                  column="codigo"
+                  label="Código"
+                  sortableColumns={TIPOS_MOVIMIENTO_LIST_CONFIG.sortableColumns}
+                  sort={tiposList.sort}
+                  onSort={tiposList.toggleSort}
+                />
+                <ErpSortableHeader
+                  column="nombre"
+                  label="Nombre"
+                  sortableColumns={TIPOS_MOVIMIENTO_LIST_CONFIG.sortableColumns}
+                  sort={tiposList.sort}
+                  onSort={tiposList.toggleSort}
+                />
+                <ErpSortableHeader
+                  column="clase_movimiento"
+                  label="Clase"
+                  sortableColumns={TIPOS_MOVIMIENTO_LIST_CONFIG.sortableColumns}
+                  sort={tiposList.sort}
+                  onSort={tiposList.toggleSort}
+                />
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Afecta Costo</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Cuenta Débito</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Cuenta Crédito</th>
@@ -400,6 +411,14 @@ export default function TiposMovimientoPage() {
               )}
             </tbody>
           </table>
+          {tiposList.pagination ? (
+            <ErpPagination
+              pagination={tiposList.pagination}
+              onPageChange={tiposList.setPage}
+              onLimitChange={tiposList.setLimit}
+              disabled={discardPending !== null || tiposList.isFetching}
+            />
+          ) : null}
         </div>
       )}
       <OrgDiscardConfirmDialog

@@ -11,7 +11,7 @@ export function isParametroEfectivo(row: Parametro): row is ParametroEfectivo {
   );
 }
 
-/** Filtra filas por vista cuando el backend devuelve listado mixto. */
+/** CANDIDATO LIMPIEZA POST-ERP-LIST: filtro client si API devuelve listado mixto. */
 export function filterParametrosByVista(list: Parametro[], vista: ParametroVista): Parametro[] {
   if (vista === 'global') return list.filter((p) => !p.empresa_id);
   if (vista === 'override') return list.filter((p) => Boolean(p.empresa_id));
@@ -20,7 +20,7 @@ export function filterParametrosByVista(list: Parametro[], vista: ParametroVista
 
 /**
  * Resuelve valores efectivos: override de empresa activa gana sobre global tenant.
- * Usado como fallback si GET ?vista=efectivo no devuelve metadata de alcance.
+ * CANDIDATO LIMPIEZA POST-ERP-LIST: conservado como fallback si `vista=efectivo` paginado falla.
  */
 export function resolveParametrosEfectivos(
   globals: Parametro[],

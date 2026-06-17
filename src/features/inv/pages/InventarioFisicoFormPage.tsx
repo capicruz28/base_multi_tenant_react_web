@@ -34,7 +34,8 @@ import { Button } from '@/shared/components/ui/button';
 
 import { Label } from '@/shared/components/ui/label';
 
-import { usePermissions } from '@/core/auth/hooks/usePermissions';
+import { usePermission } from '@/core/auth/PermissionContext';
+import { INV_PERMISSIONS } from '../constants/inv-permissions';
 
 import { useAlmacenes } from '../hooks/almacenes.hooks';
 
@@ -51,6 +52,7 @@ import {
 } from '../hooks/inventario-fisico.hooks';
 
 import { useInvSessionScope } from '../hooks/useInvSessionScope';
+import { useInvRbacFormAccess } from '../hooks/useInvRbacFormAccess';
 
 import { useInvTransactionalFormGuard } from '../hooks/useInvTransactionalFormGuard';
 
@@ -172,7 +174,7 @@ export default function InventarioFisicoFormPage() {
 
   const navigate = useNavigate();
 
-  const { can } = usePermissions();
+  const { hasPermission } = usePermission();
 
   const isEdit = Boolean(inventarioFisicoId);
 
@@ -422,11 +424,29 @@ export default function InventarioFisicoFormPage() {
 
 
 
-  const canSubmit = can('inv', isEdit ? 'editar' : 'crear');
+  const canSubmit = isEdit
+    ? hasPermission(INV_PERMISSIONS.INVENTARIO_FISICO_ACTUALIZAR)
+    : hasPermission(INV_PERMISSIONS.INVENTARIO_FISICO_CREAR);
+
+  const requiredPermission = isEdit
+    ? INV_PERMISSIONS.INVENTARIO_FISICO_ACTUALIZAR
+    : INV_PERMISSIONS.INVENTARIO_FISICO_CREAR;
+  const { waiting: rbacWaiting, allowed: rbacAllowed } = useInvRbacFormAccess(
+    requiredPermission,
+    LIST_PATH,
+  );
 
 
 
   const guardar = async () => {
+
+    if (isEdit && conDetalleQuery.data) {
+
+      const estado = conDetalleQuery.data.estado;
+
+      if (estado === 'ajustado' || estado === 'anulado') return;
+
+    }
 
     if (!scopeEmpresaId || !numeroInventario.trim() || !fechaInventario || !almacenId || !tipoInventario) return;
 
@@ -510,6 +530,24 @@ export default function InventarioFisicoFormPage() {
 
 
 
+  if (rbacWaiting) {
+
+    return (
+
+      <div className="flex justify-center py-24">
+
+        <Loader className="h-8 w-8 animate-spin text-brand-primary" />
+
+      </div>
+
+    );
+
+  }
+
+  if (!rbacAllowed) return null;
+
+
+
   if (isEdit && conDetalleQuery.isLoading) {
 
     return (
@@ -533,6 +571,66 @@ export default function InventarioFisicoFormPage() {
         {getErrorMessage(conDetalleQuery.error).message}
 
       </p>
+
+    );
+
+  }
+
+  const documentoEstado = conDetalleQuery.data?.estado;
+
+  const isDocumentoSoloLectura =
+
+    isEdit &&
+
+    documentoEstado != null &&
+
+    (documentoEstado === 'ajustado' || documentoEstado === 'anulado');
+
+  if (isEdit && conDetalleQuery.data && isDocumentoSoloLectura) {
+
+    const soloLecturaMensaje =
+
+      documentoEstado === 'anulado'
+
+        ? 'Este inventario físico está anulado y no puede editarse.'
+
+        : 'Este inventario físico está ajustado y no puede editarse.';
+
+    return (
+
+      <div className="w-full">
+
+        <div className="mb-4 flex flex-wrap items-center gap-3 border-b border-border-base pb-3">
+
+          <Button
+
+            variant="ghost"
+
+            size="icon"
+
+            className="shrink-0"
+
+            aria-label="Volver"
+
+            onClick={() => navigate(LIST_PATH)}
+
+          >
+
+            <ArrowLeft className="h-4 w-4" />
+
+          </Button>
+
+          <span className="text-sm font-medium text-text-base truncate min-w-0">
+
+            {conDetalleQuery.data.numero_inventario}
+
+          </span>
+
+        </div>
+
+        <p className="text-text-soft bg-subtle border border-border-base p-4 rounded-lg">{soloLecturaMensaje}</p>
+
+      </div>
 
     );
 

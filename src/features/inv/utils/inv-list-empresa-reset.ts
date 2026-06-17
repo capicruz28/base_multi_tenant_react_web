@@ -7,6 +7,8 @@ export interface MovimientosListUiSetters {
   setProcesarOpen: Dispatch<SetStateAction<boolean>>;
   setAnularOpen: Dispatch<SetStateAction<boolean>>;
   setAnularMotivo: Dispatch<SetStateAction<string>>;
+  setEstornarOpen: Dispatch<SetStateAction<boolean>>;
+  setEstornarMotivo: Dispatch<SetStateAction<string>>;
 }
 
 export interface InventarioFisicoListUiSetters {
@@ -27,6 +29,8 @@ export function resetMovimientosListUiState(s: MovimientosListUiSetters): void {
   s.setProcesarOpen(false);
   s.setAnularOpen(false);
   s.setAnularMotivo('');
+  s.setEstornarOpen(false);
+  s.setEstornarMotivo('');
 }
 
 export function resetInventarioFisicoListUiState(s: InventarioFisicoListUiSetters): void {

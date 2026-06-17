@@ -1,10 +1,20 @@
+import { useEffect, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useTenantQuery } from '@/core/hooks/useTenantQuery';
+import { buildErpListQueryParams, useErpListQuery, type ErpListResourceConfig } from '@/core/list';
 import { toastOrgApiError } from '../utils/org-api-error';
-import { centroCostoService } from '../services/org.service';
-import type { CentroCosto, CentroCostoCreate, CentroCostoUpdate } from '../types/org.types';
+import { centroCostoService, orgFetchList } from '../services/org.service';
+import type { CentroCosto, CentroCostoCreate, CentroCostoUpdate, OrgCompanyListParams } from '../types/org.types';
 import { useOrgCompanyQueryGate } from './org-company-query-gate';
+
+/** Whitelist sort — FRONTEND_LISTADOS_CONTRACT_V1 §4 ORG centros-costo. */
+export const CENTROS_COSTO_LIST_CONFIG: ErpListResourceConfig = {
+  tier: 'B',
+  sortableColumns: ['codigo', 'nombre', 'tipo_centro_costo', 'nivel', 'fecha_creacion'],
+  defaultLimit: 50,
+  forcePagination: true,
+};
 
 const qk = {
   list: (scopeEmpresaId: string, soloActivos: boolean, buscar?: string) =>
@@ -12,6 +22,47 @@ const qk = {
   detail: (centroCostoId: string, scopeEmpresaId: string) =>
     ['org', 'centro-costo', 'detail', centroCostoId, scopeEmpresaId] as const,
 };
+
+export function useCentrosCostoErpList(options?: {
+  solo_activos?: boolean;
+  debouncedBuscar?: string;
+  enabled?: boolean;
+}) {
+  const { scopeEmpresaId, enabled: gateEnabled } = useOrgCompanyQueryGate(options);
+  const soloActivos = options?.solo_activos ?? true;
+  const debouncedBuscar = options?.debouncedBuscar;
+
+  const baseFilters = useMemo(
+    () => ({
+      solo_activos: soloActivos,
+    }),
+    [soloActivos],
+  );
+
+  const listQuery = useErpListQuery<CentroCosto, typeof baseFilters>({
+    queryKeyPrefix: ['org', 'centro-costo', 'list', scopeEmpresaId ?? ''],
+    fetcher: (params) =>
+      orgFetchList<CentroCosto>(
+        '/centros-costo',
+        buildErpListQueryParams(
+          { solo_activos: (params as OrgCompanyListParams).solo_activos ?? true },
+          params as OrgCompanyListParams,
+        ),
+      ),
+    baseFilters,
+    debouncedBuscar,
+    config: CENTROS_COSTO_LIST_CONFIG,
+    enabled: gateEnabled,
+  });
+
+  const { setPage } = listQuery;
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedBuscar, soloActivos, setPage]);
+
+  return listQuery;
+}
 
 export function useCentrosCosto(options?: {
   solo_activos?: boolean;

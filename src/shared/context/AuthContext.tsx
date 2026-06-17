@@ -25,8 +25,13 @@ import type {
 	EmpresaOption,
 	LoginResponse,
 	AuthLoginSession,
+	PasswordChangeRequest,
 } from '../../features/auth/types/auth.types';
-import { isLoginEmpresaSelectionResponse } from '../../features/auth/types/auth.types';
+import {
+	isLoginEmpresaSelectionResponse,
+	APP_CHANGE_PASSWORD,
+} from '../../features/auth/types/auth.types';
+import { isPasswordChangeRequired } from '@/core/services/error.service';
 import { useBrandingStore } from '../../features/tenant/stores/branding.store';
 import type { UserPermissions } from '../../core/auth/types/permission.types';
 import type { AuthMenuModulo } from '../../core/auth/types/auth-menu.types';
@@ -36,6 +41,8 @@ import { showServerErrorToast } from '../../core/api/axios-instances';
 import {
 	hasExplicitAuthorization,
 	shouldSkipTokenRefresh,
+	shouldSkipPasswordChangeRedirect,
+	shouldBypassPasswordChangeEnforcement,
 	isSelectionSessionErrorStatus,
 	isImpersonationAuthErrorStatus,
 } from '@/core/api/auth-http.utils';
@@ -128,6 +135,9 @@ interface AuthContextType {
 		options?: { clienteLabel?: string },
 	) => Promise<{ requiresEmpresaSelection: boolean }>;
 	endImpersonation: () => Promise<void>;
+	/** Cambio obligatorio antes de ERP (derivado de user / selection preview). */
+	requiresPasswordChange: boolean;
+	completePasswordChange: (payload: PasswordChangeRequest) => Promise<AuthLoginSession | null>;
 }
 
 // ============================================================================
@@ -168,6 +178,8 @@ const AuthContext = createContext<AuthContextType>({
 	impersonationClienteLabel: null,
 	startImpersonation: async () => ({ requiresEmpresaSelection: false }),
 	endImpersonation: async () => {},
+	requiresPasswordChange: false,
+	completePasswordChange: async () => null,
 });
 
 // ============================================================================
@@ -198,6 +210,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 	const [isImpersonation, setIsImpersonation] = useState(false);
 	const [impersonatedBy, setImpersonatedBy] = useState<string | null>(null);
 	const [impersonatedByUsername, setImpersonatedByUsername] = useState<string | null>(null);
+
+	const selectionUserPreview = useEmpresaSelectionStore((s) => s.userPreview);
+	const hasPendingSelectionStore = useEmpresaSelectionStore((s) => s.hasPendingSelection());
 	const [impersonationClienteLabel, setImpersonationClienteLabel] = useState<string | null>(null);
 
 	// Refs para acceder al estado más reciente sin re-renders
@@ -295,6 +310,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		(userData: UserData | null, token: string | null): boolean => {
 			const claims = decodeAccessToken(token);
 			if (claims?.empresa_selection_pending) {
+				return true;
+			}
+			if (
+				Boolean(userData?.requires_password_change) ||
+				Boolean(claims?.requires_password_change)
+			) {
 				return true;
 			}
 			const type =
@@ -476,6 +497,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 	/** Login, refresh y selección de empresa: sin refresh automático ni retry ERP. */
 	const skipsTokenRefresh = useCallback((url?: string): boolean => {
+		if (!url) return false;
+		if (url.toLowerCase().includes('/auth/password/change')) {
+			return true;
+		}
 		return shouldSkipTokenRefresh(url);
 	}, []);
 
@@ -659,6 +684,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			cliente_id: me.cliente_id || claims?.cliente_id || '',
 			es_admin_cliente: me.es_admin_cliente || Boolean(claims?.es_admin_cliente),
 			empresa_activa: me.empresa_activa || claims?.empresa_id || null,
+			requires_password_change:
+				me.requires_password_change ?? Boolean(claims?.requires_password_change),
 		};
 
 		let sessionUser = mergedUser;
@@ -898,6 +925,46 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 				
 				const status = error.response?.status;
 				const url = originalRequest?.url || 'unknown';
+
+				if (status === 403 && isPasswordChangeRequired(error)) {
+					const requestUrl = originalRequest?.url ?? url;
+					if (
+						!shouldSkipPasswordChangeRedirect(requestUrl) &&
+						!shouldBypassPasswordChangeEnforcement(
+							authRef.current.token,
+							authRef.current.user,
+						)
+					) {
+						const currentUser = authRef.current.user;
+						if (currentUser && !currentUser.requires_password_change) {
+							const syncedUser: UserData = {
+								...currentUser,
+								requires_password_change: true,
+							};
+							const syncedAuth = {
+								...authRef.current,
+								user: syncedUser,
+							};
+							if (!loadingRef.current) {
+								setAuth(syncedAuth);
+							}
+							authRef.current = syncedAuth;
+						}
+						if (
+							typeof window !== 'undefined' &&
+							!window.location.pathname.startsWith(APP_CHANGE_PASSWORD)
+						) {
+							if (import.meta.env.DEV) {
+								console.warn(
+									'[Response] 403 PASSWORD_CHANGE_REQUIRED → redirect',
+									requestUrl,
+								);
+							}
+							window.location.assign(APP_CHANGE_PASSWORD);
+						}
+					}
+					return Promise.reject(error);
+				}
 				
 				// Ignorar logs de errores esperados (401 en refresh, 404 en branding)
 				if (status === 401 && url.includes('/auth/refresh')) {
@@ -982,9 +1049,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 							
 							console.log('✅ [Response Interceptor] Token refrescado');
 
-							const newAuth = { ...authRef.current, token: newToken };
-							
-							if (!loadingRef.current) { 
+							const refreshClaims = decodeAccessToken(newToken);
+							const refreshedUser = authRef.current.user
+								? {
+										...authRef.current.user,
+										requires_password_change: Boolean(
+											refreshClaims?.requires_password_change,
+										),
+									}
+								: authRef.current.user;
+							const newAuth = {
+								...authRef.current,
+								token: newToken,
+								user: refreshedUser,
+							};
+
+							if (!loadingRef.current) {
 								setAuth(newAuth);
 							}
 							authRef.current = newAuth;
@@ -1413,6 +1493,50 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		}
 	}, [loadMenuAndPermissionsFromAuthMenu]);
 
+	const requiresPasswordChange = useMemo(() => {
+		if (isImpersonation) {
+			return false;
+		}
+		const effectiveType = userType;
+		if (effectiveType === 'platform_admin') {
+			return false;
+		}
+		if (isSuperAdmin && !isImpersonation) {
+			return false;
+		}
+		if (Boolean(auth.user?.requires_password_change)) {
+			return true;
+		}
+		if (
+			hasPendingSelectionStore &&
+			Boolean(selectionUserPreview?.requires_password_change)
+		) {
+			return true;
+		}
+		return false;
+	}, [
+		auth.user?.requires_password_change,
+		hasPendingSelectionStore,
+		selectionUserPreview?.requires_password_change,
+		isImpersonation,
+		isSuperAdmin,
+		userType,
+	]);
+
+	const completePasswordChange = useCallback(
+		async (payload: PasswordChangeRequest): Promise<AuthLoginSession | null> => {
+			const sessionToken = authRef.current.token;
+			const selectionToken = useEmpresaSelectionStore.getState().selectionToken;
+			const bearer = sessionToken?.trim() || selectionToken?.trim();
+			if (!bearer) {
+				throw new Error('No hay sesión activa para cambiar la contraseña');
+			}
+			const tokenResponse = await authService.changePassword(payload, bearer);
+			return applyFullSessionToken(tokenResponse);
+		},
+		[applyFullSessionToken],
+	);
+
 	const startImpersonationHandler = useCallback(
 		async (
 			clienteId: string,
@@ -1590,6 +1714,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			impersonationClienteLabel,
 			startImpersonation: startImpersonationHandler,
 			endImpersonation: endImpersonationHandler,
+			requiresPasswordChange,
+			completePasswordChange,
 		}),
 		[
 			auth,
@@ -1621,6 +1747,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			impersonationClienteLabel,
 			startImpersonationHandler,
 			endImpersonationHandler,
+			requiresPasswordChange,
+			completePasswordChange,
 		],
 	);
 

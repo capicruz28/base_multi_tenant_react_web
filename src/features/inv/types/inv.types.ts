@@ -8,6 +8,8 @@
  * Última revisión contrato: 2026-05-14
  */
 
+import type { ErpListQueryBase } from '@/core/list/erp-list.types';
+
 /**
  * Decimal API (Pydantic): suele serializarse como `string`; el cliente puede normalizar a `number`.
  * Usar en lecturas donde el OpenAPI declare `string` para cantidades importes.
@@ -381,7 +383,7 @@ export interface Movimiento {
   total_costo?: string | null;
   moneda_id?: string | null;
   moneda?: string | null;
-  estado: string; // 'borrador' | 'autorizado' | 'procesado' | 'anulado'
+  estado: string; // 'borrador' | 'autorizado' | 'procesado' | 'anulado' | 'estornado'
   requiere_autorizacion?: boolean | null;
   autorizado_por_usuario_id?: string | null;
   fecha_autorizacion?: string | null;
@@ -493,11 +495,16 @@ export interface MovimientoConDetalleCreate {
   total_costo?: number | string | null;
   moneda_id?: string | null;
   moneda?: string | null;
+  /** Ignorado por API en CREATE (RC1 §5.4). */
   estado?: string | null;
+  /** Ignorado por API en CREATE (RC1 §5.4). */
   requiere_autorizacion?: boolean | null;
+  /** Ignorado por API en CREATE (RC1 §5.4). */
   autorizado_por_usuario_id?: string | null;
+  /** Ignorado por API en CREATE (RC1 §5.4). */
   fecha_autorizacion?: string | null;
   observaciones?: string | null;
+  /** Ignorado por API en CREATE (RC1 §5.4). */
   motivo_anulacion?: string | null;
   centro_costo_id?: string | null;
   detalles: MovimientoDetalleCreateEmbebido[];
@@ -523,11 +530,16 @@ export interface MovimientoConDetalleUpdate {
   total_costo?: number | string | null;
   moneda_id?: string | null;
   moneda?: string | null;
+  /** Presente en OpenAPI; RC1 §5.4 prohíbe enviar en PUT — no incluir en payloads de formulario. */
   estado?: string | null;
+  /** Presente en OpenAPI; RC1 §5.4 prohíbe enviar en PUT — no incluir en payloads de formulario. */
   requiere_autorizacion?: boolean | null;
+  /** Presente en OpenAPI; RC1 §5.4 prohíbe enviar en PUT — no incluir en payloads de formulario. */
   autorizado_por_usuario_id?: string | null;
+  /** Presente en OpenAPI; RC1 §5.4 prohíbe enviar en PUT — no incluir en payloads de formulario. */
   fecha_autorizacion?: string | null;
   observaciones?: string | null;
+  /** Presente en OpenAPI; RC1 §5.4 prohíbe enviar en PUT — no incluir en payloads de formulario. */
   motivo_anulacion?: string | null;
   centro_costo_id?: string | null;
   detalles?: MovimientoDetalleCreateEmbebido[] | null;
@@ -681,15 +693,20 @@ export interface AprobarInventarioFisicoRequest {
   observaciones?: string | null;
 }
 
-/** POST `/api/v1/inv/{movimiento_id}/anular` — body opcional (`MotivoAnulacion` en OpenAPI). */
+/** POST `/api/v1/inv/movimientos/{movimiento_id}/anular` — body opcional (`MotivoAnulacion` en OpenAPI). */
 export interface AnularMovimientoRequest {
   motivo?: string | null;
 }
 
-/** POST `/api/v1/inv/{movimiento_id}/autorizar` — sin cuerpo en el contrato OpenAPI. */
+/** POST `/api/v1/inv/movimientos/{movimiento_id}/estornar` — body opcional (`MotivoEstorno` en OpenAPI). */
+export interface EstornarMovimientoRequest {
+  motivo?: string | null;
+}
+
+/** POST `/api/v1/inv/movimientos/{movimiento_id}/autorizar` — sin cuerpo en el contrato OpenAPI. */
 export type AutorizarMovimientoRequest = Record<string, never>;
 
-/** POST `/api/v1/inv/{movimiento_id}/procesar` — sin cuerpo en el contrato OpenAPI. */
+/** POST `/api/v1/inv/movimientos/{movimiento_id}/procesar` — sin cuerpo en el contrato OpenAPI. */
 export type ProcesarMovimientoRequest = Record<string, never>;
 
 // ─── Kardex ────────────────────────────────────────────────────────────────
@@ -716,7 +733,7 @@ export interface KardexLineaRead {
 
 // ─── Filtros de listado ────────────────────────────────────────────────────
 
-export interface InvListParams {
+export interface InvListParams extends ErpListQueryBase {
   empresa_id?: string;
   categoria_id?: string;
   tipo_producto?: string;
@@ -727,8 +744,6 @@ export interface InvListParams {
   movimiento_id?: string;
   inventario_fisico_id?: string;
   estado?: string;
-  solo_activos?: boolean;
-  buscar?: string;
   fecha_desde?: string;
   fecha_hasta?: string;
 }

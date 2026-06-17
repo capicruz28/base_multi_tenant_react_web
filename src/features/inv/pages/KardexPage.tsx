@@ -6,15 +6,19 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ListTree, Filter } from 'lucide-react';
 import { productoService } from '../services/inv.service';
-import type { Almacen, Producto, KardexLineaRead } from '../types/inv.types';
+import type { Almacen, Producto } from '../types/inv.types';
 import { InvPageLayout } from '../components/InvPageLayout';
 import { InvTableSkeleton } from '../components/InvTableSkeleton';
 import { getErrorMessage } from '@/core/services/error.service';
 import { useAlmacenes } from '../hooks/almacenes.hooks';
-import { useKardex } from '../hooks/kardex.hooks';
+import {
+  useKardexErpList,
+  KARDEX_LIST_CONFIG,
+} from '../hooks/kardex.hooks';
 import { useTiposMovimiento } from '../hooks/tipos-movimiento.hooks';
 import { useProductos } from '../hooks/productos.hooks';
 import { useInvSessionScope, useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
+import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 
 function fmtCant(s: string | null | undefined): string {
   if (s == null || s === '') return '-';
@@ -31,13 +35,22 @@ export default function KardexPage() {
   const [fechaDesde, setFechaDesde] = useState<string>('');
   const [fechaHasta, setFechaHasta] = useState<string>('');
 
+  const kardexList = useKardexErpList({
+    almacen_id: almacenFilter || undefined,
+    producto_id: productoFilter || undefined,
+    fecha_desde: fechaDesde || undefined,
+    fecha_hasta: fechaHasta || undefined,
+  });
+
   const resetPageFilters = useCallback(() => {
     setAlmacenFilter('');
     setProductoFilter('');
     setFechaDesde('');
     setFechaHasta('');
+    kardexList.setPage(1);
+    kardexList.resetSortState();
     setProductosMap({});
-  }, []);
+  }, [kardexList.setPage, kardexList.resetSortState]);
   useInvScopeEmpresaReset(resetPageFilters);
 
   const almacenesQuery = useAlmacenes({
@@ -55,13 +68,8 @@ export default function KardexPage() {
   });
   const productosOpciones = productosListaQuery.data ?? [];
 
-  const kardexQuery = useKardex({
-    almacen_id: almacenFilter || undefined,
-    producto_id: productoFilter || undefined,
-    fecha_desde: fechaDesde || undefined,
-    fecha_hasta: fechaHasta || undefined,
-  });
-  const list = (kardexQuery.data ?? []) as KardexLineaRead[];
+  const list = kardexList.items;
+  const canShowKardexTable = kardexList.hasProductoId && canQueryCompanyScoped;
 
   const lineProductIds = useMemo(
     () =>
@@ -160,23 +168,52 @@ export default function KardexPage() {
           Acota por fechas y empresa para mejores tiempos de respuesta.
         </span>
       </div>
-      {kardexQuery.isLoading && <InvTableSkeleton columns={8} />}
-      {kardexQuery.error && !kardexQuery.isLoading && (
+      {canShowKardexTable && kardexList.isLoading && <InvTableSkeleton columns={8} />}
+      {canShowKardexTable && kardexList.isError && !kardexList.isLoading && (
         <p className="text-error bg-error/10 p-4 rounded-lg">
-          {getErrorMessage(kardexQuery.error).message}
+          {getErrorMessage(kardexList.error).message}
         </p>
       )}
-      {!kardexQuery.isLoading && !kardexQuery.error && (
+      {!canShowKardexTable && (
+        <div className="rounded-lg border border-border-base bg-surface p-8 text-center">
+          <ListTree className="h-12 w-12 mx-auto mb-3 text-text-soft opacity-70" />
+          <p className="text-sm font-medium text-text-base">Seleccione un producto para consultar el kardex.</p>
+          <p className="text-sm text-text-soft mt-1">
+            El listado requiere un producto antes de consultar movimientos.
+          </p>
+        </div>
+      )}
+      {canShowKardexTable && !kardexList.isLoading && !kardexList.isError && (
         <div className="overflow-x-auto rounded-lg border border-border-base shadow">
           <table className="min-w-full divide-y divide-border-base">
             <thead className="bg-subtle">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Fecha</th>
+                <ErpSortableHeader
+                  column="fecha_movimiento"
+                  label="Fecha"
+                  sortableColumns={KARDEX_LIST_CONFIG.sortableColumns}
+                  sort={kardexList.sort}
+                  onSort={kardexList.toggleSort}
+                />
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Producto</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Almacén</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Tipo mov.</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-text-soft uppercase">Cant. base</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-text-soft uppercase">Costo u.</th>
+                <ErpSortableHeader
+                  column="cantidad_base"
+                  label="Cant. base"
+                  sortableColumns={KARDEX_LIST_CONFIG.sortableColumns}
+                  sort={kardexList.sort}
+                  onSort={kardexList.toggleSort}
+                  className="text-right"
+                />
+                <ErpSortableHeader
+                  column="costo_unitario"
+                  label="Costo u."
+                  sortableColumns={KARDEX_LIST_CONFIG.sortableColumns}
+                  sort={kardexList.sort}
+                  onSort={kardexList.toggleSort}
+                  className="text-right"
+                />
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Lote</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">N.º serie</th>
               </tr>
@@ -211,6 +248,14 @@ export default function KardexPage() {
               )}
             </tbody>
           </table>
+          {kardexList.pagination ? (
+            <ErpPagination
+              pagination={kardexList.pagination}
+              onPageChange={kardexList.setPage}
+              onLimitChange={kardexList.setLimit}
+              disabled={kardexList.isFetching}
+            />
+          ) : null}
         </div>
       )}
     </InvPageLayout>

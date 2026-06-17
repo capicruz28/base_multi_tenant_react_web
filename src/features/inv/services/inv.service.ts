@@ -13,6 +13,12 @@
  */
 import axios from 'axios';
 import api from '@/core/api/api';
+import {
+  buildErpListQueryParams,
+  isPaginated,
+  unwrapListItems,
+  type ErpPaginatedResponse,
+} from '@/core/list';
 import type {
   Categoria,
   CategoriaCreate,
@@ -46,6 +52,7 @@ import type {
   InventarioFisicoDetalleRead,
   AprobarInventarioFisicoRequest,
   AnularMovimientoRequest,
+  EstornarMovimientoRequest,
   AutorizarMovimientoRequest,
   ProcesarMovimientoRequest,
   KardexLineaRead,
@@ -53,6 +60,54 @@ import type {
 } from '../types/inv.types';
 
 const BASE = '/inv';
+
+type InvListQueryOptions = {
+  /** Maestros: default `solo_activos=true`. Transaccionales: omitir si no viene en params. */
+  includeSoloActivosDefault?: boolean;
+};
+
+/** Construye query HTTP INV + params PERF (contrato listados v1). */
+export function buildInvListQuery(
+  params?: InvListParams,
+  options?: InvListQueryOptions,
+): Record<string, string | number | boolean> {
+  const p = params ?? {};
+  const base: Record<string, string | number | boolean | undefined> = {};
+
+  if (options?.includeSoloActivosDefault !== false) {
+    base.solo_activos = p.solo_activos ?? true;
+  } else if (p.solo_activos !== undefined) {
+    base.solo_activos = p.solo_activos;
+  }
+
+  if (p.empresa_id) base.empresa_id = p.empresa_id;
+  if (p.categoria_id) base.categoria_id = p.categoria_id;
+  if (p.tipo_producto) base.tipo_producto = p.tipo_producto;
+  if (p.sucursal_id) base.sucursal_id = p.sucursal_id;
+  if (p.almacen_id) base.almacen_id = p.almacen_id;
+  if (p.producto_id) base.producto_id = p.producto_id;
+  if (p.tipo_movimiento_id) base.tipo_movimiento_id = p.tipo_movimiento_id;
+  if (p.movimiento_id) base.movimiento_id = p.movimiento_id;
+  if (p.inventario_fisico_id) base.inventario_fisico_id = p.inventario_fisico_id;
+  if (p.estado) base.estado = p.estado;
+  if (p.fecha_desde) base.fecha_desde = p.fecha_desde;
+  if (p.fecha_hasta) base.fecha_hasta = p.fecha_hasta;
+
+  return buildErpListQueryParams(base, p);
+}
+
+/** Fetch listado INV — retorna `list[]` o envelope según `page` (PERF-01). */
+export async function invFetchList<T>(
+  path: string,
+  params?: Record<string, string | number | boolean>,
+): Promise<T[] | ErpPaginatedResponse<T>> {
+  const { data } = await api.get<T[] | ErpPaginatedResponse<T>>(`${BASE}${path}`, { params });
+  return data;
+}
+
+function invListItems<T>(data: T[] | ErpPaginatedResponse<T>): T[] {
+  return unwrapListItems(data);
+}
 
 /** Convierte valor API (string Decimal o number) a número o null. */
 function invParseNumberLoose(v: unknown): number | null {
@@ -103,11 +158,10 @@ function normalizeStockRow(raw: unknown): Stock {
 // ─── Categorías ─────────────────────────────────────────────────────────────
 
 export const categoriaService = {
-  list: async (params?: Pick<InvListParams, 'empresa_id' | 'solo_activos'>): Promise<Categoria[]> => {
-    const q: Record<string, string | boolean> = { solo_activos: params?.solo_activos ?? true };
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    const { data } = await api.get<Categoria[]>(`${BASE}/categorias`, { params: q });
-    return Array.isArray(data) ? data : [];
+  list: async (params?: Pick<InvListParams, 'empresa_id' | 'solo_activos' | 'buscar' | 'page' | 'limit' | 'sort_by' | 'sort_dir'>): Promise<Categoria[]> => {
+    return invListItems(
+      await invFetchList<Categoria>('/categorias', buildInvListQuery(params)),
+    );
   },
 
   getById: async (categoriaId: string): Promise<Categoria> => {
@@ -138,11 +192,10 @@ export const categoriaService = {
 // ─── Unidades de Medida ────────────────────────────────────────────────────
 
 export const unidadMedidaService = {
-  list: async (params?: Pick<InvListParams, 'empresa_id' | 'solo_activos'>): Promise<UnidadMedida[]> => {
-    const q: Record<string, string | boolean> = { solo_activos: params?.solo_activos ?? true };
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    const { data } = await api.get<UnidadMedida[]>(`${BASE}/unidades-medida`, { params: q });
-    return Array.isArray(data) ? data : [];
+  list: async (params?: Pick<InvListParams, 'empresa_id' | 'solo_activos' | 'buscar' | 'page' | 'limit' | 'sort_by' | 'sort_dir'>): Promise<UnidadMedida[]> => {
+    return invListItems(
+      await invFetchList<UnidadMedida>('/unidades-medida', buildInvListQuery(params)),
+    );
   },
 
   getById: async (unidadMedidaId: string): Promise<UnidadMedida> => {
@@ -173,14 +226,10 @@ export const unidadMedidaService = {
 // ─── Productos ──────────────────────────────────────────────────────────────
 
 export const productoService = {
-  list: async (params?: Pick<InvListParams, 'empresa_id' | 'categoria_id' | 'tipo_producto' | 'solo_activos' | 'buscar'>): Promise<Producto[]> => {
-    const q: Record<string, string | boolean> = { solo_activos: params?.solo_activos ?? true };
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    if (params?.categoria_id) q.categoria_id = params.categoria_id;
-    if (params?.tipo_producto) q.tipo_producto = params.tipo_producto;
-    if (params?.buscar) q.buscar = params.buscar;
-    const { data } = await api.get<Producto[]>(`${BASE}/productos`, { params: q });
-    return Array.isArray(data) ? data : [];
+  list: async (params?: Pick<InvListParams, 'empresa_id' | 'categoria_id' | 'tipo_producto' | 'solo_activos' | 'buscar' | 'page' | 'limit' | 'sort_by' | 'sort_dir'>): Promise<Producto[]> => {
+    return invListItems(
+      await invFetchList<Producto>('/productos', buildInvListQuery(params)),
+    );
   },
 
   getById: async (productoId: string): Promise<Producto> => {
@@ -211,12 +260,10 @@ export const productoService = {
 // ─── Almacenes ──────────────────────────────────────────────────────────────
 
 export const almacenService = {
-  list: async (params?: Pick<InvListParams, 'empresa_id' | 'sucursal_id' | 'solo_activos'>): Promise<Almacen[]> => {
-    const q: Record<string, string | boolean> = { solo_activos: params?.solo_activos ?? true };
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    if (params?.sucursal_id) q.sucursal_id = params.sucursal_id;
-    const { data } = await api.get<Almacen[]>(`${BASE}/almacenes`, { params: q });
-    return Array.isArray(data) ? data : [];
+  list: async (params?: Pick<InvListParams, 'empresa_id' | 'sucursal_id' | 'solo_activos' | 'buscar' | 'page' | 'limit' | 'sort_by' | 'sort_dir'>): Promise<Almacen[]> => {
+    return invListItems(
+      await invFetchList<Almacen>('/almacenes', buildInvListQuery(params)),
+    );
   },
 
   getById: async (almacenId: string): Promise<Almacen> => {
@@ -247,15 +294,26 @@ export const almacenService = {
 // ─── Stock (solo lectura) ───────────────────────────────────────────────────
 // POST y PUT están deprecated — el stock se gestiona mediante movimientos.
 
+/** Fetch stock/alertas con normalización de filas Decimal (PERF Tier C). */
+export async function invFetchStockList(
+  path: '/stock' | '/stock/alertas',
+  params?: Record<string, string | number | boolean>,
+): Promise<Stock[] | ErpPaginatedResponse<Stock>> {
+  const data = await invFetchList<unknown>(path, params);
+  if (isPaginated(data)) {
+    return { ...data, items: data.items.map(normalizeStockRow) };
+  }
+  return invListItems(data).map(normalizeStockRow);
+}
+
 export const stockService = {
-  list: async (params?: Pick<InvListParams, 'empresa_id' | 'producto_id' | 'almacen_id'>): Promise<Stock[]> => {
-    const q: Record<string, string> = {};
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    if (params?.producto_id) q.producto_id = params.producto_id;
-    if (params?.almacen_id) q.almacen_id = params.almacen_id;
-    const { data } = await api.get<unknown>(`${BASE}/stock`, { params: q });
-    if (!Array.isArray(data)) return [];
-    return data.map((row) => normalizeStockRow(row));
+  list: async (params?: Pick<InvListParams, 'empresa_id' | 'producto_id' | 'almacen_id' | 'page' | 'limit' | 'sort_by' | 'sort_dir'>): Promise<Stock[]> => {
+    const data = await invFetchList<unknown>(
+      '/stock',
+      buildInvListQuery(params, { includeSoloActivosDefault: false }),
+    );
+    const rows = invListItems(data);
+    return rows.map((row) => normalizeStockRow(row));
   },
 
   getById: async (stockId: string): Promise<Stock> => {
@@ -274,24 +332,23 @@ export const stockService = {
     }
   },
 
-  alertas: async (params?: Pick<InvListParams, 'empresa_id' | 'almacen_id'>): Promise<Stock[]> => {
-    const q: Record<string, string> = {};
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    if (params?.almacen_id) q.almacen_id = params.almacen_id;
-    const { data } = await api.get<unknown>(`${BASE}/stock/alertas`, { params: q });
-    if (!Array.isArray(data)) return [];
-    return data.map((row) => normalizeStockRow(row));
+  alertas: async (params?: Pick<InvListParams, 'empresa_id' | 'almacen_id' | 'page' | 'limit' | 'sort_by' | 'sort_dir'>): Promise<Stock[]> => {
+    const data = await invFetchList<unknown>(
+      '/stock/alertas',
+      buildInvListQuery(params, { includeSoloActivosDefault: false }),
+    );
+    const rows = invListItems(data);
+    return rows.map((row) => normalizeStockRow(row));
   },
 };
 
 // ─── Tipos de Movimiento ───────────────────────────────────────────────────
 
 export const tipoMovimientoService = {
-  list: async (params?: Pick<InvListParams, 'empresa_id' | 'solo_activos'>): Promise<TipoMovimiento[]> => {
-    const q: Record<string, string | boolean> = { solo_activos: params?.solo_activos ?? true };
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    const { data } = await api.get<TipoMovimiento[]>(`${BASE}/tipos-movimiento`, { params: q });
-    return Array.isArray(data) ? data : [];
+  list: async (params?: Pick<InvListParams, 'empresa_id' | 'solo_activos' | 'buscar' | 'page' | 'limit' | 'sort_by' | 'sort_dir'>): Promise<TipoMovimiento[]> => {
+    return invListItems(
+      await invFetchList<TipoMovimiento>('/tipos-movimiento', buildInvListQuery(params)),
+    );
   },
 
   getById: async (tipoMovimientoId: string): Promise<TipoMovimiento> => {
@@ -322,16 +379,13 @@ export const tipoMovimientoService = {
 // ─── Movimientos ───────────────────────────────────────────────────────────
 
 export const movimientoService = {
-  list: async (params?: Pick<InvListParams, 'empresa_id' | 'tipo_movimiento_id' | 'almacen_id' | 'estado' | 'fecha_desde' | 'fecha_hasta'>): Promise<Movimiento[]> => {
-    const q: Record<string, string> = {};
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    if (params?.tipo_movimiento_id) q.tipo_movimiento_id = params.tipo_movimiento_id;
-    if (params?.almacen_id) q.almacen_id = params.almacen_id;
-    if (params?.estado) q.estado = params.estado;
-    if (params?.fecha_desde) q.fecha_desde = params.fecha_desde;
-    if (params?.fecha_hasta) q.fecha_hasta = params.fecha_hasta;
-    const { data } = await api.get<Movimiento[]>(`${BASE}/movimientos`, { params: q });
-    return Array.isArray(data) ? data : [];
+  list: async (params?: Pick<InvListParams, 'empresa_id' | 'tipo_movimiento_id' | 'almacen_id' | 'estado' | 'fecha_desde' | 'fecha_hasta' | 'page' | 'limit' | 'sort_by' | 'sort_dir'>): Promise<Movimiento[]> => {
+    return invListItems(
+      await invFetchList<Movimiento>(
+        '/movimientos',
+        buildInvListQuery(params, { includeSoloActivosDefault: false }),
+      ),
+    );
   },
 
   getById: async (movimientoId: string): Promise<Movimiento> => {
@@ -366,22 +420,27 @@ export const movimientoService = {
     return data;
   },
 
-  // ── Acciones de flujo (ruta sin prefijo /movimientos/) ────────────────────
+  // ── Acciones de flujo (rutas canónicas RC1: /movimientos/{id}/…) ───────────
 
   autorizar: async (movimientoId: string): Promise<Movimiento> => {
     const body: AutorizarMovimientoRequest = {};
-    const { data } = await api.post<Movimiento>(`${BASE}/${movimientoId}/autorizar`, body);
+    const { data } = await api.post<Movimiento>(`${BASE}/movimientos/${movimientoId}/autorizar`, body);
     return data;
   },
 
   procesar: async (movimientoId: string): Promise<Movimiento> => {
     const body: ProcesarMovimientoRequest = {};
-    const { data } = await api.post<Movimiento>(`${BASE}/${movimientoId}/procesar`, body);
+    const { data } = await api.post<Movimiento>(`${BASE}/movimientos/${movimientoId}/procesar`, body);
     return data;
   },
 
   anular: async (movimientoId: string, payload?: AnularMovimientoRequest): Promise<Movimiento> => {
-    const { data } = await api.post<Movimiento>(`${BASE}/${movimientoId}/anular`, payload ?? {});
+    const { data } = await api.post<Movimiento>(`${BASE}/movimientos/${movimientoId}/anular`, payload ?? {});
+    return data;
+  },
+
+  estornar: async (movimientoId: string, payload?: EstornarMovimientoRequest): Promise<Movimiento> => {
+    const { data } = await api.post<Movimiento>(`${BASE}/movimientos/${movimientoId}/estornar`, payload ?? {});
     return data;
   },
 };
@@ -408,15 +467,13 @@ export const movimientoDetalleService = {
 // ─── Inventario Físico ─────────────────────────────────────────────────────
 
 export const inventarioFisicoService = {
-  list: async (params?: Pick<InvListParams, 'empresa_id' | 'almacen_id' | 'estado' | 'fecha_desde' | 'fecha_hasta'>): Promise<InventarioFisico[]> => {
-    const q: Record<string, string> = {};
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    if (params?.almacen_id) q.almacen_id = params.almacen_id;
-    if (params?.estado) q.estado = params.estado;
-    if (params?.fecha_desde) q.fecha_desde = params.fecha_desde;
-    if (params?.fecha_hasta) q.fecha_hasta = params.fecha_hasta;
-    const { data } = await api.get<InventarioFisico[]>(`${BASE}/inventario-fisico`, { params: q });
-    return Array.isArray(data) ? data : [];
+  list: async (params?: Pick<InvListParams, 'empresa_id' | 'almacen_id' | 'estado' | 'fecha_desde' | 'fecha_hasta' | 'page' | 'limit' | 'sort_by' | 'sort_dir'>): Promise<InventarioFisico[]> => {
+    return invListItems(
+      await invFetchList<InventarioFisico>(
+        '/inventario-fisico',
+        buildInvListQuery(params, { includeSoloActivosDefault: false }),
+      ),
+    );
   },
 
   getById: async (inventarioFisicoId: string): Promise<InventarioFisico> => {
@@ -491,14 +548,12 @@ export const inventarioFisicoDetalleService = {
 // ─── Kardex ─────────────────────────────────────────────────────────────────
 
 export const kardexService = {
-  list: async (params?: Pick<InvListParams, 'empresa_id' | 'producto_id' | 'almacen_id' | 'fecha_desde' | 'fecha_hasta'>): Promise<KardexLineaRead[]> => {
-    const q: Record<string, string> = {};
-    if (params?.empresa_id) q.empresa_id = params.empresa_id;
-    if (params?.producto_id) q.producto_id = params.producto_id;
-    if (params?.almacen_id) q.almacen_id = params.almacen_id;
-    if (params?.fecha_desde) q.fecha_desde = params.fecha_desde;
-    if (params?.fecha_hasta) q.fecha_hasta = params.fecha_hasta;
-    const { data } = await api.get<KardexLineaRead[]>(`${BASE}/kardex`, { params: q });
-    return Array.isArray(data) ? data : [];
+  list: async (params?: Pick<InvListParams, 'empresa_id' | 'producto_id' | 'almacen_id' | 'fecha_desde' | 'fecha_hasta' | 'page' | 'limit' | 'sort_by' | 'sort_dir'>): Promise<KardexLineaRead[]> => {
+    return invListItems(
+      await invFetchList<KardexLineaRead>(
+        '/kardex',
+        buildInvListQuery(params, { includeSoloActivosDefault: false }),
+      ),
+    );
   },
 };

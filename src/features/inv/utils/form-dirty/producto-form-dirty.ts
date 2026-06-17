@@ -1,4 +1,5 @@
 import type { ProductoCreate, ProductoUpdate } from '../../types/inv.types';
+import { isDirtyAgainstBaseline } from '@/features/org/utils/org-form-dirty.helpers';
 import { bool, numOrUndef, optId, str } from './inv-form-dirty.helpers';
 
 export type ProductoCreateFormSnapshot = ReturnType<typeof normalizeCreateFields>;
@@ -78,7 +79,7 @@ export function isCreateProductoDirty(
   form: ProductoCreate,
   baseline: ProductoCreateFormSnapshot,
 ): boolean {
-  return JSON.stringify(normalizeCreateFields(form)) !== JSON.stringify(baseline);
+  return isDirtyAgainstBaseline(normalizeCreateFields(form), baseline);
 }
 
 export function buildEditProductoFormSnapshot(form: ProductoUpdate): EditProductoFormSnapshot {

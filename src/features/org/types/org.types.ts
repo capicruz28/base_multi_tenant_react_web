@@ -3,6 +3,8 @@
  * Alineados con la documentación del backend: /api/v1/org/
  */
 
+import type { ErpListQueryBase } from '@/core/list/erp-list.types';
+
 // ─── Empresa ─────────────────────────────────────────────────────────────
 // Alineado con backend OpenAPI: EmpresaRead, EmpresaCreate, EmpresaUpdate.
 // Ubicación: solo IDs (pais_id, departamento_id, provincia_id, distrito_id).
@@ -359,10 +361,9 @@ export interface ParametroUpdate extends Partial<ParametroCreate> {}
 
 // ─── Filtros de listado (Etapa B: sin empresa_id en query; ámbito JWT) ─────
 
-/** Listados company-scoped: solo_activos, buscar. */
-export interface OrgCompanyListParams {
+/** Listados company-scoped: solo_activos, buscar + params PERF (page/limit/sort). */
+export interface OrgCompanyListParams extends ErpListQueryBase {
   solo_activos?: boolean;
-  buscar?: string;
 }
 
 /** Vista de listado híbrido (backend ORG multiempresa). */
@@ -374,9 +375,7 @@ export interface ParametroEfectivo extends Parametro {
 }
 
 /** Listados híbridos /org/parametros. */
-export interface OrgParametroListParams {
-  solo_activos?: boolean;
-  buscar?: string;
+export interface OrgParametroListParams extends OrgCompanyListParams {
   modulo_codigo?: string;
   /** Resolución de alcance en backend; sin query empresa_id. */
   vista?: ParametroVista;

@@ -7,6 +7,8 @@ import { toast } from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 import { Package, Plus, Pencil, Trash2, RotateCcw, Ruler } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { useDebouncedSearch } from '@/core/list';
+import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
 import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
 import { toAppPath } from '@/core/routing/post-login-path';
@@ -21,6 +23,7 @@ import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
 import {
   Dialog,
   DialogContent,
+  DialogBody,
   DialogHeader,
   DialogFooter,
   DialogTitle,
@@ -29,18 +32,18 @@ import { Label } from '@/shared/components/ui/label';
 import { usePermissions } from '@/core/auth/hooks/usePermissions';
 import { useCategorias } from '../hooks/categorias.hooks';
 import { useUnidadesMedida } from '../hooks/unidades-medida.hooks';
-import { useCreateProducto, useDeleteProducto, useProductos, useReactivarProducto, useUpdateProducto } from '../hooks/productos.hooks';
+import { useCreateProducto, useDeleteProducto, useProductosErpList, useReactivarProducto, useUpdateProducto, PRODUCTOS_LIST_CONFIG } from '../hooks/productos.hooks';
 import { useInvSessionScope, useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
 import { OrgSessionEmpresaField } from '@/features/org/components/OrgSessionEmpresaField';
 import { assertBodyEmpresaMatchesSession } from '@/features/org/utils/org-body-scope';
 import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
 import { createOrgDiscardHandlers } from '@/features/org/utils/org-discard-handlers';
+import { useOrgModalCreateDirty } from '@/features/org/hooks/useOrgModalCreateDirty';
 import { orgDialogGuardProps } from '@/features/org/utils/org-dialog-guard-props';
 import {
   buildCreateProductoFormSnapshot,
   buildEditProductoFormSnapshot,
-  isCreateProductoDirty,
   isEditProductoDirty,
   type EditProductoFormSnapshot,
   type ProductoCreateFormSnapshot,
@@ -75,31 +78,36 @@ const DEFAULT: ProductoCreate = {
 export default function ProductosPage() {
   const { can } = usePermissions();
   const { scopeEmpresaId, canQueryCompanyScoped } = useInvSessionScope();
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const search = useDebouncedSearch();
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Producto | null>(null);
   const [form, setForm] = useState<ProductoCreate>(DEFAULT);
   const [editForm, setEditForm] = useState<ProductoUpdate>({});
-  const [createBaseline, setCreateBaseline] = useState<ProductoCreateFormSnapshot>(() =>
-    buildCreateProductoFormSnapshot(DEFAULT),
-  );
   const [editFormSnapshot, setEditFormSnapshot] = useState<EditProductoFormSnapshot | null>(null);
   const [discardPending, setDiscardPending] = useState<OrgDiscardPending>(null);
   const [monedas, setMonedas] = useState<CatMoneda[]>([]);
   const [bajaTarget, setBajaTarget] = useState<Producto | null>(null);
   const [reactivarTarget, setReactivarTarget] = useState<Producto | null>(null);
 
+  const productosList = useProductosErpList({
+    solo_activos: !mostrarInactivos,
+    debouncedBuscar: search.debouncedValue || undefined,
+  });
+
   const resetPageFilters = useCallback(() => {
-    setSearchTerm('');
+    search.clear();
+    productosList.setPage(1);
+    productosList.clearSort();
     setMostrarInactivos(false);
     setCreateOpen(false);
     setEditOpen(false);
     setEditing(null);
     setEditFormSnapshot(null);
     setDiscardPending(null);
-  }, []);
+  }, [search.clear, productosList.setPage, productosList.clearSort]);
+
   useInvScopeEmpresaReset(resetPageFilters);
 
   const categoriasQuery = useCategorias({
@@ -109,12 +117,7 @@ export default function ProductosPage() {
     solo_activos: true,
   });
 
-  const productosQuery = useProductos({
-    solo_activos: !mostrarInactivos,
-    buscar: searchTerm.trim() || undefined,
-  });
-
-  const list = productosQuery.data ?? [];
+  const list = productosList.items;
   const categorias = (categoriasQuery.data ?? []) as Categoria[];
   const unidadesMedida = (unidadesQuery.data ?? []) as UnidadMedida[];
   /** REG-005: no deshabilitar Crear mientras la query de UM está cargando (data undefined → length 0). */
@@ -139,10 +142,15 @@ export default function ProductosPage() {
     };
   }, [monedas, scopeEmpresaId]);
 
-  const isCreateDialogDirty = useMemo(
-    () => isCreateProductoDirty(form, createBaseline),
-    [form, createBaseline],
-  );
+  const { syncCreateBaseline, isCreateDirty } = useOrgModalCreateDirty<
+    ProductoCreate,
+    ProductoCreateFormSnapshot
+  >({
+    normalize: buildCreateProductoFormSnapshot,
+    getInitialForm: () => DEFAULT,
+  });
+
+  const isCreateDialogDirty = useMemo(() => isCreateDirty(form), [form, isCreateDirty]);
   const isEditDialogDirty = useMemo(
     () => isEditProductoDirty(editForm, editFormSnapshot),
     [editForm, editFormSnapshot],
@@ -153,10 +161,10 @@ export default function ProductosPage() {
       setCreateOpen(false);
       const nextForm = buildDefaultCreateForm();
       setForm(nextForm);
-      setCreateBaseline(buildCreateProductoFormSnapshot(nextForm));
+      syncCreateBaseline(nextForm);
       setDiscardPending((pending) => (pending === 'create' ? null : pending));
     }
-  }, [formSubmitting, buildDefaultCreateForm]);
+  }, [formSubmitting, buildDefaultCreateForm, syncCreateBaseline]);
 
   const closeEdit = useCallback(() => {
     if (!formSubmitting) {
@@ -210,7 +218,7 @@ export default function ProductosPage() {
     setDiscardPending(null);
     const nextForm = buildDefaultCreateForm();
     setForm(nextForm);
-    setCreateBaseline(buildCreateProductoFormSnapshot(nextForm));
+    syncCreateBaseline(nextForm);
     setCreateOpen(true);
   };
   const openEdit = (row: Producto) => {
@@ -341,7 +349,7 @@ export default function ProductosPage() {
     Boolean(scopeEmpresaId) && canQueryCompanyScoped && sinUnidadesMedidaEnSesion;
   const crearProductoDeshabilitado =
     !scopeEmpresaId || !canQueryCompanyScoped || sinUnidadesMedidaEnSesion || discardPending !== null;
-  const hasSearch = searchTerm.trim().length > 0;
+  const hasSearch = search.hasSearch;
   const TABLE_COLSPAN = 7;
 
   return (
@@ -379,8 +387,8 @@ export default function ProductosPage() {
         }
       >
         <OrgToolbarSearch
-          value={searchTerm}
-          onChange={setSearchTerm}
+          value={search.inputValue}
+          onChange={search.setInputValue}
           placeholder="SKU, nombre, código de barras…"
           aria-label="Buscar productos"
           disabled={discardPending !== null}
@@ -395,21 +403,39 @@ export default function ProductosPage() {
           Ver inactivos
         </label>
       </OrgCompanyToolbar>
-      {productosQuery.isLoading && <InvTableSkeleton columns={TABLE_COLSPAN} />}
-      {productosQuery.error && !productosQuery.isLoading && (
+      {productosList.isLoading && <InvTableSkeleton columns={TABLE_COLSPAN} />}
+      {productosList.isError && !productosList.isLoading && (
         <p className="text-error bg-error/10 p-4 rounded-lg">
-          {getErrorMessage(productosQuery.error).message}
+          {getErrorMessage(productosList.error).message}
         </p>
       )}
-      {!productosQuery.isLoading && !productosQuery.error && (
+      {!productosList.isLoading && !productosList.isError && (
         <div className="overflow-x-auto rounded-lg border border-border-base shadow">
           <table className="min-w-full divide-y divide-border-base">
             <thead className="bg-subtle">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">SKU</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Nombre</th>
+                <ErpSortableHeader
+                  column="codigo_sku"
+                  label="SKU"
+                  sortableColumns={PRODUCTOS_LIST_CONFIG.sortableColumns}
+                  sort={productosList.sort}
+                  onSort={productosList.toggleSort}
+                />
+                <ErpSortableHeader
+                  column="nombre"
+                  label="Nombre"
+                  sortableColumns={PRODUCTOS_LIST_CONFIG.sortableColumns}
+                  sort={productosList.sort}
+                  onSort={productosList.toggleSort}
+                />
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Categoría</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Tipo</th>
+                <ErpSortableHeader
+                  column="tipo_producto"
+                  label="Tipo"
+                  sortableColumns={PRODUCTOS_LIST_CONFIG.sortableColumns}
+                  sort={productosList.sort}
+                  onSort={productosList.toggleSort}
+                />
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Precio</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Estado</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-text-soft uppercase">Acciones</th>
@@ -509,6 +535,14 @@ export default function ProductosPage() {
               )}
             </tbody>
           </table>
+          {productosList.pagination ? (
+            <ErpPagination
+              pagination={productosList.pagination}
+              onPageChange={productosList.setPage}
+              onLimitChange={productosList.setLimit}
+              disabled={discardPending !== null || productosList.isFetching}
+            />
+          ) : null}
         </div>
       )}
       <OrgDiscardConfirmDialog
@@ -518,9 +552,10 @@ export default function ProductosPage() {
         onConfirm={handleDiscardConfirm}
       />
       <Dialog open={createOpen} onOpenChange={handleCreateDialogOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" {...orgDialogGuardProps}>
-          <DialogHeader><DialogTitle>Crear producto</DialogTitle></DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-6">
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col gap-0 p-0" {...orgDialogGuardProps}>
+          <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0"><DialogTitle>Crear producto</DialogTitle></DialogHeader>
+          <form onSubmit={handleCreate} className="flex flex-col min-h-0 flex-1">
+            <DialogBody className="px-6 pb-2 space-y-6">
             <div className="space-y-4">
               <h3 className="text-sm font-semibold">Información General</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1075,14 +1110,19 @@ export default function ProductosPage() {
                 </div>
               </div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={handleRequestCloseCreate}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button></DialogFooter>
+            </DialogBody>
+            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base">
+              <Button type="button" variant="outline" onClick={handleRequestCloseCreate}>Cancelar</Button>
+              <Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
       <Dialog open={editOpen} onOpenChange={handleEditDialogOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" {...orgDialogGuardProps}>
-          <DialogHeader><DialogTitle>Editar producto</DialogTitle></DialogHeader>
-          <form onSubmit={handleUpdate} className="space-y-6">
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col gap-0 p-0" {...orgDialogGuardProps}>
+          <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0"><DialogTitle>Editar producto</DialogTitle></DialogHeader>
+          <form onSubmit={handleUpdate} className="flex flex-col min-h-0 flex-1">
+            <DialogBody className="px-6 pb-2 space-y-6">
             <div className="space-y-4">
               <h3 className="text-sm font-semibold">Información General</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1345,7 +1385,11 @@ export default function ProductosPage() {
                 </div>
               </div>
             </div>
-            <DialogFooter><Button type="button" variant="outline" onClick={handleRequestCloseEdit}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
+            </DialogBody>
+            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base">
+              <Button type="button" variant="outline" onClick={handleRequestCloseEdit}>Cancelar</Button>
+              <Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

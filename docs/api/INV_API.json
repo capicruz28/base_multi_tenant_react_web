@@ -31,6 +31,103 @@
               "title": "Solo Activos"
             },
             "description": "Solo categorías activas"
+          },
+          {
+            "name": "buscar",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Búsqueda por nombre o código",
+              "title": "Buscar"
+            },
+            "description": "Búsqueda por nombre o código"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Si se envía, activa respuesta paginada (envelope ERP).",
+              "title": "Page"
+            },
+            "description": "Si se envía, activa respuesta paginada (envelope ERP)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tamaño de página (solo aplica con page). Default 50, máx 100.",
+              "title": "Limit"
+            },
+            "description": "Tamaño de página (solo aplica con page). Default 50, máx 100."
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Columna whitelist para ordenar (ver documentación del recurso).",
+              "title": "Sort By"
+            },
+            "description": "Columna whitelist para ordenar (ver documentación del recurso)."
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Dirección de orden: asc o desc. Solo aplica con sort_by.",
+              "title": "Sort Dir"
+            },
+            "description": "Dirección de orden: asc o desc. Solo aplica con sort_by."
           }
         ],
         "responses": {
@@ -39,10 +136,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/CategoriaRead"
-                  },
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CategoriaRead"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/PaginatedCategoriaResponse"
+                    }
+                  ],
                   "title": "Response Listar Categorias Api V1 Inv Categorias Get"
                 }
               }
@@ -332,6 +436,103 @@
               "title": "Solo Activos"
             },
             "description": "Solo unidades activas"
+          },
+          {
+            "name": "buscar",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Búsqueda por nombre o código",
+              "title": "Buscar"
+            },
+            "description": "Búsqueda por nombre o código"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Si se envía, activa respuesta paginada (envelope ERP).",
+              "title": "Page"
+            },
+            "description": "Si se envía, activa respuesta paginada (envelope ERP)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tamaño de página (solo aplica con page). Default 50, máx 100.",
+              "title": "Limit"
+            },
+            "description": "Tamaño de página (solo aplica con page). Default 50, máx 100."
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Columna whitelist para ordenar (ver documentación del recurso).",
+              "title": "Sort By"
+            },
+            "description": "Columna whitelist para ordenar (ver documentación del recurso)."
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Dirección de orden: asc o desc. Solo aplica con sort_by.",
+              "title": "Sort Dir"
+            },
+            "description": "Dirección de orden: asc o desc. Solo aplica con sort_by."
           }
         ],
         "responses": {
@@ -340,10 +541,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/UnidadMedidaRead"
-                  },
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/UnidadMedidaRead"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/PaginatedUnidadMedidaResponse"
+                    }
+                  ],
                   "title": "Response Listar Unidades Medida Api V1 Inv Unidades Medida Get"
                 }
               }
@@ -688,6 +896,85 @@
               "title": "Buscar"
             },
             "description": "Búsqueda por nombre, SKU o código de barras"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Si se envía, activa respuesta paginada (envelope ERP).",
+              "title": "Page"
+            },
+            "description": "Si se envía, activa respuesta paginada (envelope ERP)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tamaño de página (solo aplica con page). Default 50, máx 100.",
+              "title": "Limit"
+            },
+            "description": "Tamaño de página (solo aplica con page). Default 50, máx 100."
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Columna whitelist para ordenar (ver documentación del recurso).",
+              "title": "Sort By"
+            },
+            "description": "Columna whitelist para ordenar (ver documentación del recurso)."
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Dirección de orden: asc o desc. Solo aplica con sort_by.",
+              "title": "Sort Dir"
+            },
+            "description": "Dirección de orden: asc o desc. Solo aplica con sort_by."
           }
         ],
         "responses": {
@@ -696,10 +983,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ProductoRead"
-                  },
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProductoRead"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/PaginatedProductoResponse"
+                    }
+                  ],
                   "title": "Response Listar Productos Api V1 Inv Productos Get"
                 }
               }
@@ -1008,6 +1302,103 @@
               "title": "Solo Activos"
             },
             "description": "Solo almacenes activos"
+          },
+          {
+            "name": "buscar",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Búsqueda por nombre o código",
+              "title": "Buscar"
+            },
+            "description": "Búsqueda por nombre o código"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Si se envía, activa respuesta paginada (envelope ERP).",
+              "title": "Page"
+            },
+            "description": "Si se envía, activa respuesta paginada (envelope ERP)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tamaño de página (solo aplica con page). Default 50, máx 100.",
+              "title": "Limit"
+            },
+            "description": "Tamaño de página (solo aplica con page). Default 50, máx 100."
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Columna whitelist para ordenar (ver documentación del recurso).",
+              "title": "Sort By"
+            },
+            "description": "Columna whitelist para ordenar (ver documentación del recurso)."
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Dirección de orden: asc o desc. Solo aplica con sort_by.",
+              "title": "Sort Dir"
+            },
+            "description": "Dirección de orden: asc o desc. Solo aplica con sort_by."
           }
         ],
         "responses": {
@@ -1016,10 +1407,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AlmacenRead"
-                  },
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AlmacenRead"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/PaginatedAlmacenResponse"
+                    }
+                  ],
                   "title": "Response Listar Almacenes Api V1 Inv Almacenes Get"
                 }
               }
@@ -1283,6 +1681,155 @@
         }
       }
     },
+    "/api/v1/inv/stock/alertas": {
+      "get": {
+        "tags": [
+          "INV - Inventarios",
+          "INV - Stock Alertas"
+        ],
+        "summary": "Alertas: stock bajo mínimo (por disponible)",
+        "description": "Alertas de stock bajo mínimo para la empresa activa en sesión.",
+        "operationId": "alertas_stock_bajo_minimo_api_v1_inv_stock_alertas_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "almacen_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por almacén",
+              "title": "Almacen Id"
+            },
+            "description": "Filtrar por almacén"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Si se envía, activa respuesta paginada (envelope ERP).",
+              "title": "Page"
+            },
+            "description": "Si se envía, activa respuesta paginada (envelope ERP)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tamaño de página (solo aplica con page). Default 50, máx 100.",
+              "title": "Limit"
+            },
+            "description": "Tamaño de página (solo aplica con page). Default 50, máx 100."
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Columna whitelist para ordenar (ver documentación del recurso).",
+              "title": "Sort By"
+            },
+            "description": "Columna whitelist para ordenar (ver documentación del recurso)."
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Dirección de orden: asc o desc. Solo aplica con sort_by.",
+              "title": "Sort Dir"
+            },
+            "description": "Dirección de orden: asc o desc. Solo aplica con sort_by."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StockRead"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/PaginatedStockResponse"
+                    }
+                  ],
+                  "title": "Response Alertas Stock Bajo Minimo Api V1 Inv Stock Alertas Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/inv/stock": {
       "get": {
         "tags": [
@@ -1335,6 +1882,85 @@
               "title": "Almacen Id"
             },
             "description": "Filtrar por almacén"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Si se envía, activa respuesta paginada (envelope ERP).",
+              "title": "Page"
+            },
+            "description": "Si se envía, activa respuesta paginada (envelope ERP)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tamaño de página (solo aplica con page). Default 50, máx 100.",
+              "title": "Limit"
+            },
+            "description": "Tamaño de página (solo aplica con page). Default 50, máx 100."
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Columna whitelist para ordenar (ver documentación del recurso).",
+              "title": "Sort By"
+            },
+            "description": "Columna whitelist para ordenar (ver documentación del recurso)."
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Dirección de orden: asc o desc. Solo aplica con sort_by.",
+              "title": "Sort Dir"
+            },
+            "description": "Dirección de orden: asc o desc. Solo aplica con sort_by."
           }
         ],
         "responses": {
@@ -1343,10 +1969,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/StockRead"
-                  },
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StockRead"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/PaginatedStockResponse"
+                    }
+                  ],
                   "title": "Response Listar Stocks Api V1 Inv Stock Get"
                 }
               }
@@ -1589,69 +2222,6 @@
         }
       }
     },
-    "/api/v1/inv/stock/alertas": {
-      "get": {
-        "tags": [
-          "INV - Inventarios",
-          "INV - Stock Alertas"
-        ],
-        "summary": "Alertas: stock bajo mínimo (por disponible)",
-        "description": "Alertas de stock bajo mínimo para la empresa activa en sesión.",
-        "operationId": "alertas_stock_bajo_minimo_api_v1_inv_stock_alertas_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "almacen_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filtrar por almacén",
-              "title": "Almacen Id"
-            },
-            "description": "Filtrar por almacén"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/StockRead"
-                  },
-                  "title": "Response Alertas Stock Bajo Minimo Api V1 Inv Stock Alertas Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/inv/tipos-movimiento": {
       "get": {
         "tags": [
@@ -1678,6 +2248,103 @@
               "title": "Solo Activos"
             },
             "description": "Solo tipos activos"
+          },
+          {
+            "name": "buscar",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Búsqueda por nombre o código",
+              "title": "Buscar"
+            },
+            "description": "Búsqueda por nombre o código"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Si se envía, activa respuesta paginada (envelope ERP).",
+              "title": "Page"
+            },
+            "description": "Si se envía, activa respuesta paginada (envelope ERP)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tamaño de página (solo aplica con page). Default 50, máx 100.",
+              "title": "Limit"
+            },
+            "description": "Tamaño de página (solo aplica con page). Default 50, máx 100."
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Columna whitelist para ordenar (ver documentación del recurso).",
+              "title": "Sort By"
+            },
+            "description": "Columna whitelist para ordenar (ver documentación del recurso)."
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Dirección de orden: asc o desc. Solo aplica con sort_by.",
+              "title": "Sort Dir"
+            },
+            "description": "Dirección de orden: asc o desc. Solo aplica con sort_by."
           }
         ],
         "responses": {
@@ -1686,10 +2353,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/TipoMovimientoRead"
-                  },
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TipoMovimientoRead"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/PaginatedTipoMovimientoResponse"
+                    }
+                  ],
                   "title": "Response Listar Tipos Movimiento Api V1 Inv Tipos Movimiento Get"
                 }
               }
@@ -2061,6 +2735,85 @@
               "title": "Fecha Hasta"
             },
             "description": "Fecha hasta"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Si se envía, activa respuesta paginada (envelope ERP).",
+              "title": "Page"
+            },
+            "description": "Si se envía, activa respuesta paginada (envelope ERP)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tamaño de página (solo aplica con page). Default 50, máx 100.",
+              "title": "Limit"
+            },
+            "description": "Tamaño de página (solo aplica con page). Default 50, máx 100."
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Columna whitelist para ordenar (ver documentación del recurso).",
+              "title": "Sort By"
+            },
+            "description": "Columna whitelist para ordenar (ver documentación del recurso)."
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Dirección de orden: asc o desc. Solo aplica con sort_by.",
+              "title": "Sort Dir"
+            },
+            "description": "Dirección de orden: asc o desc. Solo aplica con sort_by."
           }
         ],
         "responses": {
@@ -2069,10 +2822,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MovimientoRead"
-                  },
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MovimientoRead"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/PaginatedMovimientoResponse"
+                    }
+                  ],
                   "title": "Response Listar Movimientos Api V1 Inv Movimientos Get"
                 }
               }
@@ -2401,6 +3161,226 @@
         ]
       }
     },
+    "/api/v1/inv/movimientos/{movimiento_id}/procesar": {
+      "post": {
+        "tags": [
+          "INV - Inventarios",
+          "INV - Movimientos Proceso"
+        ],
+        "summary": "Procesar movimiento (actualiza stock)",
+        "description": "Procesa un movimiento de la empresa activa en sesión.",
+        "operationId": "procesar_movimiento_api_v1_inv_movimientos__movimiento_id__procesar_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "movimiento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Movimiento Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovimientoRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inv/movimientos/{movimiento_id}/autorizar": {
+      "post": {
+        "tags": [
+          "INV - Inventarios",
+          "INV - Movimientos Proceso"
+        ],
+        "summary": "Autorizar movimiento",
+        "description": "Autoriza un movimiento de la empresa activa en sesión.",
+        "operationId": "autorizar_movimiento_api_v1_inv_movimientos__movimiento_id__autorizar_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "movimiento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Movimiento Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovimientoRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inv/movimientos/{movimiento_id}/anular": {
+      "post": {
+        "tags": [
+          "INV - Inventarios",
+          "INV - Movimientos Proceso"
+        ],
+        "summary": "Anular movimiento (solo si no está procesado)",
+        "description": "Anula un movimiento de la empresa activa en sesión.",
+        "operationId": "anular_movimiento_api_v1_inv_movimientos__movimiento_id__anular_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "movimiento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Movimiento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MotivoAnulacion",
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovimientoRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inv/movimientos/{movimiento_id}/estornar": {
+      "post": {
+        "tags": [
+          "INV - Inventarios",
+          "INV - Movimientos Proceso"
+        ],
+        "summary": "Estornar movimiento procesado (compensatorio + reversión stock)",
+        "description": "Estorna un movimiento procesado de la empresa activa en sesión.",
+        "operationId": "estornar_movimiento_api_v1_inv_movimientos__movimiento_id__estornar_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "movimiento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Movimiento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MotivoEstorno",
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovimientoRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/inv/inventario-fisico": {
       "get": {
         "tags": [
@@ -2490,6 +3470,85 @@
               "title": "Fecha Hasta"
             },
             "description": "Fecha hasta"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Si se envía, activa respuesta paginada (envelope ERP).",
+              "title": "Page"
+            },
+            "description": "Si se envía, activa respuesta paginada (envelope ERP)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tamaño de página (solo aplica con page). Default 50, máx 100.",
+              "title": "Limit"
+            },
+            "description": "Tamaño de página (solo aplica con page). Default 50, máx 100."
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Columna whitelist para ordenar (ver documentación del recurso).",
+              "title": "Sort By"
+            },
+            "description": "Columna whitelist para ordenar (ver documentación del recurso)."
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Dirección de orden: asc o desc. Solo aplica con sort_by.",
+              "title": "Sort Dir"
+            },
+            "description": "Dirección de orden: asc o desc. Solo aplica con sort_by."
           }
         ],
         "responses": {
@@ -2498,10 +3557,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/InventarioFisicoRead"
-                  },
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/InventarioFisicoRead"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/PaginatedInventarioFisicoResponse"
+                    }
+                  ],
                   "title": "Response Listar Inventarios Fisicos Api V1 Inv Inventario Fisico Get"
                 }
               }
@@ -2997,6 +4063,7 @@
         "summary": "Listar detalle de movimientos",
         "description": "Lista líneas de detalle de la empresa activa.",
         "operationId": "listar_movimientos_detalle_api_v1_inv_movimientos_detalle_get",
+        "deprecated": true,
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -3231,6 +4298,7 @@
         ],
         "summary": "Listar detalle de inventarios físicos",
         "operationId": "listar_inventarios_fisicos_detalle_api_v1_inv_inventario_fisico_detalle_get",
+        "deprecated": true,
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -3617,6 +4685,66 @@
         }
       }
     },
+    "/api/v1/inv/{movimiento_id}/estornar": {
+      "post": {
+        "tags": [
+          "INV - Inventarios",
+          "INV - Movimientos Proceso"
+        ],
+        "summary": "Estornar movimiento procesado (compensatorio + reversión stock)",
+        "description": "Estorna un movimiento procesado de la empresa activa en sesión.",
+        "operationId": "estornar_movimiento_api_v1_inv__movimiento_id__estornar_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "movimiento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Movimiento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MotivoEstorno",
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovimientoRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/inv/kardex": {
       "get": {
         "tags": [
@@ -3635,21 +4763,14 @@
           {
             "name": "producto_id",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filtrar por producto",
+              "type": "string",
+              "format": "uuid",
+              "description": "Producto obligatorio para consulta de kardex",
               "title": "Producto Id"
             },
-            "description": "Filtrar por producto"
+            "description": "Producto obligatorio para consulta de kardex"
           },
           {
             "name": "almacen_id",
@@ -3707,6 +4828,85 @@
               "title": "Fecha Hasta"
             },
             "description": "Fecha hasta"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Si se envía, activa respuesta paginada (envelope ERP).",
+              "title": "Page"
+            },
+            "description": "Si se envía, activa respuesta paginada (envelope ERP)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tamaño de página (solo aplica con page). Default 50, máx 100.",
+              "title": "Limit"
+            },
+            "description": "Tamaño de página (solo aplica con page). Default 50, máx 100."
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Columna whitelist para ordenar (ver documentación del recurso).",
+              "title": "Sort By"
+            },
+            "description": "Columna whitelist para ordenar (ver documentación del recurso)."
+          },
+          {
+            "name": "sort_dir",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Dirección de orden: asc o desc. Solo aplica con sort_by.",
+              "title": "Sort Dir"
+            },
+            "description": "Dirección de orden: asc o desc. Solo aplica con sort_by."
           }
         ],
         "responses": {
@@ -3715,10 +4915,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/KardexLineaRead"
-                  },
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/KardexLineaRead"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/PaginatedKardexResponse"
+                    }
+                  ],
                   "title": "Response Obtener Kardex Api V1 Inv Kardex Get"
                 }
               }
@@ -10591,6 +11798,24 @@
         "type": "object",
         "title": "MotivoAnulacion"
       },
+      "MotivoEstorno": {
+        "properties": {
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          }
+        },
+        "type": "object",
+        "title": "MotivoEstorno"
+      },
       "MovimientoConDetalleCreate": {
         "properties": {
           "empresa_id": {
@@ -13160,6 +14385,429 @@
         },
         "type": "object",
         "title": "MovimientoUpdate"
+      },
+      "PaginatedAlmacenResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AlmacenRead"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Registros de la página actual"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total de registros que coinciden con filtros"
+          },
+          "pagina_actual": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagina Actual",
+            "description": "Página solicitada"
+          },
+          "total_paginas": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Paginas",
+            "description": "Total de páginas disponibles"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Tamaño de página efectivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "pagina_actual",
+          "total_paginas",
+          "limit"
+        ],
+        "title": "PaginatedAlmacenResponse",
+        "description": "Listado paginado de almacenes."
+      },
+      "PaginatedCategoriaResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CategoriaRead"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Registros de la página actual"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total de registros que coinciden con filtros"
+          },
+          "pagina_actual": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagina Actual",
+            "description": "Página solicitada"
+          },
+          "total_paginas": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Paginas",
+            "description": "Total de páginas disponibles"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Tamaño de página efectivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "pagina_actual",
+          "total_paginas",
+          "limit"
+        ],
+        "title": "PaginatedCategoriaResponse",
+        "description": "Listado paginado de categorías."
+      },
+      "PaginatedInventarioFisicoResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InventarioFisicoRead"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Registros de la página actual"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total de registros que coinciden con filtros"
+          },
+          "pagina_actual": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagina Actual",
+            "description": "Página solicitada"
+          },
+          "total_paginas": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Paginas",
+            "description": "Total de páginas disponibles"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Tamaño de página efectivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "pagina_actual",
+          "total_paginas",
+          "limit"
+        ],
+        "title": "PaginatedInventarioFisicoResponse",
+        "description": "Listado paginado de inventarios físicos."
+      },
+      "PaginatedKardexResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KardexLineaRead"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Registros de la página actual"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total de registros que coinciden con filtros"
+          },
+          "pagina_actual": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagina Actual",
+            "description": "Página solicitada"
+          },
+          "total_paginas": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Paginas",
+            "description": "Total de páginas disponibles"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Tamaño de página efectivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "pagina_actual",
+          "total_paginas",
+          "limit"
+        ],
+        "title": "PaginatedKardexResponse",
+        "description": "Listado paginado de kardex."
+      },
+      "PaginatedMovimientoResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MovimientoRead"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Registros de la página actual"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total de registros que coinciden con filtros"
+          },
+          "pagina_actual": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagina Actual",
+            "description": "Página solicitada"
+          },
+          "total_paginas": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Paginas",
+            "description": "Total de páginas disponibles"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Tamaño de página efectivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "pagina_actual",
+          "total_paginas",
+          "limit"
+        ],
+        "title": "PaginatedMovimientoResponse",
+        "description": "Listado paginado de movimientos."
+      },
+      "PaginatedProductoResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductoRead"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Registros de la página actual"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total de registros que coinciden con filtros"
+          },
+          "pagina_actual": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagina Actual",
+            "description": "Página solicitada"
+          },
+          "total_paginas": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Paginas",
+            "description": "Total de páginas disponibles"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Tamaño de página efectivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "pagina_actual",
+          "total_paginas",
+          "limit"
+        ],
+        "title": "PaginatedProductoResponse",
+        "description": "Listado paginado de productos."
+      },
+      "PaginatedStockResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StockRead"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Registros de la página actual"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total de registros que coinciden con filtros"
+          },
+          "pagina_actual": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagina Actual",
+            "description": "Página solicitada"
+          },
+          "total_paginas": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Paginas",
+            "description": "Total de páginas disponibles"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Tamaño de página efectivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "pagina_actual",
+          "total_paginas",
+          "limit"
+        ],
+        "title": "PaginatedStockResponse",
+        "description": "Listado paginado de stocks."
+      },
+      "PaginatedTipoMovimientoResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TipoMovimientoRead"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Registros de la página actual"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total de registros que coinciden con filtros"
+          },
+          "pagina_actual": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagina Actual",
+            "description": "Página solicitada"
+          },
+          "total_paginas": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Paginas",
+            "description": "Total de páginas disponibles"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Tamaño de página efectivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "pagina_actual",
+          "total_paginas",
+          "limit"
+        ],
+        "title": "PaginatedTipoMovimientoResponse",
+        "description": "Listado paginado de tipos de movimiento."
+      },
+      "PaginatedUnidadMedidaResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UnidadMedidaRead"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "Registros de la página actual"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "Total de registros que coinciden con filtros"
+          },
+          "pagina_actual": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Pagina Actual",
+            "description": "Página solicitada"
+          },
+          "total_paginas": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Paginas",
+            "description": "Total de páginas disponibles"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Tamaño de página efectivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "pagina_actual",
+          "total_paginas",
+          "limit"
+        ],
+        "title": "PaginatedUnidadMedidaResponse",
+        "description": "Listado paginado de unidades de medida."
       },
       "ProductoCreate": {
         "properties": {

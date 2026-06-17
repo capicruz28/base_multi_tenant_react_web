@@ -43,7 +43,22 @@ export interface UserData {
   /** Empresas elegibles (usuario_rol) desde GET /auth/me o login Schema A. */
   empresas_disponibles?: EmpresaOption[] | null;
   es_admin_cliente?: boolean;
+  /** Obligatorio cambiar contraseña antes de ERP (usuario local). */
+  requires_password_change?: boolean;
 }
+
+/** Body POST /auth/password/change/ (web: sin refresh_token en body). */
+export interface PasswordChangeRequest {
+  current_password: string;
+  new_password: string;
+  refresh_token?: string | null;
+}
+
+/** Ruta pantalla cambio obligatorio (hermana de /login). */
+export const APP_CHANGE_PASSWORD = '/change-password';
+
+/** error_code HTTP 403 cuando el usuario debe cambiar contraseña antes de ERP. */
+export const ERROR_CODE_PASSWORD_CHANGE_REQUIRED = 'PASSWORD_CHANGE_REQUIRED';
 
 /** Sesión completa tras login o selección/cambio de empresa. */
 export interface Token {
@@ -75,7 +90,7 @@ export function isLoginEmpresaSelectionResponse(
   data: LoginResponse,
 ): data is LoginEmpresaSelectionResponse {
   if (typeof data !== 'object' || data === null) return false;
-  const record = data as Record<string, unknown>;
+  const record = data as unknown as Record<string, unknown>;
   if (
     typeof record.access_token === 'string' &&
     record.access_token.trim().length > 0

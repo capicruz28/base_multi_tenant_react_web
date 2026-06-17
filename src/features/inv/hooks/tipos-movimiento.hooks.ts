@@ -1,11 +1,20 @@
+import { useEffect, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useTenantQuery } from '@/core/hooks/useTenantQuery';
+import { useErpListQuery, type ErpListResourceConfig } from '@/core/list';
 import { getErrorMessage } from '@/core/services/error.service';
-import { tipoMovimientoService } from '../services/inv.service';
-import type { TipoMovimiento, TipoMovimientoCreate, TipoMovimientoUpdate } from '../types/inv.types';
+import { buildInvListQuery, invFetchList, tipoMovimientoService } from '../services/inv.service';
+import type { InvListParams, TipoMovimiento, TipoMovimientoCreate, TipoMovimientoUpdate } from '../types/inv.types';
 import { INV_LIST_STALE_TIME_MS } from './inv-query-defaults';
 import { useInvCompanyQueryGate } from './inv-company-query-gate';
+
+export const TIPOS_MOVIMIENTO_LIST_CONFIG: ErpListResourceConfig = {
+  tier: 'B',
+  sortableColumns: ['codigo', 'nombre', 'clase_movimiento', 'fecha_creacion'],
+  defaultLimit: 50,
+  forcePagination: true,
+};
 
 const qk = {
   list: (scopeEmpresaId: string, soloActivos: boolean) =>
@@ -13,6 +22,43 @@ const qk = {
   detail: (tipoMovimientoId: string, scopeEmpresaId: string) =>
     ['inv', 'tipo-movimiento', 'detail', tipoMovimientoId, scopeEmpresaId] as const,
 };
+
+export function useTiposMovimientoErpList(options?: {
+  solo_activos?: boolean;
+  debouncedBuscar?: string;
+  enabled?: boolean;
+}) {
+  const { scopeEmpresaId, enabled: gateEnabled } = useInvCompanyQueryGate(options);
+  const soloActivos = options?.solo_activos ?? true;
+  const debouncedBuscar = options?.debouncedBuscar;
+
+  const baseFilters = useMemo(
+    () => ({
+      solo_activos: soloActivos,
+      empresa_id: scopeEmpresaId ?? undefined,
+    }),
+    [soloActivos, scopeEmpresaId],
+  );
+
+  const listQuery = useErpListQuery<TipoMovimiento, typeof baseFilters>({
+    queryKeyPrefix: ['inv', 'tipo-movimiento', 'list', scopeEmpresaId ?? ''],
+    fetcher: (params) =>
+      invFetchList<TipoMovimiento>('/tipos-movimiento', buildInvListQuery(params as InvListParams)),
+    baseFilters,
+    debouncedBuscar,
+    config: TIPOS_MOVIMIENTO_LIST_CONFIG,
+    enabled: gateEnabled,
+    staleTime: INV_LIST_STALE_TIME_MS,
+  });
+
+  const { setPage } = listQuery;
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedBuscar, soloActivos, setPage]);
+
+  return listQuery;
+}
 
 export function useTiposMovimiento(options?: { solo_activos?: boolean; enabled?: boolean }) {
   const { scopeEmpresaId, enabled: gateEnabled } = useInvCompanyQueryGate(options);

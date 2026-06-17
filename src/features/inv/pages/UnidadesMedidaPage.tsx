@@ -5,9 +5,10 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { Ruler, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { useDebouncedSearch } from '@/core/list';
+import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
 import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
-import { matchesInvCatalogSearch } from '../utils/inv-catalog-client-search';
 import type { UnidadMedida, UnidadMedidaCreate, UnidadMedidaUpdate } from '../types/inv.types';
 import { InvPageLayout } from '../components/InvPageLayout';
 import { InvTableSkeleton } from '../components/InvTableSkeleton';
@@ -24,10 +25,11 @@ import {
 import { Label } from '@/shared/components/ui/label';
 import { usePermissions } from '@/core/auth/hooks/usePermissions';
 import {
+  UNIDADES_MEDIDA_LIST_CONFIG,
   useCreateUnidadMedida,
   useDeleteUnidadMedida,
   useReactivarUnidadMedida,
-  useUnidadesMedida,
+  useUnidadesMedidaErpList,
   useUpdateUnidadMedida,
 } from '../hooks/unidades-medida.hooks';
 import { useInvSessionScope, useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
@@ -51,7 +53,7 @@ const DEFAULT: UnidadMedidaCreate = { empresa_id: '', codigo: '', nombre: '', ti
 export default function UnidadesMedidaPage() {
   const { can } = usePermissions();
   const { scopeEmpresaId, canQueryCompanyScoped } = useInvSessionScope();
-  const [buscar, setBuscar] = useState('');
+  const search = useDebouncedSearch();
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -63,28 +65,26 @@ export default function UnidadesMedidaPage() {
   const [bajaTarget, setBajaTarget] = useState<UnidadMedida | null>(null);
   const [reactivarTarget, setReactivarTarget] = useState<UnidadMedida | null>(null);
 
+  const unidadesList = useUnidadesMedidaErpList({
+    solo_activos: !mostrarInactivos,
+    debouncedBuscar: search.debouncedValue || undefined,
+  });
+
   const resetPageFilters = useCallback(() => {
-    setBuscar('');
+    search.clear();
+    unidadesList.setPage(1);
+    unidadesList.clearSort();
     setMostrarInactivos(false);
     setCreateOpen(false);
     setEditOpen(false);
     setEditing(null);
     setEditFormSnapshot(null);
     setDiscardPending(null);
-  }, []);
+  }, [search.clear, unidadesList.setPage, unidadesList.clearSort]);
   useInvScopeEmpresaReset(resetPageFilters);
 
-  const unidadesQuery = useUnidadesMedida({
-    solo_activos: !mostrarInactivos,
-  });
-  const rawList = unidadesQuery.data ?? [];
-  const hasSearch = buscar.trim().length > 0;
-  const list = useMemo(() => {
-    if (!hasSearch) return rawList;
-    return rawList.filter((row) =>
-      matchesInvCatalogSearch(buscar, row.codigo, row.nombre, row.simbolo, row.tipo_unidad),
-    );
-  }, [rawList, buscar, hasSearch]);
+  const list = unidadesList.items;
+  const hasSearch = search.hasSearch;
 
   const createMutation = useCreateUnidadMedida();
   const updateMutation = useUpdateUnidadMedida();
@@ -251,8 +251,8 @@ export default function UnidadesMedidaPage() {
         }
       >
         <OrgToolbarSearch
-          value={buscar}
-          onChange={setBuscar}
+          value={search.inputValue}
+          onChange={search.setInputValue}
           placeholder="Código, nombre, símbolo..."
           aria-label="Buscar unidades de medida"
           disabled={discardPending !== null}
@@ -268,21 +268,39 @@ export default function UnidadesMedidaPage() {
         </label>
       </OrgCompanyToolbar>
 
-      {unidadesQuery.isLoading && <InvTableSkeleton columns={TABLE_COLSPAN} />}
-      {unidadesQuery.error && !unidadesQuery.isLoading && (
+      {unidadesList.isLoading && <InvTableSkeleton columns={TABLE_COLSPAN} />}
+      {unidadesList.isError && !unidadesList.isLoading && (
         <p className="text-error bg-error/10 p-4 rounded-lg">
-          {getErrorMessage(unidadesQuery.error).message}
+          {getErrorMessage(unidadesList.error).message}
         </p>
       )}
-      {!unidadesQuery.isLoading && !unidadesQuery.error && (
+      {!unidadesList.isLoading && !unidadesList.isError && (
         <div className="overflow-x-auto rounded-lg border border-border-base shadow">
           <table className="min-w-full divide-y divide-border-base">
             <thead className="bg-subtle">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Código</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Nombre</th>
+                <ErpSortableHeader
+                  column="codigo"
+                  label="Código"
+                  sortableColumns={UNIDADES_MEDIDA_LIST_CONFIG.sortableColumns}
+                  sort={unidadesList.sort}
+                  onSort={unidadesList.toggleSort}
+                />
+                <ErpSortableHeader
+                  column="nombre"
+                  label="Nombre"
+                  sortableColumns={UNIDADES_MEDIDA_LIST_CONFIG.sortableColumns}
+                  sort={unidadesList.sort}
+                  onSort={unidadesList.toggleSort}
+                />
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Símbolo</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Tipo</th>
+                <ErpSortableHeader
+                  column="tipo_unidad"
+                  label="Tipo"
+                  sortableColumns={UNIDADES_MEDIDA_LIST_CONFIG.sortableColumns}
+                  sort={unidadesList.sort}
+                  onSort={unidadesList.toggleSort}
+                />
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Base</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Estado</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-text-soft uppercase">Acciones</th>
@@ -378,6 +396,14 @@ export default function UnidadesMedidaPage() {
               )}
             </tbody>
           </table>
+          {unidadesList.pagination ? (
+            <ErpPagination
+              pagination={unidadesList.pagination}
+              onPageChange={unidadesList.setPage}
+              onLimitChange={unidadesList.setLimit}
+              disabled={discardPending !== null || unidadesList.isFetching}
+            />
+          ) : null}
         </div>
       )}
       <OrgDiscardConfirmDialog

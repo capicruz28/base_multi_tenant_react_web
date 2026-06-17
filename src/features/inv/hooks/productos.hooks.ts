@@ -1,11 +1,21 @@
+import { useEffect, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useTenantQuery } from '@/core/hooks/useTenantQuery';
+import { useErpListQuery, type ErpListResourceConfig } from '@/core/list';
 import { getErrorMessage } from '@/core/services/error.service';
-import { productoService } from '../services/inv.service';
-import type { Producto, ProductoCreate, ProductoUpdate } from '../types/inv.types';
+import { buildInvListQuery, invFetchList, productoService } from '../services/inv.service';
+import type { InvListParams, Producto, ProductoCreate, ProductoUpdate } from '../types/inv.types';
 import { INV_LIST_STALE_TIME_MS } from './inv-query-defaults';
 import { useInvCompanyQueryGate } from './inv-company-query-gate';
+
+/** Whitelist sort server — FRONTEND_LISTADOS_CONTRACT_V1 §4 INV productos. */
+export const PRODUCTOS_LIST_CONFIG: ErpListResourceConfig = {
+  tier: 'B',
+  sortableColumns: ['codigo_sku', 'nombre', 'tipo_producto', 'fecha_creacion'],
+  defaultLimit: 50,
+  forcePagination: true,
+};
 
 const qk = {
   list: (
@@ -28,6 +38,43 @@ const qk = {
   detail: (productoId: string, scopeEmpresaId: string) =>
     ['inv', 'producto', 'detail', productoId, scopeEmpresaId] as const,
 };
+
+export function useProductosErpList(options?: {
+  solo_activos?: boolean;
+  debouncedBuscar?: string;
+  enabled?: boolean;
+}) {
+  const { scopeEmpresaId, enabled: gateEnabled } = useInvCompanyQueryGate(options);
+  const soloActivos = options?.solo_activos ?? true;
+  const debouncedBuscar = options?.debouncedBuscar;
+
+  const baseFilters = useMemo(
+    () => ({
+      solo_activos: soloActivos,
+      empresa_id: scopeEmpresaId ?? undefined,
+    }),
+    [soloActivos, scopeEmpresaId],
+  );
+
+  const listQuery = useErpListQuery<Producto, typeof baseFilters>({
+    queryKeyPrefix: ['inv', 'producto', 'list', scopeEmpresaId ?? ''],
+    fetcher: (params) =>
+      invFetchList<Producto>('/productos', buildInvListQuery(params as InvListParams)),
+    baseFilters,
+    debouncedBuscar,
+    config: PRODUCTOS_LIST_CONFIG,
+    enabled: gateEnabled,
+    staleTime: INV_LIST_STALE_TIME_MS,
+  });
+
+  const { setPage } = listQuery;
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedBuscar, soloActivos, setPage]);
+
+  return listQuery;
+}
 
 export function useProductos(options?: {
   categoria_id?: string;

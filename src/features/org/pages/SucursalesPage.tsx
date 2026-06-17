@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { MapPin, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { useDebouncedSearch } from '@/core/list';
 import { OrgToolbarSearch } from '../components/OrgToolbarSearch';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
 import type { Sucursal, SucursalCreate, SucursalUpdate } from '../types/org.types';
@@ -77,13 +78,14 @@ const SUCURSAL_DEFAULT: SucursalCreate = {
 export default function SucursalesPage() {
   const { scopeEmpresaId, canQueryCompanyScoped } = useOrgSessionScope();
   const [includeInactive, setIncludeInactive] = useState(false);
-  const [buscar, setBuscar] = useState('');
+  const search = useDebouncedSearch();
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Sucursal | null>(null);
   const [form, setForm] = useState<SucursalCreate>(SUCURSAL_DEFAULT);
   const [editForm, setEditForm] = useState<SucursalUpdate>({});
   const [deleteTarget, setDeleteTarget] = useState<Sucursal | null>(null);
+  const [reactivarTarget, setReactivarTarget] = useState<Sucursal | null>(null);
   const [paises, setPaises] = useState<CatPais[]>([]);
   const [departamentos, setDepartamentos] = useState<CatDepartamento[]>([]);
   const [provincias, setProvincias] = useState<CatProvincia[]>([]);
@@ -101,7 +103,7 @@ export default function SucursalesPage() {
   const canEliminar = can('org', 'eliminar');
 
   const resetLocalFilters = useCallback(() => {
-    setBuscar('');
+    search.clear();
     setIncludeInactive(false);
     setCreateOpen(false);
     setEditOpen(false);
@@ -113,7 +115,8 @@ export default function SucursalesPage() {
     setSelectedProvinciaId('');
     setSelectedDistritoId('');
     setDeleteTarget(null);
-  }, []);
+    setReactivarTarget(null);
+  }, [search.clear]);
   useOrgScopeEmpresaReset(resetLocalFilters);
 
   const createGeo = useMemo(
@@ -123,7 +126,7 @@ export default function SucursalesPage() {
 
   const listQuery = useSucursales({
     solo_activos: !includeInactive,
-    buscar,
+    buscar: search.debouncedValue,
     enabled: canQueryCompanyScoped,
   });
   const list: Sucursal[] = listQuery.data ?? [];
@@ -143,8 +146,7 @@ export default function SucursalesPage() {
 
   const submitting = createSucursal.isPending || updateSucursal.isPending;
   const deleting = deleteSucursal.isPending;
-  const reactivatingId = reactivarSucursal.variables?.sucursalId ?? null;
-  const hasSearch = buscar.trim().length > 0;
+  const hasSearch = search.hasSearch;
   const TABLE_COLSPAN = 8;
 
   // Cargar catálogos geográficos una sola vez (igual que en EmpresaPage)
@@ -327,9 +329,11 @@ export default function SucursalesPage() {
     }
   };
 
-  const handleReactivar = async (row: Sucursal) => {
+  const confirmarReactivar = async () => {
+    if (!reactivarTarget) return;
     try {
-      await reactivarSucursal.mutateAsync({ sucursalId: row.sucursal_id });
+      await reactivarSucursal.mutateAsync({ sucursalId: reactivarTarget.sucursal_id });
+      setReactivarTarget(null);
     } catch {
       /* toast de error: onError en useReactivarSucursal */
     }
@@ -352,8 +356,8 @@ export default function SucursalesPage() {
         }
       >
         <OrgToolbarSearch
-          value={buscar}
-          onChange={setBuscar}
+          value={search.inputValue}
+          onChange={search.setInputValue}
           placeholder="Código, nombre, dirección..."
           aria-label="Buscar sucursales"
           disabled={discardPending !== null}
@@ -434,41 +438,46 @@ export default function SucursalesPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 flex items-center justify-center gap-1">
-                      {canEditar && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEdit(row)}
-                          disabled={discardPending !== null}
-                          className="text-brand-primary hover:text-brand-primary/80"
-                          title="Editar"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canEditar && !row.es_activo && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleReactivar(row)}
-                          disabled={!!reactivatingId}
-                          className="text-success hover:text-success/80"
-                          title="Reactivar"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canEliminar && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteTarget(row)}
-                          disabled={discardPending !== null}
-                          className="text-error hover:text-error hover:bg-error/10"
-                          title="Desactivar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      {row.es_activo ? (
+                        <>
+                          {canEditar && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEdit(row)}
+                              disabled={discardPending !== null}
+                              className="text-brand-primary hover:text-brand-primary/80"
+                              title="Editar"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canEliminar && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteTarget(row)}
+                              disabled={discardPending !== null}
+                              className="text-error hover:text-error hover:bg-error/10"
+                              title="Desactivar"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        canEditar && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setReactivarTarget(row)}
+                            disabled={reactivarSucursal.isPending || discardPending !== null}
+                            className="text-success hover:text-success/80"
+                            title="Reactivar"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )
                       )}
                     </td>
                   </tr>
@@ -495,6 +504,17 @@ export default function SucursalesPage() {
         cancelText="Cancelar"
         variant="danger"
         loading={deleting}
+      />
+      <ConfirmDialog
+        isOpen={!!reactivarTarget && discardPending === null}
+        onClose={() => setReactivarTarget(null)}
+        onConfirm={() => void confirmarReactivar()}
+        title="Reactivar sucursal"
+        message={reactivarTarget ? `¿Reactivar sucursal '${reactivarTarget.nombre}'? Volverá a estar disponible.` : ''}
+        confirmText="Reactivar"
+        cancelText="Cancelar"
+        variant="info"
+        loading={reactivarSucursal.isPending}
       />
 
       <Dialog open={createOpen} onOpenChange={handleCreateDialogOpenChange}>

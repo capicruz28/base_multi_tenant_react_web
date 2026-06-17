@@ -105,6 +105,12 @@ Antes de tratarlo como correcto, evalúa:
 4. ¿Usa campos que no existen en el contrato API actual? → Desalineado
 5. ¿Falta loading/error/empty state? → Incompleto
 6. ¿Selector local de empresa o "Todas las empresas" en toolbar? → Desalineado (V2 ME-02)
+7. ¿Radix Dialog abierto con ConfirmDialog abierto? → Desalineado (V2 AP-13, B11-10)
+8. ¿Catálogo con Editar/Desactivar en filas inactivas o Reactivar en activas? → Desalineado (V2 RB-ROW-01)
+9. ¿Listado B-L abre detalle con click en fila o Editar/workflow en grilla? → Desalineado (V2 PB-15…PB-18, ERP-BL-ACT-01)
+10. ¿B-F sin `useInvRbacFormAccess` tras permisos inicializados? → Incompleto (V2 SEC-14)
+11. ¿Tabla Tier B/C sin `use*ErpList` / `normalizeListResponse`? → Desalineado (V2 §5.11 LR-01, LR-N01)
+12. ¿Hook legacy full-load alimentando tabla Tier B/C o dashboard operativo? → Desalineado (V2 LR-08)
 
 Clasificación:
 ✅ CORRECTO      — Consume endpoint activo, tipado correcto, UX completo
@@ -161,6 +167,9 @@ Norma: V2 §8.5 ER-02
 - Rutas company: `*CompanyRouteGuard`; create → `OrgSessionEmpresaField` readonly — ME-05
 - Hooks GET nuevos: `useTenantQuery` además de gate empresa cuando aplique — ME-10
 - Patrón por módulo: copiar INV/ORG (`useInvSessionScope`, `InvCompanyRouteGuard`, etc.) — V2 §4.5, §10
+- Tenant-scoped: `OrgTenantRouteGuard` (ORG `EmpresaPage`) — V2 §4.5
+- Hybrid: `useOrgHybridQueryGate` — V2 §4.5
+- Reset empresa: `useOrgScopeEmpresaReset` / `useInvScopeEmpresaReset` — ME-09
 - Auth / impersonation: V2 §4.8 AUTH-xx, IMP-xx
 
 ---
@@ -174,6 +183,25 @@ Norma: V2 §8.5 ER-02
 - Modales CRUD multi-campo: **B.1.1** dirty — `OrgDiscardConfirmDialog`, `createOrgDiscardHandlers` — V2 §7.1 B11-xx
 - Vocabulario baja: **Desactivar / Reactivar** — nunca "Eliminar" — V2 §8.4 UX-01
 - Referencias canónicas: INV catálogos (M3), ORG E-SEC — V2 §9.2, §9.3
+- Acciones fila catálogo: `row.es_activo === true` → Editar + Desactivar; `false` → Reactivar solo — ternario obligatorio (V2 §5.10 RB-ROW-01…03)
+- Modal largo A+: `DialogBody` + scroll interno — V2 §7.1.2 MD-05…08
+- Create dirty A+: `useOrgModalCreateDirty` — V2 §5.8 PA+-02
+- Listados Tier B/C: §5.11 — `use*ErpList`, `normalizeListResponse`, `ErpPagination` — norma plataforma (PUR/SLS/FIN/CRM, etc.)
+- Tier A ORG: debounce + `buscar` server; full-load OK — §5.11.1
+- `matchesInvCatalogSearch`: **DEPRECATED** — no usar en listados nuevos (V2 §5.3.1, §5.11.6)
+
+---
+
+## ERP — LISTADOS PERF (V2 §5.11)
+
+- Tier B/C tabla: MUST `useErpListQuery` vía `use*ErpList` — LR-01, LR-02
+- Respuesta API: MUST `normalizeListResponse` — tolera `list[]` y envelope; **prohibidos** adaptadores ad hoc por pantalla — LR-N01…LR-N04
+- Debounce búsqueda: `useDebouncedSearch` 350 ms — SR-03; empty con `hasSearch` — SR-02
+- Paginación UI: `ErpPagination` si API expone `page`/`limit` — PR-01, PR-02
+- Legacy full-load (`useXxx` sin ErpList): **solo** selects, comboboxes, FK lookups y modales — LR-08
+- **Prohibido** legacy full-load en tablas Tier B/C, búsquedas masivas y dashboards operativos — LR-08
+- Referencias canónicas ORG/INV: §5.11.5; copiar stack en módulos futuros — no reimplementar ad hoc
+- Contrato whitelists: `FRONTEND_LISTADOS_CONTRACT_V1.md`
 
 ---
 
@@ -183,6 +211,30 @@ Norma: V2 §8.5 ER-02
 - B-F dirty: `useInvTransactionalFormGuard` (o sucesor module-local) — SEC-01
 - B-L / B-R: toolbar operativa propia — sin patrón "Ver inactivos" de catálogo — PB-01
 - Layout secciones: `bg-surface border border-border-base rounded-lg shadow-sm` — CD-08, CD-09
+- B-L workflow: cerrar Dialog detalle antes de ConfirmDialog; nunca Radix `open` + Confirm `isOpen` a la vez (V2 B11-10, PB-13, PB-14)
+- B-L Hub (ERP-BL-ACT-01): columna Acciones solo «Ver detalle» (Eye); MUST NOT click fila; workflow + «Editar documento» solo en modal — V2 §6.3.1 PB-15…PB-21
+- B-L confirm workflow con campos: dirty guard baseline + OrgDiscardConfirmDialog — V2 §7.3.1 SEC-11…13 (ref. INV-UX-003/004)
+- B-L detalle largo: `DialogBody` en modal Hub — V2 §7.1.2
+- B-L workflow dominio: helpers `*-workflow.ui.ts` — V2 §6.3.1
+- B-F RBAC ruta: `useInvRbacFormAccess` + `INV_PERMISSIONS` — V2 SEC-14, §8.3.1
+
+---
+
+## ERP — DIRTY FORMS (V2 §7.1, §5.8)
+
+- Baseline create dinámico A+: `useOrgModalCreateDirty` + `isDirtyAgainstBaseline`
+- Handlers: `createOrgDiscardHandlers` + `OrgDiscardConfirmDialog` (B11-01…11)
+- Utils: `form-dirty/*` por entidad (ORG/INV)
+- Norma completa: V2 §7.1 — no redefinir B11 aquí
+
+---
+
+## ERP — RBAC NEGOCIO vs CATÁLOGO (V2 §8.3, §8.3.1)
+
+- Catálogos A/T/H: `usePermissions` → `can(modulo, accion)` — RB-01
+- Transaccional B-L/B-F INV: `usePermission` → `hasPermission(INV_PERMISSIONS.…)` — RB-N01
+- B-F acceso ruta: `useInvRbacFormAccess` — SEC-14
+- IAM/LBAC: §9.1 — no mezclar con RBAC negocio ERP
 
 ---
 
@@ -212,11 +264,12 @@ Norma detallada → V2 §5, §6, §8. Solo recordatorios diarios:
 ### Feedback
 - Error: mensaje claro + reintentar; nunca solo `console.error`
 - Toast éxito tras crear/actualizar/desactivar/reactivar
-- ConfirmDialog antes de desactivar, anular, aprobar (V2 §8.4)
+- ConfirmDialog: `danger` = desactivar/anular; `info` = reactivar; `warning` = discard dirty y workflow positivo (aprobar/autorizar/procesar/finalizar) — V2 §8.8 UX-05…08
 - Listados Plantilla A: **InvTableSkeleton** + **IamTableEmptyState** — no Loader full-page ocultando tabla (SK-01, ES-01)
 
 ### Tablas
-- Paginación si el endpoint la soporta (V2 §8.7 PR-xx)
+- Tier B/C: paginación server + `ErpPagination` — V2 §5.11, §8.7 PR-01…PR-04
+- Tier A: paginación opcional; debounce + `buscar` server
 - Filtros: búsqueda, estado, filtros de **dominio** — **sin** selector empresa en toolbar (ME-02)
 - Badge estado semántico; RBAC: no renderizar acción sin permiso (RB-01)
 
@@ -224,6 +277,7 @@ Norma detallada → V2 §5, §6, §8. Solo recordatorios diarios:
 - Tamaño proporcional al contenido
 - Formulario dirty: confirmar antes de descartar — V2 §7.1 B11-01…B11-06
 - `ConfirmDialog` baja/reactivar **independiente** de discard dirty — B11-02
+- Cerrar Radix Dialog antes de abrir ConfirmDialog — B11-10, B11-11; ver AP-13
 
 ### Transformación visual inputs
 - Códigos/legales → `uppercase`; email/URL → `lowercase` (solo visual)
@@ -322,6 +376,14 @@ Antes de dar por terminada cualquier UI:
 - ¿Inputs con bg-surface + border-border-base; botones primarios con bg-brand-primary?
 - ¿Badges con semánticos (success/error/warning/info), no colores ad hoc?
 - ¿Sin dark:* hardcodeado? (tokens correctos → dark mode automático)
+- ¿Branding inputs/shared/ui? → ver también V2 §8.9 BR-01…05
+
+### BRANDING-01 (implementado — V2 §8.9)
+
+- Checkbox/radio nativos: `accent-color` token branding (`index.css`)
+- shared/ui focus: `ring-brand-primary` en button, checkbox, dialog close
+- Inputs ORG/INV: `focus:ring-brand-primary` en patrón `inputClass`
+- Detalle normativo: V2 §8.9 BR-01…05
 
 ### tema_personalizado — estructura permitida
 El JSON del tenant SOLO puede contener:

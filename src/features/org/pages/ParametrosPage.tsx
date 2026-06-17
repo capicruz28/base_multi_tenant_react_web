@@ -6,6 +6,8 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { Settings, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { useDebouncedSearch } from '@/core/list';
+import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 import { OrgToolbarSearch } from '../components/OrgToolbarSearch';
 import type { Parametro, ParametroCreate, ParametroEfectivo, ParametroUpdate } from '../types/org.types';
 import { OrgPageLayout } from '../components/OrgPageLayout';
@@ -35,6 +37,7 @@ import {
 import { useOrgCanManageGlobalParametros } from '../hooks/useOrgCanManageGlobalParametros';
 import type { ParametroHybridTab } from '../hooks/parametro-query-keys';
 import {
+  PARAMETROS_LIST_CONFIG,
   useCreateParametro,
   useDeleteParametro,
   useParametrosForTab,
@@ -77,13 +80,14 @@ export default function ParametrosPage() {
   const [moduloFilter, setModuloFilter] = useState<string>(MODULO_ORG);
   const [createAlcance, setCreateAlcance] = useState<ParametroAlcanceKind>('override');
   const [includeInactive, setIncludeInactive] = useState(false);
-  const [buscar, setBuscar] = useState('');
+  const search = useDebouncedSearch();
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Parametro | null>(null);
   const [form, setForm] = useState<ParametroCreate>(DEFAULT);
   const [editForm, setEditForm] = useState<ParametroUpdate>({});
   const [deleteTarget, setDeleteTarget] = useState<Parametro | null>(null);
+  const [reactivarTarget, setReactivarTarget] = useState<Parametro | null>(null);
   const [valorJsonStr, setValorJsonStr] = useState<string>('');
   const [editFormSnapshot, setEditFormSnapshot] = useState<EditParametroFormSnapshot | null>(null);
   const [discardPending, setDiscardPending] = useState<OrgDiscardPending>(null);
@@ -93,8 +97,17 @@ export default function ParametrosPage() {
   const canEditar = can('org', 'editar');
   const canEliminar = can('org', 'eliminar');
 
+  const parametrosList = useParametrosForTab(activeTab, {
+    solo_activos: !includeInactive,
+    modulo_codigo: moduloFilter || undefined,
+    debouncedBuscar: search.debouncedValue || undefined,
+    enabled: canQueryHybridScoped,
+  });
+
   const resetLocalFilters = useCallback(() => {
-    setBuscar('');
+    search.clear();
+    parametrosList.setPage(1);
+    parametrosList.clearSort();
     setIncludeInactive(false);
     setModuloFilter(MODULO_ORG);
     setActiveTab('effective');
@@ -105,18 +118,15 @@ export default function ParametrosPage() {
     setEditFormSnapshot(null);
     setDiscardPending(null);
     setDeleteTarget(null);
-  }, []);
+    setReactivarTarget(null);
+  }, [search.clear, parametrosList.setPage, parametrosList.clearSort]);
   useOrgScopeEmpresaReset(resetLocalFilters);
 
-  const listQuery = useParametrosForTab(activeTab, {
-    solo_activos: !includeInactive,
-    modulo_codigo: moduloFilter || undefined,
-    buscar,
-    enabled: canQueryHybridScoped,
-  });
-  const list = (listQuery.data ?? []) as (Parametro | ParametroEfectivo)[];
-  const loading = listQuery.isLoading;
-  const error = listQuery.error ? getErrorMessage(listQuery.error).message : null;
+  const list = parametrosList.items as (Parametro | ParametroEfectivo)[];
+  const loading = parametrosList.isLoading;
+  const error = parametrosList.isError
+    ? getErrorMessage(parametrosList.error).message
+    : null;
 
   const canCreateOnTab = canCrear && canOpenCreateOnTab(activeTab, canManageGlobal, scopeEmpresaId);
   const createForceAlcance: ParametroAlcanceKind | undefined =
@@ -129,8 +139,7 @@ export default function ParametrosPage() {
 
   const submitting = createParametro.isPending || updateParametro.isPending;
   const deleting = deleteParametro.isPending;
-  const reactivatingId = reactivarParametro.variables?.parametroId ?? null;
-  const hasSearch = buscar.trim().length > 0;
+  const hasSearch = search.hasSearch;
   const TABLE_COLSPAN = 8;
 
   const isCreateDialogDirty = useMemo(
@@ -326,9 +335,11 @@ export default function ParametrosPage() {
     }
   };
 
-  const handleReactivar = async (row: Parametro) => {
+  const confirmarReactivar = async () => {
+    if (!reactivarTarget) return;
     try {
-      await reactivarParametro.mutateAsync({ parametroId: row.parametro_id });
+      await reactivarParametro.mutateAsync({ parametroId: reactivarTarget.parametro_id });
+      setReactivarTarget(null);
     } catch {
       /* toast de error: onError en useReactivarParametro */
     }
@@ -442,8 +453,8 @@ export default function ParametrosPage() {
           <option value="SLS">SLS</option>
         </select>
         <OrgToolbarSearch
-          value={buscar}
-          onChange={setBuscar}
+          value={search.inputValue}
+          onChange={search.setInputValue}
           placeholder="Código, nombre..."
           aria-label="Buscar parámetros"
           disabled={discardPending !== null}
@@ -466,9 +477,27 @@ export default function ParametrosPage() {
           <table className="min-w-full divide-y divide-border-base">
             <thead className="bg-subtle">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Módulo</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Código</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Nombre</th>
+                <ErpSortableHeader
+                  column="modulo_codigo"
+                  label="Módulo"
+                  sortableColumns={PARAMETROS_LIST_CONFIG.sortableColumns}
+                  sort={parametrosList.sort}
+                  onSort={parametrosList.toggleSort}
+                />
+                <ErpSortableHeader
+                  column="codigo_parametro"
+                  label="Código"
+                  sortableColumns={PARAMETROS_LIST_CONFIG.sortableColumns}
+                  sort={parametrosList.sort}
+                  onSort={parametrosList.toggleSort}
+                />
+                <ErpSortableHeader
+                  column="nombre_parametro"
+                  label="Nombre"
+                  sortableColumns={PARAMETROS_LIST_CONFIG.sortableColumns}
+                  sort={parametrosList.sort}
+                  onSort={parametrosList.toggleSort}
+                />
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Alcance</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Tipo</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Valor</th>
@@ -516,27 +545,32 @@ export default function ParametrosPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 flex items-center justify-center gap-1">
-                      {canEditar && rowCanMutate(row) && (
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(row)} disabled={discardPending !== null} className="text-brand-primary hover:text-brand-primary/80" title="Editar">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canEditar && rowCanMutate(row) && !row.es_activo && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleReactivar(row)}
-                          disabled={!!reactivatingId}
-                          className="text-success hover:text-success/80"
-                          title="Reactivar"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canEliminar && rowCanMutate(row) && (
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(row)} disabled={discardPending !== null} className="text-error hover:text-error hover:bg-error/10" title="Desactivar">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      {row.es_activo ? (
+                        <>
+                          {canEditar && rowCanMutate(row) && (
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(row)} disabled={discardPending !== null} className="text-brand-primary hover:text-brand-primary/80" title="Editar">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canEliminar && rowCanMutate(row) && (
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(row)} disabled={discardPending !== null} className="text-error hover:text-error hover:bg-error/10" title="Desactivar">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        canEditar && rowCanMutate(row) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setReactivarTarget(row)}
+                            disabled={reactivarParametro.isPending || discardPending !== null}
+                            className="text-success hover:text-success/80"
+                            title="Reactivar"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )
                       )}
                     </td>
                   </tr>
@@ -544,6 +578,14 @@ export default function ParametrosPage() {
               )}
             </tbody>
           </table>
+          {parametrosList.pagination ? (
+            <ErpPagination
+              pagination={parametrosList.pagination}
+              onPageChange={parametrosList.setPage}
+              onLimitChange={parametrosList.setLimit}
+              disabled={discardPending !== null || parametrosList.isFetching}
+            />
+          ) : null}
         </div>
       )}
 
@@ -563,6 +605,17 @@ export default function ParametrosPage() {
         cancelText="Cancelar"
         variant="danger"
         loading={deleting}
+      />
+      <ConfirmDialog
+        isOpen={!!reactivarTarget && discardPending === null}
+        onClose={() => setReactivarTarget(null)}
+        onConfirm={() => void confirmarReactivar()}
+        title="Reactivar parámetro"
+        message={reactivarTarget ? `¿Reactivar parámetro '${reactivarTarget.nombre_parametro}'? Volverá a estar disponible.` : ''}
+        confirmText="Reactivar"
+        cancelText="Cancelar"
+        variant="info"
+        loading={reactivarParametro.isPending}
       />
 
       <Dialog open={createOpen} onOpenChange={handleCreateDialogOpenChange}>

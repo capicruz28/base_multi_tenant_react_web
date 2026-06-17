@@ -7,6 +7,7 @@ import {
 } from '@/core/routing/post-login-path';
 import { useEmpresaSelectionStore } from '@/features/auth/stores/empresa-selection.store';
 import { shouldOnboardEmpresa } from '@/core/auth/utils/empresa-access';
+import { APP_CHANGE_PASSWORD } from '@/features/auth/types/auth.types';
 
 /**
  * Redirección según contexto de usuario (raíz `/`).
@@ -15,7 +16,6 @@ import { shouldOnboardEmpresa } from '@/core/auth/utils/empresa-access';
 const SmartRedirect: React.FC = () => {
   const {
     isSuperAdmin,
-    accessLevel,
     userType,
     loading,
     authInitialized,
@@ -25,6 +25,7 @@ const SmartRedirect: React.FC = () => {
     requiereSeleccionEmpresa,
     empresasDisponibles,
     menuModulos,
+    requiresPasswordChange,
   } = useAuth();
   const hasPendingSelection = useEmpresaSelectionStore((s) => s.hasPendingSelection());
 
@@ -34,6 +35,13 @@ const SmartRedirect: React.FC = () => {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary" />
       </div>
     );
+  }
+
+  if (requiresPasswordChange) {
+    if (import.meta.env.DEV) {
+      console.log(`🔄 [SmartRedirect] → ${APP_CHANGE_PASSWORD} (cambio de contraseña obligatorio)`);
+    }
+    return <Navigate to={APP_CHANGE_PASSWORD} replace />;
   }
 
   if (hasPendingSelection || mustSelectEmpresa) {

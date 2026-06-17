@@ -12,8 +12,19 @@ export interface AccessTokenClaims {
   is_impersonation?: boolean;
   impersonated_by?: string;
   impersonated_by_username?: string;
+  requires_password_change?: boolean;
   /** JWT exp (epoch seconds). Usado solo para UX/rehidratación. */
   exp?: number;
+}
+
+function readPasswordChangeFlag(payload: Record<string, unknown>): boolean {
+  const v = payload.requires_password_change;
+  if (v === true || v === 1) return true;
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase();
+    return s === 'true' || s === '1';
+  }
+  return false;
 }
 
 function readImpersonationFlag(payload: Record<string, unknown>): boolean {
@@ -49,6 +60,7 @@ export function decodeAccessToken(token: string | null | undefined): AccessToken
         typeof payload.impersonated_by_username === 'string'
           ? payload.impersonated_by_username
           : undefined,
+      requires_password_change: readPasswordChangeFlag(payload),
       exp: typeof payload.exp === 'number' ? payload.exp : undefined,
     };
   } catch {

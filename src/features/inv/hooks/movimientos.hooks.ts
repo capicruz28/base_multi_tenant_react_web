@@ -1,19 +1,28 @@
+import { useEffect, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useTenantQuery } from '@/core/hooks/useTenantQuery';
+import { useErpListQuery, type ErpListResourceConfig } from '@/core/list';
 import { getErrorMessage } from '@/core/services/error.service';
-import { movimientoService } from '../services/inv.service';
+import { buildInvListQuery, invFetchList, movimientoService } from '../services/inv.service';
+import type { InvListParams, Movimiento, MovimientoConDetalle, MovimientoConDetalleCreate, MovimientoConDetalleUpdate, MovimientoCreate, MovimientoUpdate, AnularMovimientoRequest, EstornarMovimientoRequest } from '../types/inv.types';
 import { INV_LIST_STALE_TIME_MS } from './inv-query-defaults';
 import { useInvCompanyQueryGate } from './inv-company-query-gate';
-import type {
-  AnularMovimientoRequest,
-  Movimiento,
-  MovimientoConDetalle,
-  MovimientoConDetalleCreate,
-  MovimientoConDetalleUpdate,
-  MovimientoCreate,
-  MovimientoUpdate,
-} from '../types/inv.types';
+
+/** Whitelist sort + Tier C — FRONTEND_LISTADOS_CONTRACT_V1 §4 INV movimientos. */
+export const MOVIMIENTOS_LIST_CONFIG: ErpListResourceConfig = {
+  tier: 'C',
+  sortableColumns: [
+    'numero_movimiento',
+    'fecha_movimiento',
+    'fecha_contable',
+    'estado',
+    'fecha_creacion',
+  ],
+  defaultLimit: 50,
+  forcePagination: true,
+  defaultSort: { sort_by: 'fecha_movimiento', sort_dir: 'desc' },
+};
 
 const qk = {
   list: (
@@ -42,6 +51,65 @@ const qk = {
 };
 
 // ── Queries ───────────────────────────────────────────────────────────────
+
+export function useMovimientosErpList(options?: {
+  tipo_movimiento_id?: string;
+  almacen_id?: string;
+  estado?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  enabled?: boolean;
+}) {
+  const { scopeEmpresaId, enabled: gateEnabled } = useInvCompanyQueryGate(options);
+  const enabled = gateEnabled && (options?.enabled ?? true);
+
+  const baseFilters = useMemo(
+    () => ({
+      empresa_id: scopeEmpresaId ?? undefined,
+      tipo_movimiento_id: options?.tipo_movimiento_id,
+      almacen_id: options?.almacen_id,
+      estado: options?.estado,
+      fecha_desde: options?.fecha_desde,
+      fecha_hasta: options?.fecha_hasta,
+    }),
+    [
+      scopeEmpresaId,
+      options?.tipo_movimiento_id,
+      options?.almacen_id,
+      options?.estado,
+      options?.fecha_desde,
+      options?.fecha_hasta,
+    ],
+  );
+
+  const listQuery = useErpListQuery<Movimiento, typeof baseFilters>({
+    queryKeyPrefix: ['inv', 'movimiento', 'list', scopeEmpresaId ?? ''],
+    fetcher: (params) =>
+      invFetchList<Movimiento>(
+        '/movimientos',
+        buildInvListQuery(params as InvListParams, { includeSoloActivosDefault: false }),
+      ),
+    baseFilters,
+    config: MOVIMIENTOS_LIST_CONFIG,
+    enabled,
+    staleTime: INV_LIST_STALE_TIME_MS,
+  });
+
+  const { setPage } = listQuery;
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    options?.tipo_movimiento_id,
+    options?.almacen_id,
+    options?.estado,
+    options?.fecha_desde,
+    options?.fecha_hasta,
+    setPage,
+  ]);
+
+  return listQuery;
+}
 
 export function useMovimientos(options?: {
   tipo_movimiento_id?: string;
@@ -223,6 +291,25 @@ export function useAnularMovimiento() {
       qc.invalidateQueries({ queryKey: qk.conDetalle(vars.movimientoId, scopeEmpresaId ?? '') });
       void qc.invalidateQueries({ queryKey: ['inv', 'kardex'] });
       toast.success('Movimiento anulado.');
+    },
+    onError: (err) => toast.error(getErrorMessage(err).message),
+  });
+}
+
+export function useEstornarMovimiento() {
+  const qc = useQueryClient();
+  const { scopeEmpresaId } = useInvCompanyQueryGate();
+
+  return useMutation<Movimiento, Error, { movimientoId: string; payload?: EstornarMovimientoRequest }>({
+    mutationFn: ({ movimientoId, payload }) => movimientoService.estornar(movimientoId, payload),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['inv', 'movimiento', 'list'] });
+      qc.invalidateQueries({ queryKey: qk.detail(vars.movimientoId, scopeEmpresaId ?? '') });
+      qc.invalidateQueries({ queryKey: qk.conDetalle(vars.movimientoId, scopeEmpresaId ?? '') });
+      qc.invalidateQueries({ queryKey: ['inv', 'stock', 'list'] });
+      qc.invalidateQueries({ queryKey: ['inv', 'stock', 'alertas'] });
+      void qc.invalidateQueries({ queryKey: ['inv', 'kardex'] });
+      toast.success('Movimiento estornado.');
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });

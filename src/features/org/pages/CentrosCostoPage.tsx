@@ -5,6 +5,8 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { DollarSign, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { useDebouncedSearch } from '@/core/list';
+import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 import { OrgToolbarSearch } from '../components/OrgToolbarSearch';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
 import type { CentroCosto, CentroCostoCreate, CentroCostoUpdate } from '../types/org.types';
@@ -21,7 +23,9 @@ import { OrgTableSkeleton } from '../components/OrgTableSkeleton';
 import { OrgSessionEmpresaField } from '../components/OrgSessionEmpresaField';
 import { assertBodyEmpresaMatchesSession } from '../utils/org-body-scope';
 import {
+  CENTROS_COSTO_LIST_CONFIG,
   useCentrosCosto,
+  useCentrosCostoErpList,
   useCreateCentroCosto,
   useDeleteCentroCosto,
   useReactivarCentroCosto,
@@ -60,7 +64,7 @@ export default function CentrosCostoPage() {
   const { scopeEmpresaId, canQueryCompanyScoped } = useOrgSessionScope();
 
   const [includeInactive, setIncludeInactive] = useState(false);
-  const [buscar, setBuscar] = useState('');
+  const search = useDebouncedSearch();
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<CentroCosto | null>(null);
@@ -69,14 +73,23 @@ export default function CentrosCostoPage() {
   const [editFormSnapshot, setEditFormSnapshot] = useState<EditCentroCostoFormSnapshot | null>(null);
   const [discardPending, setDiscardPending] = useState<OrgDiscardPending>(null);
   const [deleteTarget, setDeleteTarget] = useState<CentroCosto | null>(null);
+  const [reactivarTarget, setReactivarTarget] = useState<CentroCosto | null>(null);
 
   const { can } = usePermissions();
   const canCrear = can('org', 'crear');
   const canEditar = can('org', 'editar');
   const canEliminar = can('org', 'eliminar');
 
+  const centrosCostoList = useCentrosCostoErpList({
+    solo_activos: !includeInactive,
+    debouncedBuscar: search.debouncedValue || undefined,
+    enabled: canQueryCompanyScoped,
+  });
+
   const resetLocalFilters = useCallback(() => {
-    setBuscar('');
+    search.clear();
+    centrosCostoList.setPage(1);
+    centrosCostoList.clearSort();
     setIncludeInactive(false);
     setCreateOpen(false);
     setEditOpen(false);
@@ -84,17 +97,21 @@ export default function CentrosCostoPage() {
     setEditFormSnapshot(null);
     setDiscardPending(null);
     setDeleteTarget(null);
-  }, []);
+    setReactivarTarget(null);
+  }, [search.clear, centrosCostoList.setPage, centrosCostoList.clearSort]);
   useOrgScopeEmpresaReset(resetLocalFilters);
 
-  const listQuery = useCentrosCosto({
-    solo_activos: !includeInactive,
-    buscar,
-    enabled: canQueryCompanyScoped,
+  const centrosPadreQuery = useCentrosCosto({
+    solo_activos: true,
+    enabled: (createOpen || editOpen) && canQueryCompanyScoped,
   });
-  const list: CentroCosto[] = listQuery.data ?? [];
-  const loading = listQuery.isLoading;
-  const error = listQuery.error ? getErrorMessage(listQuery.error).message : null;
+  const centrosPadreOpciones = centrosPadreQuery.data ?? [];
+
+  const list = centrosCostoList.items;
+  const loading = centrosCostoList.isLoading;
+  const error = centrosCostoList.isError
+    ? getErrorMessage(centrosCostoList.error).message
+    : null;
 
   const createCentroCosto = useCreateCentroCosto();
   const updateCentroCosto = useUpdateCentroCosto();
@@ -103,8 +120,7 @@ export default function CentrosCostoPage() {
 
   const submitting = createCentroCosto.isPending || updateCentroCosto.isPending;
   const deleting = deleteCentroCosto.isPending;
-  const reactivatingId = reactivarCentroCosto.variables?.centroCostoId ?? null;
-  const hasSearch = buscar.trim().length > 0;
+  const hasSearch = search.hasSearch;
   const TABLE_COLSPAN = 6;
 
   const isCreateDialogDirty = useMemo(() => isCreateCentroCostoDirty(form), [form]);
@@ -162,8 +178,10 @@ export default function CentrosCostoPage() {
     ],
   );
 
-  const centrosPadreCreate = list;
-  const centrosPadreEdit = list.filter((c) => c.centro_costo_id !== editing?.centro_costo_id);
+  const centrosPadreCreate = centrosPadreOpciones;
+  const centrosPadreEdit = centrosPadreOpciones.filter(
+    (c) => c.centro_costo_id !== editing?.centro_costo_id,
+  );
   const openCreate = () => {
     setDiscardPending(null);
     setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
@@ -238,9 +256,11 @@ export default function CentrosCostoPage() {
     }
   };
 
-  const handleReactivar = async (row: CentroCosto) => {
+  const confirmarReactivar = async () => {
+    if (!reactivarTarget) return;
     try {
-      await reactivarCentroCosto.mutateAsync({ centroCostoId: row.centro_costo_id });
+      await reactivarCentroCosto.mutateAsync({ centroCostoId: reactivarTarget.centro_costo_id });
+      setReactivarTarget(null);
     } catch {
       /* toast de error: onError en useReactivarCentroCosto */
     }
@@ -262,8 +282,8 @@ export default function CentrosCostoPage() {
         }
       >
         <OrgToolbarSearch
-          value={buscar}
-          onChange={setBuscar}
+          value={search.inputValue}
+          onChange={search.setInputValue}
           placeholder="Código, nombre, tipo..."
           aria-label="Buscar centros de costo"
           disabled={discardPending !== null}
@@ -285,9 +305,27 @@ export default function CentrosCostoPage() {
           <table className="min-w-full divide-y divide-border-base">
             <thead className="bg-subtle">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Código</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Nombre</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Tipo</th>
+                <ErpSortableHeader
+                  column="codigo"
+                  label="Código"
+                  sortableColumns={CENTROS_COSTO_LIST_CONFIG.sortableColumns}
+                  sort={centrosCostoList.sort}
+                  onSort={centrosCostoList.toggleSort}
+                />
+                <ErpSortableHeader
+                  column="nombre"
+                  label="Nombre"
+                  sortableColumns={CENTROS_COSTO_LIST_CONFIG.sortableColumns}
+                  sort={centrosCostoList.sort}
+                  onSort={centrosCostoList.toggleSort}
+                />
+                <ErpSortableHeader
+                  column="tipo_centro_costo"
+                  label="Tipo"
+                  sortableColumns={CENTROS_COSTO_LIST_CONFIG.sortableColumns}
+                  sort={centrosCostoList.sort}
+                  onSort={centrosCostoList.toggleSort}
+                />
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Responsable</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-text-soft uppercase">Estado</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-text-soft uppercase">Acciones</th>
@@ -335,27 +373,32 @@ export default function CentrosCostoPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 flex items-center justify-center gap-1">
-                      {canEditar && (
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(row)} disabled={discardPending !== null} className="text-brand-primary hover:text-brand-primary/80" title="Editar">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canEditar && !row.es_activo && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleReactivar(row)}
-                          disabled={!!reactivatingId}
-                          className="text-success hover:text-success/80"
-                          title="Reactivar"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canEliminar && (
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(row)} disabled={discardPending !== null} className="text-error hover:text-error hover:bg-error/10" title="Desactivar">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      {row.es_activo ? (
+                        <>
+                          {canEditar && (
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(row)} disabled={discardPending !== null} className="text-brand-primary hover:text-brand-primary/80" title="Editar">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canEliminar && (
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(row)} disabled={discardPending !== null} className="text-error hover:text-error hover:bg-error/10" title="Desactivar">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        canEditar && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setReactivarTarget(row)}
+                            disabled={reactivarCentroCosto.isPending || discardPending !== null}
+                            className="text-success hover:text-success/80"
+                            title="Reactivar"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )
                       )}
                     </td>
                   </tr>
@@ -363,6 +406,14 @@ export default function CentrosCostoPage() {
               )}
             </tbody>
           </table>
+          {centrosCostoList.pagination ? (
+            <ErpPagination
+              pagination={centrosCostoList.pagination}
+              onPageChange={centrosCostoList.setPage}
+              onLimitChange={centrosCostoList.setLimit}
+              disabled={discardPending !== null || centrosCostoList.isFetching}
+            />
+          ) : null}
         </div>
       )}
       <OrgDiscardConfirmDialog
@@ -381,6 +432,17 @@ export default function CentrosCostoPage() {
         cancelText="Cancelar"
         variant="danger"
         loading={deleting}
+      />
+      <ConfirmDialog
+        isOpen={!!reactivarTarget && discardPending === null}
+        onClose={() => setReactivarTarget(null)}
+        onConfirm={() => void confirmarReactivar()}
+        title="Reactivar centro de costo"
+        message={reactivarTarget ? `¿Reactivar centro de costo '${reactivarTarget.nombre}'? Volverá a estar disponible.` : ''}
+        confirmText="Reactivar"
+        cancelText="Cancelar"
+        variant="info"
+        loading={reactivarCentroCosto.isPending}
       />
       <Dialog open={createOpen} onOpenChange={handleCreateDialogOpenChange}>
         <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0" {...orgDialogGuardProps}>

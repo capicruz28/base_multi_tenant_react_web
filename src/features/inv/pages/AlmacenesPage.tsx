@@ -5,9 +5,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { Warehouse, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { useDebouncedSearch } from '@/core/list';
+import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
 import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
-import { matchesInvCatalogSearch } from '../utils/inv-catalog-client-search';
 import { sucursalService } from '@/features/org/services/org.service';
 import type { Sucursal } from '@/features/org/types/org.types';
 import type { Almacen, AlmacenCreate, AlmacenUpdate } from '../types/inv.types';
@@ -26,7 +27,8 @@ import {
 import { Label } from '@/shared/components/ui/label';
 import { usePermissions } from '@/core/auth/hooks/usePermissions';
 import {
-  useAlmacenes,
+  ALMACENES_LIST_CONFIG,
+  useAlmacenesErpList,
   useCreateAlmacen,
   useDeleteAlmacen,
   useReactivarAlmacen,
@@ -60,8 +62,8 @@ const DEFAULT: AlmacenCreate = {
 export default function AlmacenesPage() {
   const { can } = usePermissions();
   const { scopeEmpresaId, canQueryCompanyScoped } = useInvSessionScope();
+  const search = useDebouncedSearch();
   const [sucursales, setSucursales] = useState<Sucursal[]>([]);
-  const [buscar, setBuscar] = useState('');
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -73,15 +75,22 @@ export default function AlmacenesPage() {
   const [bajaTarget, setBajaTarget] = useState<Almacen | null>(null);
   const [reactivarTarget, setReactivarTarget] = useState<Almacen | null>(null);
 
+  const almacenesList = useAlmacenesErpList({
+    solo_activos: !mostrarInactivos,
+    debouncedBuscar: search.debouncedValue || undefined,
+  });
+
   const resetPageFilters = useCallback(() => {
-    setBuscar('');
+    search.clear();
+    almacenesList.setPage(1);
+    almacenesList.clearSort();
     setMostrarInactivos(false);
     setCreateOpen(false);
     setEditOpen(false);
     setEditing(null);
     setEditFormSnapshot(null);
     setDiscardPending(null);
-  }, []);
+  }, [search.clear, almacenesList.setPage, almacenesList.clearSort]);
   useInvScopeEmpresaReset(resetPageFilters);
 
   const loadSucursales = useCallback(async () => {
@@ -101,30 +110,11 @@ export default function AlmacenesPage() {
     void loadSucursales();
   }, [loadSucursales]);
 
-  const almacenesQuery = useAlmacenes({
-    solo_activos: !mostrarInactivos,
-  });
-  const rawList = almacenesQuery.data ?? [];
+  const list = almacenesList.items;
+  const hasSearch = search.hasSearch;
 
   const sucursalNombre = (id: string | null | undefined) =>
     id ? sucursales.find((s) => s.sucursal_id === id)?.nombre ?? '—' : '—';
-
-  const hasSearch = buscar.trim().length > 0;
-  const list = useMemo(() => {
-    if (!hasSearch) return rawList;
-    return rawList.filter((row) => {
-      const sucNombre = row.sucursal_id
-        ? sucursales.find((s) => s.sucursal_id === row.sucursal_id)?.nombre
-        : null;
-      return matchesInvCatalogSearch(
-        buscar,
-        row.codigo,
-        row.nombre,
-        row.tipo_almacen,
-        sucNombre,
-      );
-    });
-  }, [rawList, buscar, hasSearch, sucursales]);
 
   const createMutation = useCreateAlmacen();
   const updateMutation = useUpdateAlmacen();
@@ -298,9 +288,9 @@ export default function AlmacenesPage() {
         }
       >
         <OrgToolbarSearch
-          value={buscar}
-          onChange={setBuscar}
-          placeholder="Código, nombre, sucursal..."
+          value={search.inputValue}
+          onChange={search.setInputValue}
+          placeholder="Código, nombre..."
           aria-label="Buscar almacenes"
           disabled={discardPending !== null}
         />
@@ -315,20 +305,38 @@ export default function AlmacenesPage() {
         </label>
       </OrgCompanyToolbar>
 
-      {almacenesQuery.isLoading && <InvTableSkeleton columns={TABLE_COLSPAN} />}
-      {almacenesQuery.error && !almacenesQuery.isLoading && (
+      {almacenesList.isLoading && <InvTableSkeleton columns={TABLE_COLSPAN} />}
+      {almacenesList.isError && !almacenesList.isLoading && (
         <p className="text-error bg-error/10 p-4 rounded-lg">
-          {getErrorMessage(almacenesQuery.error).message}
+          {getErrorMessage(almacenesList.error).message}
         </p>
       )}
-      {!almacenesQuery.isLoading && !almacenesQuery.error && (
+      {!almacenesList.isLoading && !almacenesList.isError && (
         <div className="overflow-x-auto rounded-lg border border-border-base shadow">
           <table className="min-w-full divide-y divide-border-base">
             <thead className="bg-subtle">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Código</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Nombre</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Tipo</th>
+                <ErpSortableHeader
+                  column="codigo"
+                  label="Código"
+                  sortableColumns={ALMACENES_LIST_CONFIG.sortableColumns}
+                  sort={almacenesList.sort}
+                  onSort={almacenesList.toggleSort}
+                />
+                <ErpSortableHeader
+                  column="nombre"
+                  label="Nombre"
+                  sortableColumns={ALMACENES_LIST_CONFIG.sortableColumns}
+                  sort={almacenesList.sort}
+                  onSort={almacenesList.toggleSort}
+                />
+                <ErpSortableHeader
+                  column="tipo_almacen"
+                  label="Tipo"
+                  sortableColumns={ALMACENES_LIST_CONFIG.sortableColumns}
+                  sort={almacenesList.sort}
+                  onSort={almacenesList.toggleSort}
+                />
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Principal</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Sucursal</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Estado</th>
@@ -425,6 +433,14 @@ export default function AlmacenesPage() {
               )}
             </tbody>
           </table>
+          {almacenesList.pagination ? (
+            <ErpPagination
+              pagination={almacenesList.pagination}
+              onPageChange={almacenesList.setPage}
+              onLimitChange={almacenesList.setLimit}
+              disabled={discardPending !== null || almacenesList.isFetching}
+            />
+          ) : null}
         </div>
       )}
       <OrgDiscardConfirmDialog

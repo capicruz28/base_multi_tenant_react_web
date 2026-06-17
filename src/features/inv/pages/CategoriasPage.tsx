@@ -5,9 +5,10 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { FolderTree, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { useDebouncedSearch } from '@/core/list';
+import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
 import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
-import { matchesInvCatalogSearch } from '../utils/inv-catalog-client-search';
 import type { Categoria, CategoriaCreate, CategoriaUpdate } from '../types/inv.types';
 import { InvPageLayout } from '../components/InvPageLayout';
 import { InvTableSkeleton } from '../components/InvTableSkeleton';
@@ -24,7 +25,9 @@ import {
 import { Label } from '@/shared/components/ui/label';
 import { usePermissions } from '@/core/auth/hooks/usePermissions';
 import {
+  CATEGORIAS_LIST_CONFIG,
   useCategorias,
+  useCategoriasErpList,
   useCreateCategoria,
   useDeleteCategoria,
   useReactivarCategoria,
@@ -55,7 +58,7 @@ const DEFAULT: CategoriaCreate = {
 export default function CategoriasPage() {
   const { can } = usePermissions();
   const { scopeEmpresaId, canQueryCompanyScoped, activeEmpresaLabel } = useInvSessionScope();
-  const [buscar, setBuscar] = useState('');
+  const search = useDebouncedSearch();
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -67,20 +70,31 @@ export default function CategoriasPage() {
   const [bajaTarget, setBajaTarget] = useState<Categoria | null>(null);
   const [reactivarTarget, setReactivarTarget] = useState<Categoria | null>(null);
 
+  const categoriasList = useCategoriasErpList({
+    solo_activos: !mostrarInactivos,
+    debouncedBuscar: search.debouncedValue || undefined,
+  });
+
   const resetPageFilters = useCallback(() => {
-    setBuscar('');
+    search.clear();
+    categoriasList.setPage(1);
+    categoriasList.clearSort();
     setMostrarInactivos(false);
     setCreateOpen(false);
     setEditOpen(false);
     setEditing(null);
     setEditFormSnapshot(null);
     setDiscardPending(null);
-  }, []);
+  }, [search.clear, categoriasList.setPage, categoriasList.clearSort]);
   useInvScopeEmpresaReset(resetPageFilters);
 
-  const soloActivos = !mostrarInactivos;
-  const categoriasQuery = useCategorias({ solo_activos: soloActivos });
-  const rawList = categoriasQuery.data ?? [];
+  const categoriasPadreQuery = useCategorias({
+    solo_activos: true,
+    enabled: createOpen || editOpen,
+  });
+  const categoriasPadreOpciones = categoriasPadreQuery.data ?? [];
+  const list = categoriasList.items;
+  const hasSearch = search.hasSearch;
 
   const createMutation = useCreateCategoria();
   const updateMutation = useUpdateCategoria();
@@ -171,24 +185,9 @@ export default function CategoriasPage() {
 
   const categoriasById = useMemo(() => {
     const map = new Map<string, Categoria>();
-    rawList.forEach((c) => map.set(c.categoria_id, c));
+    list.forEach((c) => map.set(c.categoria_id, c));
     return map;
-  }, [rawList]);
-
-  const hasSearch = buscar.trim().length > 0;
-  const list = useMemo(() => {
-    if (!hasSearch) return rawList;
-    return rawList.filter((row) =>
-      matchesInvCatalogSearch(
-        buscar,
-        row.codigo,
-        row.nombre,
-        row.descripcion,
-        row.metodo_costeo_defecto,
-        row.categoria_padre_id ? categoriasById.get(row.categoria_padre_id)?.nombre : null,
-      ),
-    );
-  }, [rawList, buscar, hasSearch, categoriasById]);
+  }, [list]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -273,8 +272,8 @@ export default function CategoriasPage() {
         }
       >
         <OrgToolbarSearch
-          value={buscar}
-          onChange={setBuscar}
+          value={search.inputValue}
+          onChange={search.setInputValue}
           placeholder="Código, nombre..."
           aria-label="Buscar categorías"
           disabled={discardPending !== null}
@@ -290,19 +289,31 @@ export default function CategoriasPage() {
         </label>
       </OrgCompanyToolbar>
 
-      {categoriasQuery.isLoading && <InvTableSkeleton columns={TABLE_COLSPAN} />}
-      {categoriasQuery.error && !categoriasQuery.isLoading && (
+      {categoriasList.isLoading && <InvTableSkeleton columns={TABLE_COLSPAN} />}
+      {categoriasList.isError && !categoriasList.isLoading && (
         <p className="text-error bg-error/10 p-4 rounded-lg">
-          {getErrorMessage(categoriasQuery.error).message}
+          {getErrorMessage(categoriasList.error).message}
         </p>
       )}
-      {!categoriasQuery.isLoading && !categoriasQuery.error && (
+      {!categoriasList.isLoading && !categoriasList.isError && (
         <div className="overflow-x-auto rounded-lg border border-border-base shadow">
           <table className="min-w-full divide-y divide-border-base">
             <thead className="bg-subtle">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Código</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Nombre</th>
+                <ErpSortableHeader
+                  column="codigo"
+                  label="Código"
+                  sortableColumns={CATEGORIAS_LIST_CONFIG.sortableColumns}
+                  sort={categoriasList.sort}
+                  onSort={categoriasList.toggleSort}
+                />
+                <ErpSortableHeader
+                  column="nombre"
+                  label="Nombre"
+                  sortableColumns={CATEGORIAS_LIST_CONFIG.sortableColumns}
+                  sort={categoriasList.sort}
+                  onSort={categoriasList.toggleSort}
+                />
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Padre</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Método Costeo</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Empresa</th>
@@ -404,6 +415,14 @@ export default function CategoriasPage() {
               )}
             </tbody>
           </table>
+          {categoriasList.pagination ? (
+            <ErpPagination
+              pagination={categoriasList.pagination}
+              onPageChange={categoriasList.setPage}
+              onLimitChange={categoriasList.setLimit}
+              disabled={discardPending !== null || categoriasList.isFetching}
+            />
+          ) : null}
         </div>
       )}
       <OrgDiscardConfirmDialog
@@ -429,7 +448,7 @@ export default function CategoriasPage() {
                 className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
               >
                 <option value="">Ninguna</option>
-                {rawList.map((c) => (
+                {categoriasPadreOpciones.map((c) => (
                   <option key={c.categoria_id} value={c.categoria_id}>
                     {c.nombre}
                   </option>
@@ -494,7 +513,7 @@ export default function CategoriasPage() {
                 className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
               >
                 <option value="">Ninguna</option>
-                {rawList.map((c) => (
+                {categoriasPadreOpciones.map((c) => (
                   <option key={c.categoria_id} value={c.categoria_id}>
                     {c.nombre}
                   </option>

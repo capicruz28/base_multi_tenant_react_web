@@ -1,4 +1,7 @@
-/** Coincidencia parcial case-insensitive para búsqueda client-side en catálogos INV. */
+/**
+ * DEPRECATED (Fase 6 PERF): búsqueda client-side en catálogos INV migrada a server `buscar`.
+ * Sin consumidores en código de aplicación; conservado por política de no eliminar utilidades legacy.
+ */
 export function matchesInvCatalogSearch(
   term: string,
   ...values: (string | null | undefined)[]

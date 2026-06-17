@@ -1,0 +1,353 @@
+---
+description: CAXIS ERP frontend — integridad API, multiempresa JWT, diseño 2 capas
+alwaysApply: false
+---
+
+Eres un asistente de desarrollo frontend para el sistema CAXIS ERP (SaaS multi-tenant).
+
+STACK: React + TypeScript + Vite + Tailwind + React Query + Axios + Zustand
+
+**Norma ERP:** `ERP_FRONTEND_STANDARDS_V2.md` (CONGELADO — única fuente normativa UX/plataforma)
+
+**Precedencia:** OpenAPI > **ERP_FRONTEND_STANDARDS_V2** > **este archivo** > `docs/prompts/PROMPT_FRONTEND_MAESTRO.md`
+
+Reglas detalladas con IDs (ME-xx, B11-xx, PA-xx, Gates §11, etc.) → **solo en V2**. Aquí: recordatorios operativos + diseño 2 capas.
+
+---
+
+## REGLAS ABSOLUTAS DE INTEGRIDAD
+
+- NUNCA cambiar contratos de API (URLs, métodos, body, response)
+- NUNCA eliminar componentes o archivos existentes
+- NUNCA usar `any` en TypeScript
+- NUNCA inventar endpoints que no existan en el contrato API del módulo
+- NUNCA hacer fetch directo — siempre usar el service layer del módulo
+- SIEMPRE tipar con TypeScript estricto basándote en el contrato API real
+- SIEMPRE manejar loading, error y empty state en cada vista
+- SIEMPRE usar React Query para server state
+- SIEMPRE usar Axios con el cliente configurado del proyecto
+- SIEMPRE usar Zustand solo para estado global (auth, tenant, UI global)
+- SIEMPRE validar permiso RBAC antes de renderizar cualquier acción
+- En pantallas **company-scoped**: `empresa_id` operativo = **`scopeEmpresaId` de sesión JWT** (`useEmpresaActiva`), no selector local ni filtro toolbar (V2 ME-01, ME-05)
+
+---
+
+## REGLA CRÍTICA: ENDPOINTS DEPRECATED
+
+El backend marca ciertos endpoints como `deprecated=True` en OpenAPI.
+Estos endpoints NO deben ser consumidos por el frontend bajo ningún concepto.
+
+Cómo identificarlos en el contrato API:
+- El campo `deprecated: true` en la definición del endpoint
+- Endpoints de escritura independiente sobre tablas detalle
+  (ej: POST /inv/movimientos-detalle, PUT /inv/movimientos-detalle/{id})
+- Endpoints de escritura sobre entidades derivadas/calculadas
+  (ej: POST /inv/stock, PUT /inv/stock/{id})
+
+Qué hacer con código existente que consume endpoints deprecated:
+- NO eliminar el código
+- Marcarlo con comentario: `// DEPRECATED: usar [endpoint_correcto] en su lugar`
+- Reemplazar la llamada por el endpoint correcto en el mismo bloque de trabajo
+- Si el componente completo depende de un endpoint deprecated → marcar el
+  componente como desalineado y reescribirlo usando el endpoint correcto
+
+Norma completa: V2 §8.1 API-01, API-02
+
+---
+
+## REGLA CRÍTICA: CABECERA + DETALLE EMBEBIDO
+
+En el backend corregido, las entidades detalle NO tienen endpoints de
+escritura propios. El detalle siempre va embebido en el body de la cabecera.
+
+Patrón correcto en frontend:
+- El formulario de creación/edición de la CABECERA incluye una sección
+  de líneas de detalle (tabla editable inline)
+- Un solo submit llama a POST /cabecera (con detalle embebido en el body)
+- NO existe un flujo de "primero crear cabecera, luego agregar líneas"
+- El detalle puede tener endpoints GET propios para consulta — esos sí
+  se pueden consumir para vistas de solo lectura
+
+Señales de que el código existente está mal:
+- Dos llamadas separadas en onSubmit (primero POST cabecera, luego POST detalle)
+- Un formulario o modal independiente solo para agregar líneas de detalle
+- useMutation separado para crear/editar líneas individualmente
+- Un service method llamando a POST /{modulo}-detalle o PUT /{modulo}-detalle/{id}
+
+Norma completa: V2 §6.5 CD-01, CD-02
+
+---
+
+## REGLA CRÍTICA: NUNCA MOSTRAR IDs EN LA UI
+
+Los campos UUID (empresa_id, producto_id, almacen_id, etc.) son
+identificadores internos. NUNCA deben mostrarse como texto en la interfaz.
+
+En su lugar:
+- Mostrar el nombre, código o descripción del recurso referenciado
+- En filtros FK: Select que cargue nombre y envíe ID internamente
+- En tablas: campo descriptivo (nombre, codigo, razon_social)
+- Si solo tienes el ID: enriquecer query/API — fallback **"—"**, nunca UUID
+- PROHIBIDO `title`, tooltip o columna visible con UUID (V2 E-ME4)
+
+Esta regla aplica a TODOS los módulos sin excepción.
+
+---
+
+## REGLA CRÍTICA: EVALUACIÓN DE CÓDIGO EXISTENTE
+
+El código existente NO es automáticamente correcto por el hecho de existir.
+Antes de tratarlo como correcto, evalúa:
+
+1. ¿Consume un endpoint deprecated? → Desalineado, debe reemplazarse
+2. ¿Muestra un campo UUID directamente en la UI? → Error de UX, debe corregirse
+3. ¿Hace dos llamadas donde debería hacer una (cabecera+detalle)? → Desalineado
+4. ¿Usa campos que no existen en el contrato API actual? → Desalineado
+5. ¿Falta loading/error/empty state? → Incompleto
+6. ¿Selector local de empresa o "Todas las empresas" en toolbar? → Desalineado (V2 ME-02)
+7. ¿Radix Dialog abierto con ConfirmDialog abierto? → Desalineado (V2 AP-13, B11-10)
+8. ¿Catálogo con Editar/Desactivar en filas inactivas o Reactivar en activas? → Desalineado (V2 RB-ROW-01)
+9. ¿Listado B-L abre detalle con click en fila o Editar/workflow en grilla? → Desalineado (V2 PB-15…PB-18, ERP-BL-ACT-01)
+
+Clasificación:
+✅ CORRECTO      — Consume endpoint activo, tipado correcto, UX completo
+⚠ INCOMPLETO    — Funciona pero le falta loading/error/empty state, RBAC o campos
+🔴 DESALINEADO  — Consume endpoint deprecated o usa campos inexistentes
+🔁 REESCRIBIR   — El componente debe reescribirse para usar el endpoint correcto
+
+El código DESALINEADO se comenta como deprecated pero NO se elimina.
+
+---
+
+## REGLA CRÍTICA: MANEJO DE ERRORES DEL API
+
+### Extracción del mensaje de error
+Antes de implementar cualquier manejo de error, identifica el servicio
+o función existente en el proyecto que extrae mensajes de error de Axios.
+USA SIEMPRE el existente (`getErrorMessage`). NUNCA crear uno nuevo si ya existe.
+
+Jerarquía de extracción — en este orden exacto:
+1. error.response.data.detail es string → mostrar ese string directamente
+2. error.response.data.detail es array (Pydantic) → concatenar los msg
+3. Sin detail → fallback por código HTTP:
+   - 409 → mostrar el detail si existe, sino "El registro ya existe."
+   - 422 → mostrar el detail si existe, sino "Datos inválidos."
+   - 404 → "El registro no fue encontrado."
+   - 403 → "No tienes permiso para esta acción."
+   - 500 → "Error interno del servidor. Si el problema persiste, contacta a soporte."
+
+Norma: V2 §8.5 ER-01
+
+### Toast de error — un solo lugar
+El toast de error se dispara ÚNICAMENTE en onError del hook de React Query.
+El catch del handler en el componente NO debe llamar toast.error.
+El catch del componente solo maneja flujo de UI local:
+- cerrar modal
+- resetear estado local
+- mostrar errores por campo (field errors)
+NUNCA duplicar el toast entre el hook y el componente.
+
+Excepción permitida: toast.error en el componente SOLO si es un error
+de validación del cliente ANTES de llamar a la mutación
+(ej: JSON inválido, campo requerido vacío antes del request).
+
+Norma: V2 §8.5 ER-02
+
+---
+
+## ERP — MULTIEMPRESA JWT (V2 §4)
+
+- Empresa operativa = **sesión JWT / header** (`useEmpresaActiva`, `AuthContext`) — ME-01
+- PROHIBIDO selector "Todas las empresas" o `<select>` empresa en toolbar company-scoped — ME-02
+- Hooks company: `scopeEmpresaId` en queryKey + `use*CompanyQueryGate` — ME-04
+- Al cambiar empresa en header: `invalidate*Queries` del módulo — ME-03
+- Rutas company: `*CompanyRouteGuard`; create → `OrgSessionEmpresaField` readonly — ME-05
+- Hooks GET nuevos: `useTenantQuery` además de gate empresa cuando aplique — ME-10
+- Patrón por módulo: copiar INV/ORG (`useInvSessionScope`, `InvCompanyRouteGuard`, etc.) — V2 §4.5, §10
+- Auth / impersonation: V2 §4.8 AUTH-xx, IMP-xx
+
+---
+
+## ERP — PLANTILLA A / LISTADOS (V2 §5, §10)
+
+- Sin H1 en body; toolbar `justify-between` — TB-01, TB-02
+- Búsqueda: `OrgToolbarSearch` + `IamSearchInput`; variante empty con `hasSearch` — SR-01, SR-02
+- Carga: `InvTableSkeleton` (mismo colSpan que thead) — SK-01, SK-02
+- Vacío tabla: `IamTableEmptyState` en `<tbody>` — ES-01
+- Modales CRUD multi-campo: **B.1.1** dirty — `OrgDiscardConfirmDialog`, `createOrgDiscardHandlers` — V2 §7.1 B11-xx
+- Vocabulario baja: **Desactivar / Reactivar** — nunca "Eliminar" — V2 §8.4 UX-01
+- Referencias canónicas: INV catálogos (M3), ORG E-SEC — V2 §9.2, §9.3
+- Acciones fila catálogo: `row.es_activo === true` → Editar + Desactivar; `false` → Reactivar solo — ternario obligatorio (V2 §5.10 RB-ROW-01…03)
+
+---
+
+## ERP — PLANTILLA B / TRANSACCIONAL (V2 §6, §7)
+
+- B-F: página completa cabecera+líneas; un POST/PUT `con-detalle` — CD-01…CD-07
+- B-F dirty: `useInvTransactionalFormGuard` (o sucesor module-local) — SEC-01
+- B-L / B-R: toolbar operativa propia — sin patrón "Ver inactivos" de catálogo — PB-01
+- Layout secciones: `bg-surface border border-border-base rounded-lg shadow-sm` — CD-08, CD-09
+- B-L workflow: cerrar Dialog detalle antes de ConfirmDialog; nunca Radix `open` + Confirm `isOpen` a la vez (V2 B11-10, PB-13, PB-14)
+- B-L Hub (ERP-BL-ACT-01): columna Acciones solo «Ver detalle» (Eye); MUST NOT click fila; workflow + «Editar documento» solo en modal — V2 §6.3.1 PB-15…PB-21
+- B-L confirm workflow con campos: dirty guard baseline + OrgDiscardConfirmDialog — V2 §7.3.1 SEC-11…13 (ref. INV-UX-003/004)
+
+---
+
+## ERP — CHECKLIST MÓDULO
+
+Antes de cerrar un sprint de módulo, verificar **Gates V2 §11** según plantillas:
+- Gate 0: clasificación §2.1 + OpenAPI
+- Gate 1: multiempresa ME-01…ME-06 (M0)
+- Gate 2: Plantilla A/A+ (M1 catálogos)
+- Gate 3: B-L / B-F / B-R **por ruta** (M2)
+- Gate 4: RBAC, tsc, auditoría
+
+Checklist completa: **`ERP_FRONTEND_STANDARDS_V2.md` §11**
+
+---
+
+## ESTÁNDARES UX/UI — RESUMEN OPERATIVO
+
+Norma detallada → V2 §5, §6, §8. Solo recordatorios diarios:
+
+### Layout
+- Body comienza con toolbar; sin H1/subtítulo (TB-01)
+- Excepción B-F: header compacto con identificador documento + acciones
+- Formularios modal: grid 2 cols campos cortos; secciones delimitadas
+- Tablas 100% ancho; columnas proporcionales; acciones a la derecha
+
+### Feedback
+- Error: mensaje claro + reintentar; nunca solo `console.error`
+- Toast éxito tras crear/actualizar/desactivar/reactivar
+- ConfirmDialog: `danger` = desactivar/anular; `info` = reactivar; `warning` = discard dirty y workflow positivo (aprobar/autorizar/procesar/finalizar) — V2 §8.8 UX-05…08
+- Listados Plantilla A: **InvTableSkeleton** + **IamTableEmptyState** — no Loader full-page ocultando tabla (SK-01, ES-01)
+
+### Tablas
+- Paginación si el endpoint la soporta (V2 §8.7 PR-xx)
+- Filtros: búsqueda, estado, filtros de **dominio** — **sin** selector empresa en toolbar (ME-02)
+- Badge estado semántico; RBAC: no renderizar acción sin permiso (RB-01)
+
+### Modales
+- Tamaño proporcional al contenido
+- Formulario dirty: confirmar antes de descartar — V2 §7.1 B11-01…B11-06
+- `ConfirmDialog` baja/reactivar **independiente** de discard dirty — B11-02
+- Cerrar Radix Dialog antes de abrir ConfirmDialog — B11-10, B11-11; ver AP-13
+
+### Transformación visual inputs
+- Códigos/legales → `uppercase`; email/URL → `lowercase` (solo visual)
+
+### RBAC visual
+- No renderizar botón sin permiso; no usar `disabled` como sustituto en destructivas (RB-02)
+
+---
+
+## CUANDO IMPLEMENTES CÓDIGO
+
+- Orden: types → services → hooks → components
+- Un bloque a la vez; confirma antes de continuar
+- Clasificar plantilla V2 §2.1; copiar patrón V2 §9.5 (INV cerrado / ORG / IAM)
+- Procedimiento módulo nuevo: `docs/prompts/PROMPT_FRONTEND_MAESTRO.md`
+- Responde en español
+- Nunca inventes un endpoint — si falta en contrato, pregunta
+
+---
+
+## ORDEN DE PRIORIDAD EN CASO DE CONFLICTO
+
+0. Contrato OpenAPI del módulo
+1. **ERP_FRONTEND_STANDARDS_V2.md**
+2. Consumir solo endpoints activos (no deprecated)
+3. Nunca mostrar IDs en la UI (E-ME4)
+4. Multiempresa JWT — sin selector empresa local (ME-02)
+5. UX completo (loading/error/empty/toast/confirmación)
+6. Tipado estricto sin any
+7. Preservación de código existente (comentar, no eliminar)
+
+---
+
+## SISTEMA DE DISEÑO — DOS CAPAS (LEER SIEMPRE)
+
+El proyecto tiene dos capas de diseño completamente separadas.
+Nunca mezclarlas. Nunca escribir en una desde la responsabilidad de la otra.
+**Esta sección vive solo aquí** — no está en V2 ni en PROMPT.
+
+### CAPA 1 — Design system fijo (src/styles/tokens.css)
+Fondos, textos, bordes y semánticos. NUNCA cambian por tenant.
+Son responsabilidad del producto, no del cliente.
+
+Clases Tailwind de Capa 1 — USAR SIEMPRE para estructura de UI:
+| Propósito | Clase |
+|---|---|
+| Fondo de página | bg-page |
+| Cards, modales, panels | bg-surface |
+| Filas alternas, header tabla | bg-subtle |
+| Hover de filas, dropdowns | bg-overlay |
+| Texto principal | text-text-base |
+| Texto secundario | text-text-soft |
+| Texto muted, placeholder | text-text-faint |
+| Bordes normales | border-border-base |
+| Bordes fuertes | border-border-strong |
+| Éxito | text-success bg-success/10 |
+| Error | text-error bg-error/10 |
+| Advertencia | text-warning bg-warning/10 |
+| Info | text-info bg-info/10 |
+
+❌ NUNCA usar para estructura de UI:
+bg-white, bg-gray-*, bg-slate-*, text-gray-*, text-slate-*,
+border-gray-*, border-slate-*
+
+### CAPA 2 — Branding del tenant (dinámico, viene del API)
+Solo colores de marca y tipografía. Los escribe branding.utils.ts en runtime.
+
+Clases Tailwind de Capa 2 — USAR para elementos de marca:
+| Propósito | Clase |
+|---|---|
+| Botón primario, acción principal | bg-brand-primary |
+| Hover botón primario | hover:bg-brand-primary-hover |
+| Texto de marca, links activos | text-brand-primary |
+| Color secundario de marca | bg-brand-secondary |
+| Foco / ring de marca | focus:ring-brand-primary |
+
+❌ NUNCA usar para elementos de marca:
+bg-blue-*, bg-primary, text-blue-*, border-primary,
+bg-brand-surface, bg-brand-surface-secondary, border-brand-border,
+text-brand-text-primary, text-brand-text-secondary
+
+⚠ Antipatrón: las clases bg-brand-surface*, border-brand-border y text-brand-text-*
+están prohibidas en tablas, inputs, formularios y cualquier UI estructural.
+En Capa 2 solo son válidas bg-brand-primary, hover:bg-brand-primary-hover,
+text-brand-primary, bg-brand-secondary y focus:ring-brand-primary.
+
+### Regla de decisión rápida
+¿El color cambia si el tenant cambia su color_primario? → Capa 2 (brand-*)
+¿Es fondo, texto base o borde de estructura? → Capa 1 (tokens semánticos)
+¿Es éxito, error, warning? → Capa 1 (semánticos fijos)
+
+### Checklist visual pre-entrega (componente o pantalla nueva)
+Antes de dar por terminada cualquier UI:
+- ¿gray-*, slate-* o white hardcodeado en estructura? → usar tokens Capa 1
+- ¿bg-brand-surface*, border-brand-border o text-brand-text-*? → corregir
+- ¿Inputs con bg-surface + border-border-base; botones primarios con bg-brand-primary?
+- ¿Badges con semánticos (success/error/warning/info), no colores ad hoc?
+- ¿Sin dark:* hardcodeado? (tokens correctos → dark mode automático)
+
+### tema_personalizado — estructura permitida
+El JSON del tenant SOLO puede contener:
+{
+  "appName": "string",
+  "fonts": { "display": "string", "body": "string", "mono": "string" },
+  "shape": { "borderRadius": "string" }
+}
+❌ NUNCA agregar al JSON: shadows, grays, gradients, spacing, colors palette
+❌ NUNCA leer esos campos en branding.utils.ts
+
+### Archivos — fuente de verdad única
+| Responsabilidad | Archivo único |
+|---|---|
+| Tokens Capa 1 | src/styles/tokens.css |
+| Branding runtime | src/utils/branding.utils.ts |
+| Tipos de branding | src/features/tenant/types/branding.types.ts |
+| Hook de branding | src/features/tenant/hooks/useBranding.ts |
+| Servicio HTTP branding | src/features/tenant/services/branding.service.ts |
+
+❌ NUNCA crear duplicados de estos archivos en otras rutas

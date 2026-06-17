@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { Briefcase, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { useDebouncedSearch } from '@/core/list';
 import { OrgToolbarSearch } from '../components/OrgToolbarSearch';
 import { catalogosService } from '@/core/services/catalogos.service';
 import type { Cargo, CargoCreate, CargoUpdate } from '../types/org.types';
@@ -65,7 +66,7 @@ export default function CargosPage() {
   const { scopeEmpresaId, canQueryCompanyScoped } = useOrgSessionScope();
 
   const [includeInactive, setIncludeInactive] = useState(false);
-  const [buscar, setBuscar] = useState('');
+  const search = useDebouncedSearch();
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Cargo | null>(null);
@@ -75,13 +76,14 @@ export default function CargosPage() {
   const [discardPending, setDiscardPending] = useState<OrgDiscardPending>(null);
   const [monedas, setMonedas] = useState<CatMoneda[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Cargo | null>(null);
+  const [reactivarTarget, setReactivarTarget] = useState<Cargo | null>(null);
   const { can } = usePermissions();
   const canCrear = can('org', 'crear');
   const canEditar = can('org', 'editar');
   const canEliminar = can('org', 'eliminar');
 
   const resetLocalFilters = useCallback(() => {
-    setBuscar('');
+    search.clear();
     setIncludeInactive(false);
     setCreateOpen(false);
     setEditOpen(false);
@@ -89,12 +91,13 @@ export default function CargosPage() {
     setEditFormSnapshot(null);
     setDiscardPending(null);
     setDeleteTarget(null);
-  }, []);
+    setReactivarTarget(null);
+  }, [search.clear]);
   useOrgScopeEmpresaReset(resetLocalFilters);
 
   const listQuery = useCargos({
     solo_activos: !includeInactive,
-    buscar,
+    buscar: search.debouncedValue,
     enabled: canQueryCompanyScoped,
   });
   const list: Cargo[] = listQuery.data ?? [];
@@ -116,8 +119,7 @@ export default function CargosPage() {
 
   const submitting = createCargo.isPending || updateCargo.isPending;
   const deleting = deleteCargo.isPending;
-  const reactivatingId = reactivarCargo.variables?.cargoId ?? null;
-  const hasSearch = buscar.trim().length > 0;
+  const hasSearch = search.hasSearch;
   const TABLE_COLSPAN = 6;
 
   useEffect(() => {
@@ -253,9 +255,11 @@ export default function CargosPage() {
     }
   };
 
-  const handleReactivar = async (row: Cargo) => {
+  const confirmarReactivar = async () => {
+    if (!reactivarTarget) return;
     try {
-      await reactivarCargo.mutateAsync({ cargoId: row.cargo_id });
+      await reactivarCargo.mutateAsync({ cargoId: reactivarTarget.cargo_id });
+      setReactivarTarget(null);
     } catch {
       /* toast de error: onError en useReactivarCargo */
     }
@@ -277,8 +281,8 @@ export default function CargosPage() {
         }
       >
         <OrgToolbarSearch
-          value={buscar}
-          onChange={setBuscar}
+          value={search.inputValue}
+          onChange={search.setInputValue}
           placeholder="Código, nombre..."
           aria-label="Buscar cargos"
           disabled={discardPending !== null}
@@ -346,27 +350,32 @@ export default function CargosPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 flex items-center justify-center gap-1">
-                      {canEditar && (
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(row)} disabled={discardPending !== null} className="text-brand-primary hover:text-brand-primary/80" title="Editar">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canEditar && !row.es_activo && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleReactivar(row)}
-                          disabled={!!reactivatingId}
-                          className="text-success hover:text-success/80"
-                          title="Reactivar"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canEliminar && (
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(row)} disabled={discardPending !== null} className="text-error hover:text-error hover:bg-error/10" title="Desactivar">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      {row.es_activo ? (
+                        <>
+                          {canEditar && (
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(row)} disabled={discardPending !== null} className="text-brand-primary hover:text-brand-primary/80" title="Editar">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canEliminar && (
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(row)} disabled={discardPending !== null} className="text-error hover:text-error hover:bg-error/10" title="Desactivar">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        canEditar && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setReactivarTarget(row)}
+                            disabled={reactivarCargo.isPending || discardPending !== null}
+                            className="text-success hover:text-success/80"
+                            title="Reactivar"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )
                       )}
                     </td>
                   </tr>
@@ -498,6 +507,17 @@ export default function CargosPage() {
         </DialogContent>
       </Dialog>
       <ConfirmDialog isOpen={!!deleteTarget && discardPending === null} onClose={() => setDeleteTarget(null)} onConfirm={handleDeleteConfirm} title="Desactivar cargo" message={deleteTarget ? `¿Desactivar cargo '${deleteTarget.nombre}'? Podrá reactivarlo después.` : ''} confirmText="Desactivar" cancelText="Cancelar" variant="danger" loading={deleting} />
+      <ConfirmDialog
+        isOpen={!!reactivarTarget && discardPending === null}
+        onClose={() => setReactivarTarget(null)}
+        onConfirm={() => void confirmarReactivar()}
+        title="Reactivar cargo"
+        message={reactivarTarget ? `¿Reactivar cargo '${reactivarTarget.nombre}'? Volverá a estar disponible.` : ''}
+        confirmText="Reactivar"
+        cancelText="Cancelar"
+        variant="info"
+        loading={reactivarCargo.isPending}
+      />
     </OrgPageLayout>
   );
 }

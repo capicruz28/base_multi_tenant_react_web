@@ -1,5 +1,8 @@
 // src/core/services/error.service.ts
-import { SimplifiedApiError } from '../../features/auth/types/auth.types';
+import {
+  ERROR_CODE_PASSWORD_CHANGE_REQUIRED,
+  SimplifiedApiError,
+} from '../../features/auth/types/auth.types';
 import axios, { AxiosError } from 'axios';
 
 interface FastAPIErrorDetail {
@@ -221,6 +224,29 @@ export interface ValidationErrorsResult {
   message: string;
   status: number;
   fieldErrors: Record<string, string>;
+}
+
+/** Extrae `error_code` del body JSON de una respuesta API (FastAPI CustomException). */
+export function getApiErrorCode(error: unknown): string | null {
+  if (!axios.isAxiosError(error) || !error.response) {
+    return null;
+  }
+  const payload = normalizeErrorPayload(error.response.data);
+  if (payload && typeof payload === 'object' && 'error_code' in payload) {
+    const code = (payload as { error_code?: unknown }).error_code;
+    if (typeof code === 'string' && code.trim().length > 0) {
+      return code.trim();
+    }
+  }
+  return null;
+}
+
+/** 403 con error_code PASSWORD_CHANGE_REQUIRED (contrato force password change). */
+export function isPasswordChangeRequired(error: unknown): boolean {
+  if (!axios.isAxiosError(error) || error.response?.status !== 403) {
+    return false;
+  }
+  return getApiErrorCode(error) === ERROR_CODE_PASSWORD_CHANGE_REQUIRED;
 }
 
 export const getErrorMessage = (error: unknown): SimplifiedApiError => {

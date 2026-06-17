@@ -5,6 +5,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { Layers, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
+import { useDebouncedSearch } from '@/core/list';
 import { OrgToolbarSearch } from '../components/OrgToolbarSearch';
 import type { Departamento, DepartamentoCreate, DepartamentoUpdate } from '../types/org.types';
 import { OrgPageLayout } from '../components/OrgPageLayout';
@@ -58,7 +59,7 @@ export default function DepartamentosPage() {
   const { scopeEmpresaId, canQueryCompanyScoped } = useOrgSessionScope();
 
   const [includeInactive, setIncludeInactive] = useState(false);
-  const [buscar, setBuscar] = useState('');
+  const search = useDebouncedSearch();
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Departamento | null>(null);
@@ -67,13 +68,14 @@ export default function DepartamentosPage() {
   const [editFormSnapshot, setEditFormSnapshot] = useState<EditDepartamentoFormSnapshot | null>(null);
   const [discardPending, setDiscardPending] = useState<OrgDiscardPending>(null);
   const [deleteTarget, setDeleteTarget] = useState<Departamento | null>(null);
+  const [reactivarTarget, setReactivarTarget] = useState<Departamento | null>(null);
   const { can } = usePermissions();
   const canCrear = can('org', 'crear');
   const canEditar = can('org', 'editar');
   const canEliminar = can('org', 'eliminar');
 
   const resetLocalFilters = useCallback(() => {
-    setBuscar('');
+    search.clear();
     setIncludeInactive(false);
     setCreateOpen(false);
     setEditOpen(false);
@@ -81,12 +83,13 @@ export default function DepartamentosPage() {
     setEditFormSnapshot(null);
     setDiscardPending(null);
     setDeleteTarget(null);
-  }, []);
+    setReactivarTarget(null);
+  }, [search.clear]);
   useOrgScopeEmpresaReset(resetLocalFilters);
 
   const listQuery = useDepartamentos({
     solo_activos: !includeInactive,
-    buscar,
+    buscar: search.debouncedValue,
     enabled: canQueryCompanyScoped,
   });
   const list: Departamento[] = listQuery.data ?? [];
@@ -105,8 +108,7 @@ export default function DepartamentosPage() {
 
   const submitting = createDepartamento.isPending || updateDepartamento.isPending;
   const deleting = deleteDepartamento.isPending;
-  const reactivatingId = reactivarDepartamento.variables?.departamentoId ?? null;
-  const hasSearch = buscar.trim().length > 0;
+  const hasSearch = search.hasSearch;
   const TABLE_COLSPAN = 6;
 
   const isCreateDialogDirty = useMemo(() => isCreateDepartamentoDirty(form), [form]);
@@ -229,9 +231,11 @@ export default function DepartamentosPage() {
     }
   };
 
-  const handleReactivar = async (row: Departamento) => {
+  const confirmarReactivar = async () => {
+    if (!reactivarTarget) return;
     try {
-      await reactivarDepartamento.mutateAsync({ departamentoId: row.departamento_id });
+      await reactivarDepartamento.mutateAsync({ departamentoId: reactivarTarget.departamento_id });
+      setReactivarTarget(null);
     } catch {
       /* toast de error: onError en useReactivarDepartamento */
     }
@@ -253,8 +257,8 @@ export default function DepartamentosPage() {
         }
       >
         <OrgToolbarSearch
-          value={buscar}
-          onChange={setBuscar}
+          value={search.inputValue}
+          onChange={search.setInputValue}
           placeholder="Código, nombre..."
           aria-label="Buscar departamentos"
           disabled={discardPending !== null}
@@ -324,27 +328,32 @@ export default function DepartamentosPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 flex items-center justify-center gap-1">
-                      {canEditar && (
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(row)} disabled={discardPending !== null} className="text-brand-primary hover:text-brand-primary/80" title="Editar">
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canEditar && !row.es_activo && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleReactivar(row)}
-                          disabled={!!reactivatingId}
-                          className="text-success hover:text-success/80"
-                          title="Reactivar"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canEliminar && (
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(row)} disabled={discardPending !== null} className="text-error hover:text-error hover:bg-error/10" title="Desactivar">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      {row.es_activo ? (
+                        <>
+                          {canEditar && (
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(row)} disabled={discardPending !== null} className="text-brand-primary hover:text-brand-primary/80" title="Editar">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canEliminar && (
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(row)} disabled={discardPending !== null} className="text-error hover:text-error hover:bg-error/10" title="Desactivar">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        canEditar && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setReactivarTarget(row)}
+                            disabled={reactivarDepartamento.isPending || discardPending !== null}
+                            className="text-success hover:text-success/80"
+                            title="Reactivar"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )
                       )}
                     </td>
                   </tr>
@@ -418,6 +427,17 @@ export default function DepartamentosPage() {
         </DialogContent>
       </Dialog>
       <ConfirmDialog isOpen={!!deleteTarget && discardPending === null} onClose={() => setDeleteTarget(null)} onConfirm={handleDeleteConfirm} title="Desactivar departamento" message={deleteTarget ? `¿Desactivar departamento '${deleteTarget.nombre}'? Podrá reactivarlo después.` : ''} confirmText="Desactivar" cancelText="Cancelar" variant="danger" loading={deleting} />
+      <ConfirmDialog
+        isOpen={!!reactivarTarget && discardPending === null}
+        onClose={() => setReactivarTarget(null)}
+        onConfirm={() => void confirmarReactivar()}
+        title="Reactivar departamento"
+        message={reactivarTarget ? `¿Reactivar departamento '${reactivarTarget.nombre}'? Volverá a estar disponible.` : ''}
+        confirmText="Reactivar"
+        cancelText="Cancelar"
+        variant="info"
+        loading={reactivarDepartamento.isPending}
+      />
     </OrgPageLayout>
   );
 }
