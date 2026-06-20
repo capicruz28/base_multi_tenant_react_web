@@ -25,28 +25,38 @@ export const getAllActiveRoles = async (): Promise<Rol[]> => {
   }
 };
 
+export interface GetRolesParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  solo_activos?: boolean;
+  solo_inactivos?: boolean;
+}
+
 /**
  * Obtiene una lista paginada de roles desde el backend.
- * @param page Número de página.
- * @param limit Límite de roles por página.
- * @param search Término de búsqueda opcional.
- * @returns Promise<PaginatedRolResponse>
  */
-export const getRoles = async (
-  page: number = 1,
-  limit: number = 10,
-  search?: string
-): Promise<PaginatedRolResponse> => {
+export const getRoles = async (params: GetRolesParams = {}): Promise<PaginatedRolResponse> => {
   try {
-    const params: { [key: string]: any } = { page, limit };
+    const { page = 1, limit = 10, search, solo_activos, solo_inactivos } = params;
+    const queryParams: Record<string, string | number | boolean> = { page, limit };
     if (search) {
-      params.search = search;
+      queryParams.search = search;
     }
-    // ✅ CAMBIO: Agregar / al final
-    const response = await apiClient.get<PaginatedRolResponse>(`${API_URL}/`, { params });
+    if (solo_activos === true) {
+      queryParams.solo_activos = true;
+    } else if (solo_activos === false) {
+      queryParams.solo_activos = false;
+    }
+    if (solo_inactivos === true) {
+      queryParams.solo_inactivos = true;
+    }
+    const response = await apiClient.get<PaginatedRolResponse>(`${API_URL}/`, {
+      params: queryParams,
+    });
     return response.data;
   } catch (error) {
-    console.error("Error fetching roles:", error);
+    console.error('Error fetching roles:', error);
     throw getErrorMessage(error);
   }
 };

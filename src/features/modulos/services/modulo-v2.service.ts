@@ -32,6 +32,7 @@ export const moduloV2Service = {
       if (filters) {
         if (filters.codigo) params.append('codigo', filters.codigo);
         if (filters.nombre) params.append('nombre', filters.nombre);
+        if (filters.buscar) params.append('buscar', filters.buscar);
         if (filters.categoria) params.append('categoria', filters.categoria);
         // ✅ CORREGIDO: El backend espera 'solo_activos' en lugar de 'es_activo'
         if (filters.es_activo !== undefined) {

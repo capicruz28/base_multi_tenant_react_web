@@ -1,20 +1,25 @@
 // src/features/admin/pages/RoleManagementPage.tsx
 
-import React, { useState, useEffect, useCallback, useMemo, ChangeEvent, FormEvent } from 'react';
+import React, { useState, useCallback, useMemo, ChangeEvent, FormEvent } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { Loader, Edit3, Plus, KeyRound, EyeOff, Eye, Shield } from 'lucide-react';
+import { Edit3, Plus, KeyRound, Trash2, RotateCcw, Shield } from 'lucide-react';
 
-import { getRoles, createRol, updateRol, deactivateRol, reactivateRol } from '../services/rol.service';
-import { Rol, PaginatedRolResponse, RolCreateData, RolUpdateData } from '../types/rol.types';
+import { createRol, updateRol, deactivateRol, reactivateRol } from '../services/rol.service';
+import { Rol, RolCreateData, RolUpdateData } from '../types/rol.types';
 
 import { getErrorMessage } from '@/core/services/error.service';
 import { useAuth } from '@/shared/context/AuthContext';
-import { useDebounce } from '@/core/utils/debounce';
+import { useDebouncedSearch } from '@/core/list';
+import { ErpPagination } from '@/shared/components/erp-list';
+import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
+import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
+import { InvPageLayout } from '@/features/inv/components/InvPageLayout';
+import { InvTableSkeleton } from '@/features/inv/components/InvTableSkeleton';
 import { Button } from '@/shared/components/ui/button';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
 import RolePermissionsManager from '../components/RolePermissionsManager';
 import {
-  IamSearchInput,
   IamTableEmptyState,
   RoleCreateDialog,
   RoleEditDialog,
@@ -31,6 +36,7 @@ import {
   invalidateRolePermissionCountsCache,
   useRolePermissionCounts,
 } from '../hooks/useRolePermissionCounts';
+import { useRolesList, invalidateRolesListQueries } from '../hooks/useRolesList';
 import { scheduleModalStackValidation } from '../utils/iam-modal-stack-validation';
 
 type DiscardPending = 'create' | 'edit' | null;
@@ -41,7 +47,7 @@ type PermissionsTargetRol = {
 } | null;
 
 const TABLE_COLSPAN = 6;
-const LIMIT_PER_PAGE = 10;
+const LIMIT_OPTIONS = [10, 25, 50] as const;
 
 const initialCreateFormData: RolCreateData = {
   nombre: '',
@@ -59,15 +65,27 @@ type FormErrors = Record<string, string | undefined>;
 
 const RoleManagementPage: React.FC = () => {
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const queryClient = useQueryClient();
 
-  const [roles, setRoles] = useState<Rol[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalRoles, setTotalRoles] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const search = useDebouncedSearch();
+  const [mostrarInactivos, setMostrarInactivos] = useState(false);
+
+  const listEnabled = !authLoading && isAuthenticated;
+  const activeFilter = mostrarInactivos ? 'all' : 'active';
+
+  const rolesList = useRolesList({
+    debouncedSearch: search.debouncedValue || undefined,
+    activeFilter,
+    enabled: listEnabled,
+  });
+
+  const roles = rolesList.items;
+  const listError = rolesList.isError
+    ? getErrorMessage(rolesList.error).message || 'Ocurrió un error al cargar los perfiles.'
+    : null;
+
+  const showInitialSkeleton = (authLoading || rolesList.isLoading) && roles.length === 0;
+  const listIsRefreshing = rolesList.isFetching && roles.length > 0;
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newRolFormData, setNewRolFormData] = useState<RolCreateData>(initialCreateFormData);
@@ -87,15 +105,15 @@ const RoleManagementPage: React.FC = () => {
   const [deactivatingRol, setDeactivatingRol] = useState<Rol | null>(null);
   const [isDeactivating, setIsDeactivating] = useState(false);
 
-  const [isReactivateConfirmOpen, setIsReactivateConfirmOpen] = useState(false);
-  const [reactivatingRol, setReactivatingRol] = useState<Rol | null>(null);
+  const [reactivarTarget, setReactivarTarget] = useState<Rol | null>(null);
   const [isReactivating, setIsReactivating] = useState(false);
 
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [permissionsTargetRol, setPermissionsTargetRol] = useState<PermissionsTargetRol>(null);
   const [permissionCountsRefreshKey, setPermissionCountsRefreshKey] = useState(0);
 
-  const metricsEnabled = !authLoading && isAuthenticated && !isLoading && !error;
+  const pageActionsLocked = discardPending !== null;
+  const metricsEnabled = listEnabled && !rolesList.isLoading && !listError;
 
   const visibleRolIds = useMemo(() => roles.map((r) => r.rol_id), [roles]);
 
@@ -108,37 +126,6 @@ const RoleManagementPage: React.FC = () => {
     permissionCountsRefreshKey,
   );
 
-  const fetchRoles = useCallback(async (page: number, search: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data: PaginatedRolResponse = await getRoles(page, LIMIT_PER_PAGE, search || undefined);
-      setRoles(data.roles);
-      setTotalPages(data.total_paginas);
-      setTotalRoles(data.total_roles);
-      setCurrentPage(data.pagina_actual);
-    } catch (err) {
-      console.error('Error in fetchRoles:', err);
-      const errorData = getErrorMessage(err);
-      const message = errorData.message || 'Ocurrió un error al cargar los perfiles.';
-      setError(message);
-      setRoles([]);
-      setTotalPages(1);
-      setTotalRoles(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (authLoading || !isAuthenticated) return;
-    const pageToFetch = debouncedSearchTerm !== searchTerm ? 1 : currentPage;
-    if (debouncedSearchTerm !== searchTerm) {
-      setCurrentPage(1);
-    }
-    fetchRoles(pageToFetch, debouncedSearchTerm);
-  }, [debouncedSearchTerm, currentPage, fetchRoles, searchTerm, authLoading, isAuthenticated]);
-
   const isCreateDialogDirty = useMemo(
     () => isCreateRoleFormDirty(newRolFormData),
     [newRolFormData],
@@ -148,14 +135,6 @@ const RoleManagementPage: React.FC = () => {
     () => isEditRoleFormDirty(editFormData, editFormSnapshot),
     [editFormData, editFormSnapshot],
   );
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage((prev) => prev - 1);
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage((prev) => prev + 1);
-  };
 
   const handleOpenPermissionsModal = useCallback((rol: Rol) => {
     setPermissionsTargetRol({ id: rol.rol_id, nombre: rol.nombre });
@@ -326,8 +305,9 @@ const RoleManagementPage: React.FC = () => {
 
       const created = await createRol(dataToSend);
       handleCloseCreateModal();
-      setSearchTerm('');
-      fetchRoles(1, '');
+      search.clear();
+      rolesList.setPage(1);
+      await invalidateRolesListQueries(queryClient);
 
       toast.success('Perfil creado correctamente.');
 
@@ -372,7 +352,7 @@ const RoleManagementPage: React.FC = () => {
       await updateRol(editingRol.rol_id, dataToUpdate);
       handleCloseEditModal();
       toast.success('Perfil actualizado correctamente.');
-      fetchRoles(currentPage, debouncedSearchTerm);
+      await invalidateRolesListQueries(queryClient);
     } catch (err) {
       console.error('Error updating rol:', err);
       const errorData = getErrorMessage(err);
@@ -401,7 +381,7 @@ const RoleManagementPage: React.FC = () => {
       await deactivateRol(deactivatingRol.rol_id);
       handleCloseDeactivateConfirm();
       toast.success('Perfil desactivado correctamente.');
-      fetchRoles(currentPage, debouncedSearchTerm);
+      await invalidateRolesListQueries(queryClient);
     } catch (err) {
       console.error('Error deactivating rol:', err);
       const errorData = getErrorMessage(err);
@@ -411,26 +391,14 @@ const RoleManagementPage: React.FC = () => {
     }
   };
 
-  const handleOpenReactivateConfirm = (rol: Rol) => {
-    setReactivatingRol(rol);
-    setIsReactivateConfirmOpen(true);
-  };
-
-  const handleCloseReactivateConfirm = () => {
-    if (!isReactivating) {
-      setIsReactivateConfirmOpen(false);
-      setReactivatingRol(null);
-    }
-  };
-
-  const handleConfirmReactivate = async () => {
-    if (!reactivatingRol) return;
+  const confirmarReactivar = async () => {
+    if (!reactivarTarget) return;
     setIsReactivating(true);
     try {
-      await reactivateRol(reactivatingRol.rol_id);
-      handleCloseReactivateConfirm();
+      await reactivateRol(reactivarTarget.rol_id);
+      setReactivarTarget(null);
       toast.success('Perfil reactivado correctamente.');
-      fetchRoles(currentPage, debouncedSearchTerm);
+      await invalidateRolesListQueries(queryClient);
     } catch (err) {
       console.error('Error reactivating rol:', err);
       const errorData = getErrorMessage(err);
@@ -440,247 +408,253 @@ const RoleManagementPage: React.FC = () => {
     }
   };
 
-  const showTableSpinner = authLoading || isLoading;
-  const hasSearch = searchTerm.trim().length > 0;
+  const hasSearch = search.hasSearch;
 
   const userCountTooltip = userCountsUnavailable
     ? 'Hay demasiados usuarios para calcular en el navegador. Use la lista de usuarios para revisar asignaciones.'
     : 'Usuarios con este perfil asignado';
 
+  const emptyTitle = hasSearch
+    ? 'No se encontraron perfiles que coincidan con la búsqueda.'
+    : mostrarInactivos
+      ? 'No hay perfiles registrados.'
+      : 'No hay perfiles activos.';
+
+  const emptyDescription = hasSearch
+    ? 'Pruebe con otro término o limpie el filtro de búsqueda.'
+    : mostrarInactivos
+      ? undefined
+      : 'Cree el primer perfil para asignarlo a los usuarios.';
+
   return (
-    <div className="w-full">
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <IamSearchInput
-          value={searchTerm}
-          onChange={setSearchTerm}
+    <InvPageLayout>
+      <OrgCompanyToolbar
+        actions={
+          <Button
+            type="button"
+            onClick={handleOpenCreateModal}
+            disabled={authLoading || !isAuthenticated || pageActionsLocked}
+            className="bg-brand-primary hover:bg-brand-primary-hover text-white gap-2"
+          >
+            <Plus className="h-5 w-5" />
+            Crear perfil
+          </Button>
+        }
+      >
+        <OrgToolbarSearch
+          value={search.inputValue}
+          onChange={search.setInputValue}
           placeholder="Buscar por nombre o descripción…"
-          className="sm:w-1/3"
           aria-label="Buscar perfiles"
+          disabled={pageActionsLocked}
         />
-        <Button
-          type="button"
-          onClick={handleOpenCreateModal}
-          disabled={authLoading || !isAuthenticated || discardPending !== null}
-          className="w-full sm:w-auto bg-brand-primary hover:bg-brand-primary-hover text-white gap-2"
-        >
-          <Plus className="h-5 w-5" />
-          Crear perfil
-        </Button>
-      </div>
+        <label className="flex shrink-0 items-center gap-1.5 text-sm text-text-soft cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={mostrarInactivos}
+            onChange={(e) => setMostrarInactivos(e.target.checked)}
+            disabled={pageActionsLocked}
+            className="rounded border border-border-base text-brand-primary focus:ring-brand-primary"
+            aria-label="Ver inactivos"
+          />
+          Ver inactivos
+        </label>
+      </OrgCompanyToolbar>
 
-      {showTableSpinner && (
-        <div className="flex justify-center items-center py-10">
-          <Loader className="animate-spin h-8 w-8 text-brand-primary" />
-          <p className="ml-3 text-text-soft">
-            {authLoading ? 'Verificando sesión…' : 'Cargando perfiles…'}
-          </p>
+      {listError && !rolesList.isLoading ? (
+        <div className="mb-4 rounded-lg border border-border-base bg-surface p-6">
+          <p className="text-error bg-error/10 p-4 rounded-lg mb-4">{listError}</p>
+          <button
+            type="button"
+            onClick={() => void invalidateRolesListQueries(queryClient)}
+            disabled={rolesList.isFetching}
+            className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Reintentar
+          </button>
         </div>
-      )}
+      ) : null}
 
-      {error && !showTableSpinner && (
-        <p className="text-center text-error bg-error/10 p-3 rounded-md">{error}</p>
-      )}
+      {!listError ? (
+        <div className="bg-surface rounded-lg shadow-sm border border-border-base overflow-hidden">
+          <div
+            className={`transition-opacity duration-150 ${listIsRefreshing ? 'opacity-70' : 'opacity-100'}`}
+            aria-busy={listIsRefreshing}
+          >
+            {showInitialSkeleton ? (
+              <InvTableSkeleton columns={TABLE_COLSPAN} />
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-border-base">
+                    <thead className="bg-subtle">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Nombre
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Descripción
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Usuarios
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Permisos
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Estado
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-surface divide-y divide-border-base">
+                      {roles.length > 0 ? (
+                        roles.map((rol) => {
+                          const permStats = permissionCountsByRol[rol.rol_id];
+                          const permTooltip =
+                            permStats !== undefined
+                              ? `${permStats.negocio} acciones · ${permStats.menu} pantallas`
+                              : 'No se pudieron cargar los permisos';
 
-      {!showTableSpinner && !error && (
-        <div className="overflow-x-auto shadow-md rounded-lg border border-border-base">
-          <table className="min-w-full divide-y divide-border-base">
-            <thead className="bg-subtle">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
-                  Nombre
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
-                  Descripción
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
-                  Usuarios
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
-                  Permisos
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
-                  Estado
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-surface divide-y divide-border-base">
-              {roles.length > 0 ? (
-                roles.map((rol) => {
-                  const permStats = permissionCountsByRol[rol.rol_id];
-                  const permTooltip =
-                    permStats !== undefined
-                      ? `${permStats.negocio} acciones · ${permStats.menu} pantallas`
-                      : 'No se pudieron cargar los permisos';
-
-                  return (
-                    <tr key={rol.rol_id} className="hover:bg-overlay/50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-base">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span>{rol.nombre}</span>
-                          {rol.codigo_rol ? (
-                            <span
-                              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-medium rounded bg-subtle text-text-soft"
-                              title={`Código: ${rol.codigo_rol}`}
-                            >
-                              <Shield className="h-3 w-3" aria-hidden />
-                              Sistema
-                            </span>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-text-soft max-w-md">
-                        <p className="line-clamp-2" title={rol.descripcion || undefined}>
-                          {rol.descripcion || '—'}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
-                        <RoleStatsCell
-                          loading={loadingUserCounts}
-                          unavailable={userCountsUnavailable}
-                          value={userCountsUnavailable ? null : userCountsByRol[rol.rol_id] ?? 0}
-                          tooltip={userCountTooltip}
+                          return (
+                            <tr key={rol.rol_id} className="hover:bg-overlay/50">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-base">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span>{rol.nombre}</span>
+                                  {rol.codigo_rol ? (
+                                    <span
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-medium rounded bg-subtle text-text-soft"
+                                      title={`Código: ${rol.codigo_rol}`}
+                                    >
+                                      <Shield className="h-3 w-3" aria-hidden />
+                                      Sistema
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-sm text-text-soft max-w-md">
+                                <p className="line-clamp-2" title={rol.descripcion || undefined}>
+                                  {rol.descripcion || '—'}
+                                </p>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
+                                <RoleStatsCell
+                                  loading={loadingUserCounts}
+                                  unavailable={userCountsUnavailable}
+                                  value={userCountsUnavailable ? null : userCountsByRol[rol.rol_id] ?? 0}
+                                  tooltip={userCountTooltip}
+                                />
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
+                                <RoleStatsCell
+                                  loading={loadingPermissionCounts}
+                                  value={permStats?.total}
+                                  tooltip={permTooltip}
+                                />
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
+                                <span
+                                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                    rol.es_activo ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
+                                  }`}
+                                >
+                                  {rol.es_activo ? 'Activo' : 'Inactivo'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                <div className="inline-flex items-center justify-center gap-1">
+                                  {rol.es_activo ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenEditModal(rol)}
+                                        className="text-brand-primary hover:text-brand-primary/80 p-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title="Editar perfil"
+                                        disabled={
+                                          authLoading || !isAuthenticated || pageActionsLocked
+                                        }
+                                      >
+                                        <Edit3 className="h-4 w-4" />
+                                        <span className="sr-only">Editar perfil</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenPermissionsModal(rol)}
+                                        className="text-info hover:text-info/80 p-1 rounded hover:bg-overlay inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title="Gestionar permisos"
+                                        disabled={
+                                          authLoading || !isAuthenticated || pageActionsLocked
+                                        }
+                                      >
+                                        <KeyRound className="h-4 w-4 shrink-0" />
+                                        <span className="hidden md:inline text-xs">Permisos</span>
+                                        <span className="sr-only">Gestionar permisos</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenDeactivateConfirm(rol)}
+                                        className="text-error hover:text-error/80 p-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title="Desactivar perfil"
+                                        disabled={
+                                          authLoading || !isAuthenticated || pageActionsLocked
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="sr-only">Desactivar perfil</span>
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => setReactivarTarget(rol)}
+                                      className="text-success hover:text-success/80 p-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title="Reactivar perfil"
+                                      disabled={
+                                        authLoading || !isAuthenticated || pageActionsLocked
+                                      }
+                                    >
+                                      <RotateCcw className="h-4 w-4" />
+                                      <span className="sr-only">Reactivar perfil</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <IamTableEmptyState
+                          colSpan={TABLE_COLSPAN}
+                          icon={Plus}
+                          title={emptyTitle}
+                          description={emptyDescription}
+                          actionLabel={hasSearch || mostrarInactivos ? undefined : 'Crear perfil'}
+                          onAction={
+                            hasSearch || mostrarInactivos ? undefined : handleOpenCreateModal
+                          }
+                          actionDisabled={authLoading || !isAuthenticated || pageActionsLocked}
                         />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
-                        <RoleStatsCell
-                          loading={loadingPermissionCounts}
-                          value={permStats?.total}
-                          tooltip={permTooltip}
-                        />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            rol.es_activo ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
-                          }`}
-                        >
-                          {rol.es_activo ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        <div className="inline-flex items-center justify-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditModal(rol)}
-                            className="text-brand-primary hover:text-brand-primary/80 p-1 rounded hover:bg-overlay"
-                            title="Editar perfil"
-                            disabled={authLoading || !isAuthenticated || discardPending !== null}
-                          >
-                            <Edit3 className="h-4 w-4" />
-                            <span className="sr-only">Editar perfil</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenPermissionsModal(rol)}
-                            className="text-info hover:text-info/80 p-1 rounded hover:bg-overlay inline-flex items-center gap-1"
-                            title="Gestionar permisos"
-                            disabled={authLoading || !isAuthenticated || discardPending !== null}
-                          >
-                            <KeyRound className="h-4 w-4 shrink-0" />
-                            <span className="hidden md:inline text-xs">Permisos</span>
-                            <span className="sr-only">Gestionar permisos</span>
-                          </button>
-                          {rol.es_activo ? (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenDeactivateConfirm(rol)}
-                              className="text-error hover:text-error/80 p-1 rounded hover:bg-overlay"
-                              title="Desactivar perfil"
-                              disabled={authLoading || !isAuthenticated || discardPending !== null}
-                            >
-                              <EyeOff className="h-4 w-4" />
-                              <span className="sr-only">Desactivar perfil</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenReactivateConfirm(rol)}
-                              className="text-success hover:text-success/80 p-1 rounded hover:bg-overlay"
-                              title="Reactivar perfil"
-                              disabled={authLoading || !isAuthenticated || discardPending !== null}
-                            >
-                              <Eye className="h-4 w-4" />
-                              <span className="sr-only">Reactivar perfil</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <IamTableEmptyState
-                  colSpan={TABLE_COLSPAN}
-                  icon={Plus}
-                  title={
-                    hasSearch
-                      ? 'No se encontraron perfiles que coincidan con la búsqueda.'
-                      : 'No hay perfiles de acceso registrados.'
-                  }
-                  description={
-                    hasSearch
-                      ? 'Pruebe con otro término o limpie el filtro de búsqueda.'
-                      : 'Cree el primer perfil para asignarlo a los usuarios.'
-                  }
-                  actionLabel={hasSearch ? undefined : 'Crear perfil'}
-                  onAction={hasSearch ? undefined : handleOpenCreateModal}
-                  actionDisabled={authLoading || !isAuthenticated || discardPending !== null}
-                />
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-      {!showTableSpinner && !error && totalRoles > LIMIT_PER_PAGE && (
-        <div className="py-4 flex items-center justify-between border-t border-border-base mt-4">
-          <p className="text-sm text-text-soft">
-            Mostrando <span className="font-medium">{(currentPage - 1) * LIMIT_PER_PAGE + 1}</span>
-            {' a '}
-            <span className="font-medium">{Math.min(currentPage * LIMIT_PER_PAGE, totalRoles)}</span>
-            {' de '}
-            <span className="font-medium">{totalRoles}</span> resultados
-          </p>
-          <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Paginación">
-            <button
-              type="button"
-              onClick={handlePreviousPage}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-border-base bg-surface text-sm font-medium text-text-soft hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="sr-only">Anterior</span>
-              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path
-                  fillRule="evenodd"
-                  d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-            <span className="relative inline-flex items-center px-4 py-2 border border-border-base bg-surface text-sm font-medium text-text-base">
-              Página {currentPage} de {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages}
-              className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-border-base bg-surface text-sm font-medium text-text-soft hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="sr-only">Siguiente</span>
-              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path
-                  fillRule="evenodd"
-                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-          </nav>
+                {rolesList.pagination ? (
+                  <ErpPagination
+                    pagination={rolesList.pagination}
+                    onPageChange={rolesList.setPage}
+                    onLimitChange={rolesList.setLimit}
+                    limitOptions={LIMIT_OPTIONS}
+                    disabled={rolesList.isFetching || pageActionsLocked}
+                  />
+                ) : null}
+              </>
+            )}
+          </div>
         </div>
-      )}
+      ) : null}
 
       <RoleCreateDialog
         open={isCreateModalOpen}
@@ -735,25 +709,25 @@ const RoleManagementPage: React.FC = () => {
             ? `¿Está seguro de que desea desactivar el perfil «${deactivatingRol.nombre}»? Los usuarios asignados pueden perder acceso según la configuración del sistema.`
             : ''
         }
-        confirmText="Sí, desactivar"
+        confirmText="Desactivar"
         cancelText="Cancelar"
         variant="danger"
         loading={isDeactivating}
       />
 
       <ConfirmDialog
-        isOpen={isReactivateConfirmOpen}
-        onClose={handleCloseReactivateConfirm}
-        onConfirm={handleConfirmReactivate}
+        isOpen={!!reactivarTarget && discardPending === null}
+        onClose={() => setReactivarTarget(null)}
+        onConfirm={() => void confirmarReactivar()}
         title="Reactivar perfil"
         message={
-          reactivatingRol
-            ? `¿Está seguro de que desea reactivar el perfil «${reactivatingRol.nombre}»?`
+          reactivarTarget
+            ? `¿Reactivar perfil '${reactivarTarget.nombre}'? Volverá a estar disponible.`
             : ''
         }
-        confirmText="Sí, reactivar"
+        confirmText="Reactivar"
         cancelText="Cancelar"
-        variant="warning"
+        variant="info"
         loading={isReactivating}
       />
 
@@ -766,7 +740,7 @@ const RoleManagementPage: React.FC = () => {
           onPermissionsUpdate={handlePermissionsUpdate}
         />
       ) : null}
-    </div>
+    </InvPageLayout>
   );
 };
 

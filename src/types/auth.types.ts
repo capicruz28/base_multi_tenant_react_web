@@ -64,40 +64,14 @@ export type ApiError = AxiosError<ApiErrorResponse>;
 export type ApiSimpleError = AxiosError<SimplifiedApiError>;
 
 // ============================================================================
-// 🆕 TIPOS PARA GESTIÓN DE SESIONES ACTIVAS
+// Gestión de sesiones activas — tipo canónico en admin/types/session.types.ts
 // ============================================================================
 
-/**
- * Sesión activa en el sistema
- * Representa un refresh token activo asociado a un usuario
- */
-export interface ActiveSession {
-  token_id: string; // UUID format
-  usuario_id: string; // UUID format
-  nombre_usuario: string;
-  nombre: string;
-  apellido: string;
-  client_type: 'web' | 'mobile';
-  ip_address: string | null;
-  created_at: string; // ISO 8601 timestamp
-  expires_at: string; // ISO 8601 timestamp
-}
-
-/**
- * Respuesta de revocación de sesión
- */
-export interface RevokeSessionResponse {
-  message: string;
-  token_id?: string; // UUID format
-}
-
-/**
- * Respuesta de logout global
- */
-export interface LogoutAllSessionsResponse {
-  message: string;
-  sessions_closed?: number;
-}
+export type {
+  AdminSessionRead as ActiveSession,
+  RevokeSessionResponse,
+  LogoutAllSessionsResponse,
+} from '@/features/admin/types/session.types';
 
 // ============================================================================
 // ✅ NUEVO: TIPOS PARA NIVELES DE ACCESO Y AUTORIZACIÓN

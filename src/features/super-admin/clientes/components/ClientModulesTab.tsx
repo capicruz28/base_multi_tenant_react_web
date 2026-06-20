@@ -623,7 +623,7 @@ const ClientModulesTab: React.FC<ClientModulesTabProps> = ({ clienteId }) => {
         onConfirm={handleDeactivateConfirm}
         title="Desactivar Módulo"
         message={moduloToDeactivate ? `¿Estás seguro de desactivar el módulo "${moduloToDeactivate.nombre}"?\n\nEsto desactivará todas las conexiones asociadas y el módulo dejará de estar disponible para este cliente.` : ''}
-        confirmText="Sí, Desactivar"
+        confirmText="Desactivar"
         cancelText="Cancelar"
         variant="danger"
         confirmButtonClassName="bg-error hover:bg-error/90 focus:ring-error text-white"

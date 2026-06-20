@@ -118,6 +118,7 @@ export interface ModuloMenuResponse {
 export interface ModuloV2Filters {
   codigo?: string;
   nombre?: string;
+  buscar?: string;
   categoria?: string;
   es_activo?: boolean;
   skip?: number;

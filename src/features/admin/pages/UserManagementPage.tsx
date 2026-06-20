@@ -1,29 +1,34 @@
 // src/features/admin/pages/UserManagementPage.tsx
 
 import React, { useState, useEffect, useCallback, useMemo, ChangeEvent, FormEvent } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { Loader, Edit3, Trash2, UserPlus, Users, Search as SearchIcon } from 'lucide-react';
+import { Edit3, Trash2, RotateCcw, UserPlus, Users } from 'lucide-react';
 
 import {
-  getUsers,
   createUser,
   updateUser,
-  deleteUser,
+  deactivateUser,
+  reactivateUser,
   assignRoleToUser,
   revokeRoleFromUser,
 } from '../services/usuario.service';
 import { getAllActiveRoles } from '../services/rol.service';
 
-import { UserWithRoles, PaginatedUsersResponse, UserFormData, UserUpdateData } from '../types/usuario.types';
+import { UserWithRoles, UserFormData, UserUpdateData } from '../types/usuario.types';
 import { Rol } from '../types/rol.types';
 
 import { getErrorMessage } from '@/core/services/error.service';
 import { useAuth } from '@/shared/context/AuthContext';
-import { useDebounce } from '@/core/utils/debounce';
+import { useDebouncedSearch } from '@/core/list';
+import { ErpPagination } from '@/shared/components/erp-list';
+import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
+import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
+import { InvPageLayout } from '@/features/inv/components/InvPageLayout';
+import { InvTableSkeleton } from '@/features/inv/components/InvTableSkeleton';
 import { Button } from '@/shared/components/ui/button';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
 import {
-  IamSearchInput,
   IamTableEmptyState,
   UserCreateDialog,
   UserEditDialog,
@@ -38,12 +43,13 @@ import {
   extractAxiosOperationEvidence,
   logIamUserOperation,
 } from '../utils/iam-user-operation-log';
+import { useUsersList, invalidateUsersListQueries } from '../hooks/useUsersList';
 import { scheduleModalStackValidation } from '../utils/iam-modal-stack-validation';
 
 type DiscardPending = 'create' | 'edit' | null;
 
 const TABLE_COLSPAN = 6;
-const LIMIT_PER_PAGE = 10;
+const LIMIT_OPTIONS = [10, 25, 50] as const;
 
 const initialCreateFormData: UserFormData = {
   nombre_usuario: '',
@@ -79,15 +85,27 @@ function resolveSessionClienteId(
 
 const UserManagementPage: React.FC = () => {
   const { isAuthenticated, loading: authLoading, clienteInfo, auth } = useAuth();
+  const queryClient = useQueryClient();
 
-  const [users, setUsers] = useState<UserWithRoles[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const search = useDebouncedSearch();
+  const [mostrarInactivos, setMostrarInactivos] = useState(false);
+
+  const listEnabled = !authLoading && isAuthenticated;
+  const activeFilter = mostrarInactivos ? 'all' : 'active';
+
+  const usersList = useUsersList({
+    debouncedSearch: search.debouncedValue || undefined,
+    activeFilter,
+    enabled: listEnabled,
+  });
+
+  const users = usersList.items;
+  const listError = usersList.isError
+    ? getErrorMessage(usersList.error).message || 'Ocurrió un error al cargar los usuarios.'
+    : null;
+
+  const showInitialSkeleton = (authLoading || usersList.isLoading) && users.length === 0;
+  const listIsRefreshing = usersList.isFetching && users.length > 0;
 
   const [availableRoles, setAvailableRoles] = useState<Rol[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(false);
@@ -108,30 +126,13 @@ const UserManagementPage: React.FC = () => {
 
   const [discardPending, setDiscardPending] = useState<DiscardPending>(null);
 
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [deletingUser, setDeletingUser] = useState<UserWithRoles | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [bajaTarget, setBajaTarget] = useState<UserWithRoles | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
 
-  const fetchUsers = useCallback(async (page: number, search: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data: PaginatedUsersResponse = await getUsers(page, LIMIT_PER_PAGE, search || undefined);
-      setUsers(data.usuarios);
-      setTotalPages(data.total_paginas);
-      setTotalUsers(data.total_usuarios);
-      setCurrentPage(data.pagina_actual);
-    } catch (err) {
-      console.error('Error in fetchUsers:', err);
-      const errorData = getErrorMessage(err);
-      setError(errorData.message || 'Ocurrió un error al cargar los usuarios.');
-      setUsers([]);
-      setTotalPages(1);
-      setTotalUsers(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const [reactivarTarget, setReactivarTarget] = useState<UserWithRoles | null>(null);
+  const [isReactivating, setIsReactivating] = useState(false);
+
+  const pageActionsLocked = discardPending !== null;
 
   const fetchAvailableRoles = useCallback(async () => {
     setIsLoadingRoles(true);
@@ -149,25 +150,8 @@ const UserManagementPage: React.FC = () => {
 
   useEffect(() => {
     if (authLoading || !isAuthenticated) return;
-    const pageToFetch = debouncedSearchTerm !== searchTerm ? 1 : currentPage;
-    if (debouncedSearchTerm !== searchTerm) {
-      setCurrentPage(1);
-    }
-    fetchUsers(pageToFetch, debouncedSearchTerm);
-  }, [debouncedSearchTerm, currentPage, fetchUsers, searchTerm, authLoading, isAuthenticated]);
-
-  useEffect(() => {
-    if (authLoading || !isAuthenticated) return;
-    fetchAvailableRoles();
+    void fetchAvailableRoles();
   }, [fetchAvailableRoles, authLoading, isAuthenticated]);
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage((prev) => prev - 1);
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage((prev) => prev + 1);
-  };
 
   const isCreateDialogDirty = useMemo(
     () => isCreateUserFormDirty(newUserFormData, selectedCreateRoleIds),
@@ -325,8 +309,9 @@ const UserManagementPage: React.FC = () => {
       }
 
       handleCloseCreateModal();
-      setSearchTerm('');
-      fetchUsers(1, '');
+      search.clear();
+      usersList.setPage(1);
+      await invalidateUsersListQueries(queryClient);
     } catch (err) {
       console.error('Error creating user or assigning roles:', err);
       const evidence = extractAxiosOperationEvidence(err);
@@ -511,7 +496,7 @@ const UserManagementPage: React.FC = () => {
 
       toast.success('Usuario actualizado correctamente.');
       handleCloseEditModal();
-      fetchUsers(currentPage, debouncedSearchTerm);
+      await invalidateUsersListQueries(queryClient);
     } catch (err) {
       console.error('Error updating user or roles:', err);
       const evidence = extractAxiosOperationEvidence(err);
@@ -523,241 +508,270 @@ const UserManagementPage: React.FC = () => {
     }
   };
 
-  const handleOpenDeleteConfirm = (user: UserWithRoles) => {
-    setDeletingUser(user);
-    setIsDeleteConfirmOpen(true);
+  const handleOpenDeactivateConfirm = (user: UserWithRoles) => {
+    setBajaTarget(user);
   };
 
-  const handleCloseDeleteConfirm = () => {
-    if (!isDeleting) {
-      setIsDeleteConfirmOpen(false);
-      setDeletingUser(null);
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!deletingUser) return;
-    setIsDeleting(true);
+  const confirmarDesactivar = async () => {
+    if (!bajaTarget) return;
+    setIsDeactivating(true);
     try {
-      await deleteUser(deletingUser.usuario_id);
-      handleCloseDeleteConfirm();
+      const updated = await deactivateUser(bajaTarget.usuario_id);
+      logIamUserOperation({
+        operation: 'UPDATE_USER',
+        usuario_id: bajaTarget.usuario_id,
+        requestBody: { es_activo: false },
+        statusCode: 200,
+        responseBody: updated,
+      });
+      setBajaTarget(null);
       toast.success('Usuario desactivado correctamente.');
-      fetchUsers(currentPage, debouncedSearchTerm);
+      await invalidateUsersListQueries(queryClient);
     } catch (err) {
       console.error('Error deactivating user:', err);
       const errorData = getErrorMessage(err);
       toast.error(errorData.message || 'Error al desactivar usuario.');
     } finally {
-      setIsDeleting(false);
+      setIsDeactivating(false);
     }
   };
 
-  const showTableSpinner = authLoading || isLoading;
-  const hasSearch = searchTerm.trim().length > 0;
+  const confirmarReactivar = async () => {
+    if (!reactivarTarget) return;
+    setIsReactivating(true);
+    try {
+      await reactivateUser(reactivarTarget.usuario_id);
+      setReactivarTarget(null);
+      toast.success('Usuario reactivado correctamente.');
+      await invalidateUsersListQueries(queryClient);
+    } catch (err) {
+      console.error('Error reactivating user:', err);
+      const errorData = getErrorMessage(err);
+      toast.error(errorData.message || 'Error al reactivar usuario.');
+    } finally {
+      setIsReactivating(false);
+    }
+  };
+
+  const hasSearch = search.hasSearch;
+
+  const emptyTitle = hasSearch
+    ? 'No se encontraron usuarios que coincidan con la búsqueda.'
+    : mostrarInactivos
+      ? 'No hay usuarios registrados.'
+      : 'No hay usuarios activos.';
+
+  const emptyDescription = hasSearch
+    ? 'Pruebe con otro término o limpie el filtro de búsqueda.'
+    : mostrarInactivos
+      ? undefined
+      : 'Cree el primer usuario para que pueda acceder al sistema.';
 
   return (
-    <div className="w-full">
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <IamSearchInput
-          value={searchTerm}
-          onChange={setSearchTerm}
+    <InvPageLayout>
+      <OrgCompanyToolbar
+        actions={
+          <Button
+            type="button"
+            onClick={handleOpenCreateModal}
+            disabled={
+              isLoadingRoles || authLoading || !isAuthenticated || pageActionsLocked
+            }
+            title={!isAuthenticated ? 'Debe iniciar sesión' : undefined}
+            className="bg-brand-primary hover:bg-brand-primary-hover text-white gap-2"
+          >
+            <UserPlus className="h-5 w-5" />
+            Crear usuario
+          </Button>
+        }
+      >
+        <OrgToolbarSearch
+          value={search.inputValue}
+          onChange={search.setInputValue}
           placeholder="Buscar por nombre, apellido, correo…"
-          className="sm:w-1/3"
           aria-label="Buscar usuarios"
+          disabled={pageActionsLocked}
         />
-        <Button
-          type="button"
-          onClick={handleOpenCreateModal}
-          disabled={
-            isLoadingRoles || authLoading || !isAuthenticated || discardPending !== null
-          }
-          title={!isAuthenticated ? 'Debe iniciar sesión' : undefined}
-          className="w-full sm:w-auto bg-brand-primary hover:bg-brand-primary-hover text-white gap-2"
-        >
-          <UserPlus className="h-5 w-5" />
-          Crear usuario
-        </Button>
-      </div>
+        <label className="flex shrink-0 items-center gap-1.5 text-sm text-text-soft cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={mostrarInactivos}
+            onChange={(e) => setMostrarInactivos(e.target.checked)}
+            disabled={pageActionsLocked}
+            className="rounded border border-border-base text-brand-primary focus:ring-brand-primary"
+            aria-label="Ver inactivos"
+          />
+          Ver inactivos
+        </label>
+      </OrgCompanyToolbar>
 
-      {showTableSpinner && (
-        <div className="flex justify-center items-center py-10">
-          <Loader className="animate-spin h-8 w-8 text-brand-primary" />
-          <p className="ml-3 text-text-soft">
-            {authLoading ? 'Verificando sesión…' : 'Cargando usuarios…'}
-          </p>
+      {listError && !usersList.isLoading ? (
+        <div className="mb-4 rounded-lg border border-border-base bg-surface p-6">
+          <p className="text-error bg-error/10 p-4 rounded-lg mb-4">{listError}</p>
+          <button
+            type="button"
+            onClick={() => void invalidateUsersListQueries(queryClient)}
+            disabled={usersList.isFetching}
+            className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Reintentar
+          </button>
         </div>
-      )}
+      ) : null}
 
-      {error && !showTableSpinner && (
-        <p className="text-center text-error bg-error/10 p-3 rounded-md">{error}</p>
-      )}
-
-      {!showTableSpinner && !error && (
-        <div className="overflow-x-auto shadow-md rounded-lg border border-border-base">
-          <table className="min-w-full divide-y divide-border-base">
-            <thead className="bg-subtle">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
-                  Nombre
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
-                  Usuario de acceso
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
-                  Correo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
-                  Perfiles
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
-                  Estado
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-surface divide-y divide-border-base">
-              {users.length > 0 ? (
-                users.map((user) => (
-                  <tr key={user.usuario_id} className="hover:bg-overlay/50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-base">
-                      {formatUserDisplayName(user)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
-                      {user.nombre_usuario}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">{user.correo}</td>
-                    <td className="px-6 py-4 text-sm text-text-soft">
-                      {user.roles.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {user.roles.map((role) => (
-                            <span
-                              key={role.rol_id}
-                              className="px-2 py-1 text-xs font-semibold bg-info/10 text-info rounded-full"
-                            >
-                              {role.nombre}
-                            </span>
-                          ))}
-                        </div>
+      {!listError ? (
+        <div className="bg-surface rounded-lg shadow-sm border border-border-base overflow-hidden">
+          <div
+            className={`transition-opacity duration-150 ${listIsRefreshing ? 'opacity-70' : 'opacity-100'}`}
+            aria-busy={listIsRefreshing}
+          >
+            {showInitialSkeleton ? (
+              <InvTableSkeleton columns={TABLE_COLSPAN} />
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-border-base">
+                    <thead className="bg-subtle">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Nombre
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Usuario de acceso
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Correo
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Perfiles
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Estado
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-surface divide-y divide-border-base">
+                      {users.length > 0 ? (
+                        users.map((user) => (
+                          <tr key={user.usuario_id} className="hover:bg-overlay/50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-base">
+                              {formatUserDisplayName(user)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
+                              {user.nombre_usuario}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
+                              {user.correo}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-text-soft">
+                              {user.roles.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {user.roles.map((role) => (
+                                    <span
+                                      key={role.rol_id}
+                                      className="px-2 py-1 text-xs font-semibold bg-info/10 text-info rounded-full"
+                                    >
+                                      {role.nombre}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="italic text-text-soft">Sin perfiles</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
+                              <span
+                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  user.es_activo ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
+                                }`}
+                              >
+                                {user.es_activo ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                              <div className="inline-flex items-center gap-1">
+                                {user.es_activo ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenEditModal(user)}
+                                      className="text-brand-primary hover:text-brand-primary/80 p-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title="Editar usuario y perfiles"
+                                      disabled={
+                                        isLoadingRoles ||
+                                        authLoading ||
+                                        !isAuthenticated ||
+                                        pageActionsLocked
+                                      }
+                                    >
+                                      <Edit3 className="h-4 w-4" />
+                                      <span className="sr-only">Editar usuario</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenDeactivateConfirm(user)}
+                                      className="text-error hover:text-error/80 p-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title="Desactivar usuario"
+                                      disabled={authLoading || !isAuthenticated || pageActionsLocked}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      <span className="sr-only">Desactivar usuario</span>
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setReactivarTarget(user)}
+                                    className="text-success hover:text-success/80 p-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Reactivar usuario"
+                                    disabled={authLoading || !isAuthenticated || pageActionsLocked}
+                                  >
+                                    <RotateCcw className="h-4 w-4" />
+                                    <span className="sr-only">Reactivar usuario</span>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
                       ) : (
-                        <span className="italic text-text-soft">Sin perfiles</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.es_activo ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
-                        }`}
-                      >
-                        {user.es_activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                      <div className="inline-flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditModal(user)}
-                          className="text-brand-primary hover:text-brand-primary/80 p-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Editar usuario y perfiles"
-                          disabled={
-                            isLoadingRoles ||
-                            authLoading ||
-                            !isAuthenticated ||
-                            discardPending !== null
+                        <IamTableEmptyState
+                          colSpan={TABLE_COLSPAN}
+                          icon={Users}
+                          title={emptyTitle}
+                          description={emptyDescription}
+                          actionLabel={
+                            hasSearch || mostrarInactivos ? undefined : 'Crear usuario'
                           }
-                        >
-                          <Edit3 className="h-4 w-4" />
-                          <span className="sr-only">Editar usuario</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDeleteConfirm(user)}
-                          className={`p-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed ${
-                            !user.es_activo
-                              ? 'text-text-soft cursor-not-allowed'
-                              : 'text-error hover:text-error'
-                          }`}
-                          title={user.es_activo ? 'Desactivar usuario' : 'Usuario ya inactivo'}
-                          disabled={!user.es_activo || authLoading || !isAuthenticated}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Desactivar usuario</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <IamTableEmptyState
-                  colSpan={TABLE_COLSPAN}
-                  icon={hasSearch ? SearchIcon : Users}
-                  title={
-                    hasSearch
-                      ? 'No se encontraron usuarios que coincidan con la búsqueda.'
-                      : 'No hay usuarios registrados.'
-                  }
-                  description={
-                    hasSearch
-                      ? 'Pruebe con otro término o limpie el filtro de búsqueda.'
-                      : 'Cree el primer usuario para que pueda acceder al sistema.'
-                  }
-                  actionLabel={hasSearch ? undefined : 'Crear usuario'}
-                  onAction={hasSearch ? undefined : handleOpenCreateModal}
-                  actionDisabled={isLoadingRoles || authLoading || !isAuthenticated}
-                />
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+                          onAction={
+                            hasSearch || mostrarInactivos ? undefined : handleOpenCreateModal
+                          }
+                          actionDisabled={
+                            isLoadingRoles || authLoading || !isAuthenticated || pageActionsLocked
+                          }
+                        />
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-      {!showTableSpinner && !error && totalUsers > LIMIT_PER_PAGE && (
-        <div className="py-4 flex items-center justify-between border-t border-border-base mt-4">
-          <p className="text-sm text-text-soft">
-            Mostrando <span className="font-medium">{(currentPage - 1) * LIMIT_PER_PAGE + 1}</span>
-            {' a '}
-            <span className="font-medium">{Math.min(currentPage * LIMIT_PER_PAGE, totalUsers)}</span>
-            {' de '}
-            <span className="font-medium">{totalUsers}</span> resultados
-          </p>
-          <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Paginación">
-            <button
-              type="button"
-              onClick={handlePreviousPage}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-border-base bg-surface text-sm font-medium text-text-soft hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="sr-only">Anterior</span>
-              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path
-                  fillRule="evenodd"
-                  d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-            <span className="relative inline-flex items-center px-4 py-2 border border-border-base bg-surface text-sm font-medium text-text-base">
-              Página {currentPage} de {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages}
-              className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-border-base bg-surface text-sm font-medium text-text-soft hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="sr-only">Siguiente</span>
-              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path
-                  fillRule="evenodd"
-                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-          </nav>
+                {usersList.pagination ? (
+                  <ErpPagination
+                    pagination={usersList.pagination}
+                    onPageChange={usersList.setPage}
+                    onLimitChange={usersList.setLimit}
+                    limitOptions={LIMIT_OPTIONS}
+                    disabled={usersList.isFetching || pageActionsLocked}
+                  />
+                ) : null}
+              </>
+            )}
+          </div>
         </div>
-      )}
+      ) : null}
 
       <UserCreateDialog
         open={isCreateModalOpen}
@@ -813,21 +827,37 @@ const UserManagementPage: React.FC = () => {
       />
 
       <ConfirmDialog
-        isOpen={isDeleteConfirmOpen}
-        onClose={handleCloseDeleteConfirm}
-        onConfirm={handleConfirmDelete}
+        isOpen={!!bajaTarget && discardPending === null}
+        onClose={() => !isDeactivating && setBajaTarget(null)}
+        onConfirm={() => void confirmarDesactivar()}
         title="Desactivar usuario"
         message={
-          deletingUser
-            ? `¿Está seguro de que desea desactivar el acceso de ${formatUserDisplayName(deletingUser)} (${deletingUser.nombre_usuario})?`
+          bajaTarget
+            ? `¿Desactivar usuario '${formatUserDisplayName(bajaTarget)}'? Podrá reactivarlo después.`
             : ''
         }
-        confirmText="Sí, desactivar"
+        confirmText="Desactivar"
         cancelText="Cancelar"
         variant="danger"
-        loading={isDeleting}
+        loading={isDeactivating}
       />
-    </div>
+
+      <ConfirmDialog
+        isOpen={!!reactivarTarget && discardPending === null}
+        onClose={() => setReactivarTarget(null)}
+        onConfirm={() => void confirmarReactivar()}
+        title="Reactivar usuario"
+        message={
+          reactivarTarget
+            ? `¿Reactivar usuario '${formatUserDisplayName(reactivarTarget)}'? Volverá a estar disponible.`
+            : ''
+        }
+        confirmText="Reactivar"
+        cancelText="Cancelar"
+        variant="info"
+        loading={isReactivating}
+      />
+    </InvPageLayout>
   );
 };
 

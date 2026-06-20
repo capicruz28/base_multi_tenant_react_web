@@ -35,28 +35,17 @@ export const clienteService = {
 
     if (activeFilter === 'inactive') {
       const params = new URLSearchParams();
-      params.append('skip', '0');
-      params.append('limit', CLIENTES_INACTIVE_FETCH_LIMIT.toString());
-      params.append('solo_activos', 'false');
+      const skip = (pagina - 1) * limite;
+      params.append('skip', skip.toString());
+      params.append('limit', limite.toString());
+      params.append('solo_inactivos', 'true');
       if (buscar) {
         params.append('buscar', buscar);
       }
 
       const url = `${BASE_URL}/?${params.toString()}`;
       const { data } = await api.get<ClienteListResponse>(url);
-      const inactiveOnly = (data.clientes ?? []).filter((c) => !c.es_activo);
-      const total = inactiveOnly.length;
-      const totalPaginas = Math.max(1, Math.ceil(total / limite));
-      const paginaActual = Math.min(Math.max(1, pagina), totalPaginas);
-      const start = (paginaActual - 1) * limite;
-
-      return {
-        clientes: inactiveOnly.slice(start, start + limite),
-        total_clientes: total,
-        pagina_actual: paginaActual,
-        total_paginas: totalPaginas,
-        items_por_pagina: limite,
-      };
+      return data;
     }
 
     const params = new URLSearchParams();

@@ -1,13 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDebounce } from '@/core/utils/debounce';
-import { 
-  Search, 
-  Plus, 
-  Edit3, 
-  Eye, 
-  Trash2, 
+import {
+  Plus,
+  Edit3,
+  Eye,
+  Trash2,
   RefreshCw,
   Building,
 } from 'lucide-react';
@@ -16,17 +14,26 @@ import { Cliente, ClienteActiveFilter, ClienteFilters } from '../types/cliente.t
 import { useAuth } from '@/shared/context/AuthContext';
 import { SubscriptionStatus } from '@/core/constants';
 import { useClientes } from '@/core/hooks/useClientes';
-import { 
-  useActivateCliente, 
-  useDeactivateCliente 
+import {
+  useActivateCliente,
+  useDeactivateCliente,
 } from '@/core/hooks/useClienteMutations';
 import CreateClientModal from '../components/CreateClientModal';
 import EditClientModal from '../components/EditClientModal';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
 import { getErrorMessage } from '@/core/services/error.service';
+import { useDebouncedSearch } from '@/core/list';
+import { ErpPagination } from '@/shared/components/erp-list';
+import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
+import { InvTableSkeleton } from '@/features/inv/components/InvTableSkeleton';
+import { IamTableEmptyState } from '@/features/admin/components/iam';
 
 type ClienteActiveAction = 'deactivate' | 'reactivate';
+
+const TABLE_COLSPAN = 6;
+const LIMIT_OPTIONS = [10, 25, 50] as const;
+const DEFAULT_LIMIT = 25;
 
 const clienteDisplayName = (cliente: Cliente) =>
   cliente.nombre_comercial || cliente.razon_social;
@@ -38,18 +45,14 @@ const clienteDisplayName = (cliente: Cliente) =>
 const ClientManagementPage: React.FC = () => {
   const { isSuperAdmin } = useAuth();
   const navigate = useNavigate();
-  
-  // Paginación
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const limitPerPage = 10;
 
-  // Filtros
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [limitPerPage, setLimitPerPage] = useState<number>(DEFAULT_LIMIT);
+
+  const search = useDebouncedSearch();
   const [activeFilter, setActiveFilter] = useState<ClienteActiveFilter>('active');
-  const [filters, setFilters] = useState<ClienteFilters>({});
-  
-  // Modales
+  const [filters] = useState<ClienteFilters>({});
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
@@ -59,45 +62,41 @@ const ClientManagementPage: React.FC = () => {
 
   const pageActionsLocked = clienteDiscardPending !== null || activeTarget !== null;
 
-  // ✅ MIGRADO A REACT QUERY: Usar hook useClientes
-  const { 
-    data: clientesData, 
-    isLoading: loading, 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search.debouncedValue, activeFilter]);
+
+  const {
+    data: clientesData,
+    isLoading,
+    isFetching,
     error: queryError,
-    refetch 
+    refetch,
   } = useClientes({
     pagina: currentPage,
     limite: limitPerPage,
-    filtros: { ...filters, activeFilter, buscar: debouncedSearchTerm || undefined },
+    filtros: { ...filters, activeFilter, buscar: search.debouncedValue || undefined },
     enabled: isSuperAdmin,
   });
 
-  // Extraer datos de la respuesta
-  const clientes = clientesData?.clientes || [];
-  const totalPages = clientesData?.total_paginas || 1;
-  const totalClientes = clientesData?.total_clientes || 0;
+  const clientes = clientesData?.clientes ?? [];
   const error = queryError ? getErrorMessage(queryError).message : null;
 
-  // Mutaciones
+  const pagination = clientesData
+    ? {
+        total: clientesData.total_clientes,
+        pagina_actual: clientesData.pagina_actual,
+        total_paginas: clientesData.total_paginas,
+        limit: clientesData.items_por_pagina,
+      }
+    : undefined;
+
+  const showInitialSkeleton = isLoading && clientes.length === 0;
+  const listIsRefreshing = isFetching && clientes.length > 0;
+
   const activateMutation = useActivateCliente();
   const deactivateMutation = useDeactivateCliente();
 
-  // Handlers
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(event.target.value);
-    setCurrentPage(1); // Resetear a primera página al buscar
-  };
-
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage(prev => prev - 1);
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
-  };
-
-  // ✅ MIGRADO: Los toasts ahora se manejan en las mutaciones
   const handleCreateSuccess = () => {
     setClienteDiscardPending(null);
     setIsCreateModalOpen(false);
@@ -136,6 +135,11 @@ const ClientManagementPage: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const handleLimitChange = (nextLimit: number) => {
+    setLimitPerPage(nextLimit);
+    setCurrentPage(1);
+  };
+
   const handleActiveConfirm = () => {
     if (!activeTarget || !activeAction) return;
     const onSuccess = async () => {
@@ -167,7 +171,9 @@ const ClientManagementPage: React.FC = () => {
     setIsCreateModalOpen(true);
   };
 
-  // Si no es super admin
+  const hasFilterContext =
+    search.hasSearch || activeFilter !== 'active' || Object.keys(filters).length > 0;
+
   if (!isSuperAdmin) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -194,21 +200,16 @@ const ClientManagementPage: React.FC = () => {
         </p>
       </div>*/}
 
-      {/* Barra de herramientas */}
       <div className="mb-6 bg-surface rounded-lg shadow-sm border border-border-base p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto flex-wrap items-center">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-soft" />
-              <input
-                type="text"
-                placeholder="Buscar clientes..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                disabled={pageActionsLocked}
-                className="pl-10 pr-4 py-2 w-full border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-            </div>
+            <OrgToolbarSearch
+              value={search.inputValue}
+              onChange={search.setInputValue}
+              placeholder="Buscar clientes..."
+              disabled={pageActionsLocked}
+              aria-label="Buscar clientes"
+            />
             <select
               value={activeFilter}
               onChange={(e) => handleActiveFilterChange(e.target.value as ClienteActiveFilter)}
@@ -223,15 +224,18 @@ const ClientManagementPage: React.FC = () => {
 
           <div className="flex gap-2 shrink-0">
             <button
-              onClick={() => refetch()}
-              disabled={loading || pageActionsLocked}
+              type="button"
+              onClick={() => void refetch()}
+              disabled={isFetching || pageActionsLocked}
               className="p-2 text-text-soft hover:text-text-base hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Actualizar"
+              aria-label="Actualizar listado"
             >
-              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-5 w-5 ${isFetching ? 'animate-spin' : ''}`} />
             </button>
 
             <button
+              type="button"
               onClick={openCreateModal}
               disabled={pageActionsLocked}
               className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-surface transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -243,220 +247,207 @@ const ClientManagementPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Contenido */}
-      <div className="bg-surface rounded-lg shadow-sm border border-border-base overflow-hidden">
-        {/* Loading */}
-        {loading && (
-          <div className="flex items-center justify-center py-8">
-            <RefreshCw className="animate-spin h-6 w-6 text-brand-primary" />
-            <span className="ml-2 text-text-soft">Cargando clientes...</span>
-          </div>
-        )}
+      {error && !isLoading ? (
+        <div className="mb-6 rounded-lg border border-border-base bg-surface p-6">
+          <p className="text-error bg-error/10 p-4 rounded-lg mb-4">{error}</p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Reintentar
+          </button>
+        </div>
+      ) : null}
 
-        {/* Error */}
-        {error && !loading && (
-          <div className="p-6 text-center">
-            <div className="text-error bg-error/10 p-4 rounded-lg">
-              {error}
-            </div>
-            <button
-              onClick={() => refetch()}
-              className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors"
-            >
-              Reintentar
-            </button>
-          </div>
-        )}
-
-        {/* Tabla */}
-        {!loading && !error && (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-border-base">
-                <thead className="bg-subtle">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
-                      Cliente
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
-                      Contacto
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
-                      Plan/Estado
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
-                      Configuración
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
-                      Estado
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-text-soft uppercase tracking-wider">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-surface divide-y divide-border-base">
-                  {clientes.length > 0 ? (
-                    clientes.map((cliente) => (
-                      <tr key={cliente.cliente_id} className="hover:bg-overlay/80 dark:hover:bg-overlay/50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <Building className="h-8 w-8 text-text-soft mr-3" />
-                            <div>
-                              <div className="text-sm font-medium text-text-base">
-                                {cliente.nombre_comercial || cliente.razon_social}
+      {!error ? (
+        <div className="bg-surface rounded-lg shadow-sm border border-border-base overflow-hidden">
+          <div
+            className={`transition-opacity duration-150 ${listIsRefreshing ? 'opacity-70' : 'opacity-100'}`}
+            aria-busy={listIsRefreshing}
+          >
+            {showInitialSkeleton ? (
+              <InvTableSkeleton columns={TABLE_COLSPAN} />
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-border-base">
+                    <thead className="bg-subtle">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Cliente
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Contacto
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Plan/Estado
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Configuración
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Estado
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-text-soft uppercase tracking-wider">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-surface divide-y divide-border-base">
+                      {clientes.length > 0 ? (
+                        clientes.map((cliente) => (
+                          <tr key={cliente.cliente_id} className="hover:bg-overlay/80 dark:hover:bg-overlay/50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <Building className="h-8 w-8 text-text-soft mr-3" />
+                                <div>
+                                  <div className="text-sm font-medium text-text-base">
+                                    {cliente.nombre_comercial || cliente.razon_social}
+                                  </div>
+                                  <div className="text-sm text-text-soft">
+                                    {cliente.codigo_cliente} • {cliente.subdominio}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-text-base">
+                                {cliente.contacto_nombre || 'N/A'}
                               </div>
                               <div className="text-sm text-text-soft">
-                                {cliente.codigo_cliente} • {cliente.subdominio}
+                                {cliente.contacto_email}
                               </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-text-base">
-                            {cliente.contacto_nombre || 'N/A'}
-                          </div>
-                          <div className="text-sm text-text-soft">
-                            {cliente.contacto_email}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-text-base capitalize">
-                            {cliente.plan_suscripcion}
-                          </div>
-                          <div className={`text-xs px-2 py-1 rounded-full inline-block mt-1 ${
-                            cliente.estado_suscripcion === SubscriptionStatus.ACTIVE 
-                              ? 'bg-success/10 text-success'
-                              : cliente.estado_suscripcion === SubscriptionStatus.TRIAL
-                              ? 'bg-info/10 text-info'
-                              : 'bg-error/10 text-error'
-                          }`}>
-                            {cliente.estado_suscripcion}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
-                          <div className="flex items-center gap-4">
-                            <span className="capitalize">{cliente.tipo_instalacion}</span>
-                            <span className="capitalize">{cliente.modo_autenticacion}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            cliente.es_activo
-                              ? 'bg-success/10 text-success'
-                              : 'bg-error/10 text-error'
-                          }`}>
-                            {cliente.es_activo ? 'Activo' : 'Inactivo'}
-                          </span>
-                          {cliente.es_demo && (
-                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
-                              Demo
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex justify-end items-center gap-2">
-                            <button
-                              onClick={() => openEditModal(cliente)}
-                              disabled={pageActionsLocked}
-                              className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="Editar"
-                            >
-                              <Edit3 className="h-4 w-4" />
-                            </button>
-                            
-                            <button
-                              onClick={() => !pageActionsLocked && navigate(`/super-admin/clientes/${cliente.cliente_id}`)}
-                              disabled={pageActionsLocked}
-                              className="text-text-soft hover:text-text-base p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="Ver detalle"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-
-                            {cliente.es_activo ? (
-                              <button
-                                onClick={() => openActiveConfirm(cliente)}
-                                disabled={pageActionsLocked}
-                                className="text-error hover:bg-overlay dark:hover:bg-overlay p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Desactivar"
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-text-base capitalize">
+                                {cliente.plan_suscripcion}
+                              </div>
+                              <div
+                                className={`text-xs px-2 py-1 rounded-full inline-block mt-1 ${
+                                  cliente.estado_suscripcion === SubscriptionStatus.ACTIVE
+                                    ? 'bg-success/10 text-success'
+                                    : cliente.estado_suscripcion === SubscriptionStatus.TRIAL
+                                      ? 'bg-info/10 text-info'
+                                      : 'bg-error/10 text-error'
+                                }`}
                               >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => openActiveConfirm(cliente)}
-                                disabled={pageActionsLocked}
-                                className="text-success hover:bg-overlay dark:hover:bg-overlay p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Reactivar"
+                                {cliente.estado_suscripcion}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
+                              <div className="flex items-center gap-4">
+                                <span className="capitalize">{cliente.tipo_instalacion}</span>
+                                <span className="capitalize">{cliente.modo_autenticacion}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  cliente.es_activo
+                                    ? 'bg-success/10 text-success'
+                                    : 'bg-error/10 text-error'
+                                }`}
                               >
-                                <RefreshCw className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-sm text-text-soft">
-                        <Building className="mx-auto h-12 w-12 text-text-soft mb-4" />
-                        <p>No se encontraron clientes</p>
-                        {searchTerm || activeFilter !== 'active' || Object.keys(filters).length > 0 ? (
-                          <p className="mt-1">Intenta ajustar los filtros de búsqueda</p>
-                        ) : (
-                          <button
-                            onClick={openCreateModal}
-                            disabled={pageActionsLocked}
-                            className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Crear primer cliente
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                                {cliente.es_activo ? 'Activo' : 'Inactivo'}
+                              </span>
+                              {cliente.es_demo && (
+                                <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
+                                  Demo
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <div className="flex justify-end items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditModal(cliente)}
+                                  disabled={pageActionsLocked}
+                                  className="text-brand-primary hover:text-brand-primary/80 dark:text-brand-primary dark:hover:text-brand-primary/80 p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Editar"
+                                >
+                                  <Edit3 className="h-4 w-4" />
+                                </button>
 
-            {/* Paginación */}
-            {totalClientes > limitPerPage && (
-              <div className="px-6 py-4 border-t border-border-base bg-subtle">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-text-base">
-                    Mostrando <span className="font-medium">{(currentPage - 1) * limitPerPage + 1}</span> a{' '}
-                    <span className="font-medium">{Math.min(currentPage * limitPerPage, totalClientes)}</span> de{' '}
-                    <span className="font-medium">{totalClientes}</span> clientes
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handlePreviousPage}
-                      disabled={currentPage === 1 || pageActionsLocked}
-                      className="px-3 py-1 text-sm border border-border-base rounded-md bg-surface text-text-base hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Anterior
-                    </button>
-                    <span className="px-3 py-1 text-sm text-text-base">
-                      Página {currentPage} de {totalPages}
-                    </span>
-                    <button
-                      onClick={handleNextPage}
-                      disabled={currentPage === totalPages || pageActionsLocked}
-                      className="px-3 py-1 text-sm border border-border-base rounded-md bg-surface text-text-base hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Siguiente
-                    </button>
-                  </div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    !pageActionsLocked &&
+                                    navigate(`/super-admin/clientes/${cliente.cliente_id}`)
+                                  }
+                                  disabled={pageActionsLocked}
+                                  className="text-text-soft hover:text-text-base p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Ver detalle"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+
+                                {cliente.es_activo ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openActiveConfirm(cliente)}
+                                    disabled={pageActionsLocked}
+                                    className="text-error hover:bg-overlay dark:hover:bg-overlay p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Desactivar"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => openActiveConfirm(cliente)}
+                                    disabled={pageActionsLocked}
+                                    className="text-success hover:bg-overlay dark:hover:bg-overlay p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Reactivar"
+                                  >
+                                    <RefreshCw className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <IamTableEmptyState
+                          colSpan={TABLE_COLSPAN}
+                          icon={Building}
+                          title={
+                            search.hasSearch
+                              ? 'No se encontraron clientes que coincidan con la búsqueda.'
+                              : 'No se encontraron clientes'
+                          }
+                          description={
+                            hasFilterContext
+                              ? 'Intenta ajustar los filtros de búsqueda'
+                              : undefined
+                          }
+                          actionLabel={
+                            !hasFilterContext ? 'Crear primer cliente' : undefined
+                          }
+                          onAction={!hasFilterContext ? openCreateModal : undefined}
+                          actionDisabled={pageActionsLocked}
+                        />
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
 
-      {/* Modales (se implementarán después) */}
-    
+                {pagination ? (
+                  <ErpPagination
+                    pagination={pagination}
+                    onPageChange={setCurrentPage}
+                    onLimitChange={handleLimitChange}
+                    limitOptions={LIMIT_OPTIONS}
+                    disabled={isFetching || pageActionsLocked}
+                  />
+                ) : null}
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       {isCreateModalOpen && (
         <CreateClientModal
           isOpen={isCreateModalOpen}
@@ -493,7 +484,6 @@ const ClientManagementPage: React.FC = () => {
         variant={activeAction === 'reactivate' ? 'info' : 'danger'}
         loading={togglingActive}
       />
-    
     </div>
   );
 };

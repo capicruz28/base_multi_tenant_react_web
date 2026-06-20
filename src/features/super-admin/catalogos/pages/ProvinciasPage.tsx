@@ -1,79 +1,96 @@
 /**
- * Provincias (catálogo global) — Super Admin. CRUD vía catalogosGlobalService.
- * FK: departamento_id → cat_departamento
+ * Provincias — Catálogo global (Super Admin). FA-001 WP-09.
+ * FK: departamento_id → cat_departamento (toolbar, tabla getFkLabel, form PlatformCatalogFkSelect).
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { MapPin, Plus, Pencil, Trash2, Search, RefreshCw } from 'lucide-react';
-import { catalogosGlobalService } from '@/core/services/catalogos.service';
-import type { CatDepartamento, CatProvincia, CatProvinciaCreate, CatProvinciaUpdate } from '@/types/catalogos.types';
+import { MapPinned } from 'lucide-react';
+import type {
+  CatProvincia,
+  CatProvinciaCreate,
+  CatProvinciaUpdate,
+} from '@/types/catalogos.types';
 import { useAuth } from '@/shared/context/AuthContext';
-import { getErrorMessage, getValidationErrors } from '@/core/services/error.service';
+import { getValidationErrors } from '@/core/services/error.service';
 import { Button } from '@/shared/components/ui/button';
-import { Dialog, DialogContent, DialogBody, DialogHeader, DialogFooter, DialogTitle } from '@/shared/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogBody,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+} from '@/shared/components/ui/dialog';
 import { Label } from '@/shared/components/ui/label';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
+import { ErpPagination } from '@/shared/components/erp-list';
+import { getPlatformCatalogEntityConfig } from '../config/platform-catalog.entities';
+import { usePlatformGlobalCatalogList } from '../hooks/usePlatformGlobalCatalogList';
+import { usePlatformCatalogMutations } from '../hooks/usePlatformCatalogMutations';
+import { usePlatformCatalogFkWarmPrefetch } from '../hooks/usePlatformCatalogFkWarmPrefetch';
+import {
+  PlatformCatalogToolbar,
+  type PlatformCatalogFkField,
+} from '../components/PlatformCatalogToolbar';
+import { PlatformCatalogTable } from '../components/PlatformCatalogTable';
+import { PlatformCatalogFkSelect } from '../components/PlatformCatalogFkSelect';
+import { PlatformCatalogErrorState } from '../components/PlatformCatalogErrorState';
+import { useStablePlatformCatalogListView } from '../utils/useStablePlatformCatalogListView';
 
-const DEFAULT: CatProvinciaCreate = { departamento_id: '', codigo: '', nombre: '' };
+const ENTITY_ID = 'provincia' as const;
 
 const ProvinciasPage: React.FC = () => {
   const { isSuperAdmin } = useAuth();
-  const [departamentos, setDepartamentos] = useState<CatDepartamento[]>([]);
-  const [list, setList] = useState<CatProvincia[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [departamentoFilter, setDepartamentoFilter] = useState<string>('');
+  const config = getPlatformCatalogEntityConfig(ENTITY_ID);
+
+  const {
+    items,
+    pagination,
+    isLoading,
+    isFetching,
+    errorMessage,
+    search,
+    soloActivos,
+    setSoloActivos,
+    fkState,
+    setPaisId,
+    setDepartamentoId,
+    setProvinciaId,
+    setUbigeo,
+    setPage,
+    setLimit,
+    refetch,
+  } = usePlatformGlobalCatalogList(ENTITY_ID, { enabled: isSuperAdmin });
+
+  usePlatformCatalogFkWarmPrefetch(ENTITY_ID, isSuperAdmin);
+
+  const {
+    create,
+    update,
+    deactivate,
+    reactivate,
+    createMutation,
+    updateMutation,
+    deactivateMutation,
+    reactivateMutation,
+    isAnyPending,
+  } = usePlatformCatalogMutations(ENTITY_ID);
+
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<CatProvincia | null>(null);
-  const [form, setForm] = useState<CatProvinciaCreate>(DEFAULT);
+  const [form, setForm] = useState<CatProvinciaCreate>({ ...config.createDefault });
   const [editForm, setEditForm] = useState<CatProvinciaUpdate>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [showInactivos, setShowInactivos] = useState(false);
-  const [activeTarget, setActiveTarget] = useState<CatProvincia | null>(null);
-  const [activeAction, setActiveAction] = useState<'deactivate' | 'reactivate' | null>(null);
-  const [togglingActive, setTogglingActive] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string>>({});
-
-  const fetchDepartamentos = useCallback(async () => {
-    try {
-      const data = await catalogosGlobalService.listDepartamentos();
-      setDepartamentos(Array.isArray(data) ? data : []);
-    } catch {
-      setDepartamentos([]);
-    }
-  }, []);
-
-  const fetchList = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = {
-        ...(departamentoFilter ? { departamento_id: departamentoFilter } : {}),
-        solo_activos: !showInactivos,
-      };
-      const data = await catalogosGlobalService.listProvincias(params);
-      setList(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError(getErrorMessage(err).message);
-      setList([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [departamentoFilter, showInactivos]);
-
-  useEffect(() => {
-    if (isSuperAdmin) fetchDepartamentos();
-  }, [isSuperAdmin, fetchDepartamentos]);
-
-  useEffect(() => {
-    if (isSuperAdmin) fetchList();
-  }, [isSuperAdmin, departamentoFilter, fetchList]);
+  const [deactivateTarget, setDeactivateTarget] = useState<CatProvincia | null>(null);
+  const [reactivateTarget, setReactivateTarget] = useState<CatProvincia | null>(null);
 
   const openCreate = () => {
-    setForm({ ...DEFAULT, departamento_id: departamentoFilter || (departamentos[0]?.departamento_id ?? '') });
+    setForm({
+      ...config.createDefault,
+      departamento_id: fkState.departamentoId ?? '',
+    });
     setFieldErrors({});
     setCreateOpen(true);
   };
@@ -81,38 +98,21 @@ const ProvinciasPage: React.FC = () => {
   const openEdit = (row: CatProvincia) => {
     setEditing(row);
     setEditFieldErrors({});
-    setEditForm({ departamento_id: row.departamento_id, codigo: row.codigo, nombre: row.nombre });
+    setEditForm({
+      departamento_id: row.departamento_id,
+      codigo: row.codigo,
+      nombre: row.nombre,
+    });
     setEditOpen(true);
   };
 
-  const closeActiveConfirm = () => {
-    setActiveTarget(null);
-    setActiveAction(null);
-  };
-
-  const openActiveConfirm = (row: CatProvincia) => {
-    const isActivo = row.es_activo !== false;
-    setActiveTarget(row);
-    setActiveAction(isActivo ? 'deactivate' : 'reactivate');
-  };
-
-  const handleActiveConfirm = async () => {
-    if (!activeTarget || !activeAction) return;
-    setTogglingActive(true);
-    try {
-      if (activeAction === 'deactivate') {
-        await catalogosGlobalService.deleteProvincia(activeTarget.provincia_id);
-        toast.success('Provincia desactivada.');
-      } else {
-        await catalogosGlobalService.updateProvincia(activeTarget.provincia_id, { es_activo: true });
-        toast.success('Provincia reactivada.');
-      }
-      closeActiveConfirm();
-      fetchList();
-    } catch (err) {
-      toast.error(getErrorMessage(err).message);
-    } finally {
-      setTogglingActive(false);
+  const handleFkChange = (field: PlatformCatalogFkField, value: string | null) => {
+    if (field === 'paisId') {
+      setPaisId(value);
+    } else if (field === 'departamentoId') {
+      setDepartamentoId(value);
+    } else {
+      setProvinciaId(value);
     }
   };
 
@@ -122,49 +122,61 @@ const ProvinciasPage: React.FC = () => {
       toast.error('Departamento, código y nombre son requeridos.');
       return;
     }
-    setSubmitting(true);
     setFieldErrors({});
     try {
-      await catalogosGlobalService.createProvincia(form);
-      toast.success('Provincia creada.');
+      await create(form);
       setCreateOpen(false);
-      fetchList();
     } catch (err) {
-      const { fieldErrors: nextErrors, message } = getValidationErrors(err);
+      const { fieldErrors: nextErrors } = getValidationErrors(err);
       setFieldErrors(nextErrors);
-      toast.error(message);
-    } finally {
-      setSubmitting(false);
     }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editing) return;
-    setSubmitting(true);
+    if (!editing) {
+      return;
+    }
     setEditFieldErrors({});
     try {
-      await catalogosGlobalService.updateProvincia(editing.provincia_id, editForm);
-      toast.success('Provincia actualizada.');
+      await update({ id: editing.provincia_id, payload: editForm });
       setEditOpen(false);
       setEditing(null);
-      fetchList();
     } catch (err) {
-      const { fieldErrors: nextErrors, message } = getValidationErrors(err);
+      const { fieldErrors: nextErrors } = getValidationErrors(err);
       setEditFieldErrors(nextErrors);
-      toast.error(message);
-    } finally {
-      setSubmitting(false);
     }
   };
 
-  const departamentoNombre = (id: string) => departamentos.find((d) => d.departamento_id === id)?.nombre ?? id;
+  const confirmDeactivate = async () => {
+    if (!deactivateTarget) {
+      return;
+    }
+    try {
+      await deactivate(deactivateTarget.provincia_id);
+      setDeactivateTarget(null);
+    } catch {
+      /* toast en onError del hook */
+    }
+  };
+
+  const confirmReactivate = async () => {
+    if (!reactivateTarget) {
+      return;
+    }
+    try {
+      await reactivate(reactivateTarget.provincia_id);
+      setReactivateTarget(null);
+    } catch {
+      /* toast en onError del hook */
+    }
+  };
 
   if (!isSuperAdmin) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <MapPin className="mx-auto h-12 w-12 text-text-soft" />
+          <MapPinned className="mx-auto h-12 w-12 text-text-soft" />
           <h3 className="mt-2 text-sm font-medium text-text-base">Acceso restringido</h3>
           <p className="mt-1 text-sm text-text-soft">No tienes permisos para acceder a este catálogo.</p>
         </div>
@@ -176,164 +188,233 @@ const ProvinciasPage: React.FC = () => {
     `mt-1 w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm ${
       (isEdit ? editFieldErrors : fieldErrors)[key] ? 'border-error' : 'border-border-base'
     }`;
-  const selectClass = 'mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm';
 
-  const q = searchTerm.trim().toLowerCase();
-  const filteredList = q
-    ? list.filter((p) => (p.codigo?.toLowerCase().includes(q) || p.nombre?.toLowerCase().includes(q)))
-    : list;
+  const uiDisabled = isAnyPending;
 
-  const soloActivos = !showInactivos;
+  const { displayItems, displayPagination, showInitialSkeleton } =
+    useStablePlatformCatalogListView(items, pagination, isLoading, isFetching);
 
-  const selectToolbarClass = 'px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base text-sm';
+  const listIsRefreshing = isFetching && displayItems.length > 0;
 
   return (
     <div className="w-full">
-      <div className="mb-6 bg-surface rounded-lg shadow-sm border border-border-base p-4">
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto flex-wrap">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-soft" />
-              <input
-                type="text"
-                placeholder="Buscar provincias..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
-              />
-            </div>
-            <select value={departamentoFilter} onChange={(e) => setDepartamentoFilter(e.target.value)} className={selectToolbarClass}>
-              <option value="">Todos los departamentos</option>
-              {departamentos.map((d) => <option key={d.departamento_id} value={d.departamento_id}>{d.nombre}</option>)}
-            </select>
-            <label className="flex items-center gap-2 px-3 py-2 border border-border-base rounded-lg cursor-pointer hover:bg-overlay dark:hover:bg-overlay">
-              <input
-                type="checkbox"
-                checked={showInactivos}
-                onChange={(e) => setShowInactivos(e.target.checked)}
-                className="rounded border-border-base text-brand-primary focus:ring-brand-primary"
-                aria-label="Ver inactivos"
-              />
-              <span className="text-sm text-text-soft">Ver inactivos</span>
-            </label>
-          </div>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => fetchList()} disabled={loading} className="p-2 text-text-soft hover:text-text-base dark:hover:text-text-base hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors" title="Actualizar">
-              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-            <button type="button" onClick={openCreate} disabled={departamentos.length === 0} className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-surface transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-              <Plus className="h-4 w-4" />
-              Nueva Provincia
-            </button>
-          </div>
-        </div>
-      </div>
+      <PlatformCatalogToolbar
+        config={config}
+        search={{
+          inputValue: search.inputValue,
+          setInputValue: search.setInputValue,
+        }}
+        soloActivos={soloActivos}
+        onSoloActivosChange={setSoloActivos}
+        fkState={fkState}
+        onFkChange={handleFkChange}
+        ubigeo={fkState.ubigeo}
+        onUbigeoChange={setUbigeo}
+        onRefresh={() => void refetch()}
+        onCreate={openCreate}
+        isFetching={isFetching}
+        disabled={uiDisabled}
+      />
 
-      <div className="bg-surface rounded-lg shadow-sm border border-border-base overflow-hidden">
-        {loading && (
-          <div className="flex justify-center items-center py-12">
-            <RefreshCw className="animate-spin h-6 w-6 text-brand-primary" />
-            <span className="ml-2 text-text-soft">Cargando provincias...</span>
-          </div>
-        )}
-        {error && !loading && (
-          <div className="p-6">
-            <p className="text-error bg-error/10 p-4 rounded-lg">{error}</p>
-          </div>
-        )}
-        {!loading && !error && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border-base">
-              <thead className="bg-subtle dark:bg-subtle">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Código</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Nombre</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Departamento</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-soft uppercase">Activo</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-text-soft uppercase">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="bg-surface divide-y divide-border-base">
-                {filteredList.length === 0 ? (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-text-soft"><MapPin className="h-10 w-10 mx-auto mb-2 opacity-50" />{list.length === 0 ? 'No hay provincias.' : 'No hay resultados para la búsqueda.'}</td></tr>
-                ) : (
-                  filteredList
-                    .filter((row) => (soloActivos ? row.es_activo !== false : true))
-                    .map((row) => (
-                  <tr key={row.provincia_id} className="hover:bg-overlay dark:hover:bg-overlay">
-                    <td className="px-4 py-3 text-sm font-medium text-text-base">{row.codigo}</td>
-                    <td className="px-4 py-3 text-sm text-text-base">{row.nombre}</td>
-                    <td className="px-4 py-3 text-sm text-text-base">{departamentoNombre(row.departamento_id)}</td>
-                    <td className="px-4 py-3 text-sm text-text-base">{row.es_activo === false ? 'No' : 'Sí'}</td>
-                    <td className="px-4 py-3 flex items-center justify-center gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(row)} className="text-brand-primary hover:text-brand-primary/80"><Pencil className="h-4 w-4" /></Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openActiveConfirm(row)}
-                        className={row.es_activo === false ? 'text-success hover:bg-success/10 dark:hover:bg-success/15' : 'text-error hover:bg-error/10 dark:hover:bg-error/15'}
-                        title={row.es_activo === false ? 'Reactivar' : 'Desactivar'}
-                      >
-                        {row.es_activo === false ? <RefreshCw className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
-                      </Button>
-                    </td>
-                  </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {errorMessage && !isLoading ? (
+        <PlatformCatalogErrorState
+          message={errorMessage}
+          onRetry={() => void refetch()}
+          disabled={isFetching}
+        />
+      ) : null}
+
+      {!errorMessage ? (
+        <div
+          className={`space-y-0 transition-opacity duration-150 ${listIsRefreshing ? 'opacity-70' : 'opacity-100'}`}
+          aria-busy={listIsRefreshing}
+        >
+          <PlatformCatalogTable
+            config={config}
+            items={displayItems}
+            isLoading={showInitialSkeleton}
+            hasSearch={search.hasSearch}
+            onEdit={openEdit}
+            onDeactivate={setDeactivateTarget}
+            onReactivate={setReactivateTarget}
+            actionsDisabled={uiDisabled}
+            onCreateClick={openCreate}
+          />
+          {displayPagination ? (
+            <ErpPagination
+              pagination={displayPagination}
+              onPageChange={setPage}
+              onLimitChange={setLimit}
+              limitOptions={config.limitOptions}
+              disabled={isFetching || uiDisabled}
+              className="-mt-px rounded-b-lg border border-border-base shadow-sm"
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0">
-          <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0"><DialogTitle>Crear provincia</DialogTitle></DialogHeader>
-          <form onSubmit={handleCreate} className="flex flex-col min-h-0 flex-1">
+          <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
+            <DialogTitle>Crear provincia</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => void handleCreate(e)} className="flex flex-col min-h-0 flex-1">
             <DialogBody className="px-6 pb-2">
               <div className="space-y-4">
-                <div><Label>Departamento *</Label><select value={form.departamento_id} onChange={(e) => setForm((p) => ({ ...p, departamento_id: e.target.value }))} className={inputClass('departamento_id')} required><option value="">Seleccionar</option>{departamentos.map((d) => <option key={d.departamento_id} value={d.departamento_id}>{d.nombre}</option>)}</select></div>
-                <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className={inputClass('codigo')} required /></div>
-                <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass('nombre')} required /></div>
+                <div>
+                  <Label>Departamento *</Label>
+                  <div className="mt-1 max-w-none [&>div]:max-w-none">
+                    <PlatformCatalogFkSelect
+                      entityId="departamento"
+                      value={form.departamento_id || null}
+                      onChange={(value) =>
+                        setForm((p) => ({ ...p, departamento_id: value ?? '' }))
+                      }
+                      scope={{}}
+                      placeholder="Seleccionar departamento"
+                      disabled={createMutation.isPending}
+                      allowClear={false}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Código *</Label>
+                  <input
+                    type="text"
+                    value={form.codigo}
+                    onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))}
+                    className={inputClass('codigo')}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Nombre *</Label>
+                  <input
+                    type="text"
+                    value={form.nombre}
+                    onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
+                    className={inputClass('nombre')}
+                    required
+                  />
+                </div>
               </div>
             </DialogBody>
-            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base"><Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Crear</Button></DialogFooter>
+            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base">
+              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={createMutation.isPending}
+                className="bg-brand-primary hover:bg-brand-primary-hover text-white"
+              >
+                Crear
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={editOpen} onOpenChange={(o) => !o && setEditing(null)}>
+      <Dialog
+        open={editOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditing(null);
+          }
+          setEditOpen(open);
+        }}
+      >
         <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0">
-          <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0"><DialogTitle>Editar provincia</DialogTitle></DialogHeader>
-          <form onSubmit={handleUpdate} className="flex flex-col min-h-0 flex-1">
+          <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
+            <DialogTitle>Editar provincia</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => void handleUpdate(e)} className="flex flex-col min-h-0 flex-1">
             <DialogBody className="px-6 pb-2">
               <div className="space-y-4">
-                <div><Label>Departamento *</Label><select value={editForm.departamento_id ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, departamento_id: e.target.value }))} className={inputClass('departamento_id', true)} required><option value="">Seleccionar</option>{departamentos.map((d) => <option key={d.departamento_id} value={d.departamento_id}>{d.nombre}</option>)}</select></div>
-                <div><Label>Código *</Label><input type="text" value={editForm.codigo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo: e.target.value }))} className={inputClass('codigo', true)} required /></div>
-                <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass('nombre', true)} required /></div>
+                <div>
+                  <Label>Departamento *</Label>
+                  <div className="mt-1 max-w-none [&>div]:max-w-none">
+                    <PlatformCatalogFkSelect
+                      entityId="departamento"
+                      value={editForm.departamento_id ?? null}
+                      onChange={(value) =>
+                        setEditForm((p) => ({ ...p, departamento_id: value ?? '' }))
+                      }
+                      scope={{}}
+                      placeholder="Seleccionar departamento"
+                      disabled={updateMutation.isPending}
+                      allowClear={false}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Código *</Label>
+                  <input
+                    type="text"
+                    value={editForm.codigo ?? ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, codigo: e.target.value }))}
+                    className={inputClass('codigo', true)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Nombre *</Label>
+                  <input
+                    type="text"
+                    value={editForm.nombre ?? ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))}
+                    className={inputClass('nombre', true)}
+                    required
+                  />
+                </div>
               </div>
             </DialogBody>
-            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base"><Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">Guardar</Button></DialogFooter>
+            <DialogFooter className="px-6 py-4 flex-shrink-0 border-t border-border-base">
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={updateMutation.isPending}
+                className="bg-brand-primary hover:bg-brand-primary-hover text-white"
+              >
+                Guardar
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
       <ConfirmDialog
-        isOpen={!!activeTarget && !!activeAction}
-        onClose={closeActiveConfirm}
-        onConfirm={handleActiveConfirm}
-        title={activeAction === 'reactivate' ? 'Reactivar provincia' : 'Desactivar provincia'}
+        isOpen={!!deactivateTarget}
+        onClose={() => setDeactivateTarget(null)}
+        onConfirm={() => void confirmDeactivate()}
+        title="Desactivar provincia"
         message={
-          activeTarget
-            ? activeAction === 'reactivate'
-              ? `¿Reactivar la provincia "${activeTarget.nombre}"?`
-              : `¿Desactivar la provincia "${activeTarget.nombre}"?`
+          deactivateTarget
+            ? `¿Desactivar la provincia "${deactivateTarget.nombre}"?`
             : ''
         }
-        confirmText={activeAction === 'reactivate' ? 'Reactivar' : 'Desactivar'}
+        confirmText="Desactivar"
         cancelText="Cancelar"
-        variant={activeAction === 'reactivate' ? 'info' : 'danger'}
-        loading={togglingActive}
+        variant="danger"
+        loading={deactivateMutation.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={!!reactivateTarget}
+        onClose={() => setReactivateTarget(null)}
+        onConfirm={() => void confirmReactivate()}
+        title="Reactivar provincia"
+        message={
+          reactivateTarget
+            ? `¿Reactivar la provincia "${reactivateTarget.nombre}"?`
+            : ''
+        }
+        confirmText="Reactivar"
+        cancelText="Cancelar"
+        variant="info"
+        loading={reactivateMutation.isPending}
       />
     </div>
   );

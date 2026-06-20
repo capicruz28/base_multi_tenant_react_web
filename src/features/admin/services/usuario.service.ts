@@ -8,20 +8,36 @@ import {
 
 const BASE_URL = '/usuarios';
 
-export const getUsers = async (
-  page: number = 1,
-  limit: number = 10,
-  search?: string
-): Promise<PaginatedUsersResponse> => {
+export interface GetUsersParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  solo_activos?: boolean;
+  solo_inactivos?: boolean;
+}
+
+export const getUsers = async (params: GetUsersParams = {}): Promise<PaginatedUsersResponse> => {
   try {
-    const params = new URLSearchParams();
-    params.append('page', page.toString());
-    params.append('limit', limit.toString());
+    const { page = 1, limit = 10, search, solo_activos, solo_inactivos } = params;
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page.toString());
+    queryParams.append('limit', limit.toString());
     if (search) {
-      params.append('search', search);
+      queryParams.append('search', search);
     }
-    // ✅ Ya tiene / al final - OK
-    const response = await api.get<PaginatedUsersResponse>(`${BASE_URL}/`, { params });
+    if (solo_activos === true) {
+      queryParams.append('solo_activos', 'true');
+    } else if (solo_activos === false) {
+      queryParams.append('solo_activos', 'false');
+    }
+    if (solo_inactivos === true) {
+      queryParams.append('solo_inactivos', 'true');
+    } else if (solo_inactivos === false) {
+      queryParams.append('solo_inactivos', 'false');
+    }
+    const response = await api.get<PaginatedUsersResponse>(`${BASE_URL}/`, {
+      params: queryParams,
+    });
     return response.data;
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -64,11 +80,31 @@ export const updateUser = async (userId: string, userData: UserUpdateData): Prom
 
 export const deleteUser = async (userId: string): Promise<{ message: string; usuario_id: string }> => {
     try {
-        // ✅ CAMBIO: Agregar / al final
         const response = await api.delete<{ message: string; usuario_id: string }>(`${BASE_URL}/${userId}/`);
         return response.data;
     } catch (error) {
-        console.error(`Error deleting/deactivating user ${userId}:`, error);
+        console.error(`Error deleting user ${userId}:`, error);
+        throw error;
+    }
+};
+
+/** Desactivar (IAM-BE-02): PUT con es_activo=false — no modifica es_eliminado. */
+export const deactivateUser = async (userId: string): Promise<UserWithRoles> => {
+    try {
+        const response = await api.put<UserWithRoles>(`${BASE_URL}/${userId}/`, { es_activo: false });
+        return response.data;
+    } catch (error) {
+        console.error(`Error deactivating user ${userId}:`, error);
+        throw error;
+    }
+};
+
+export const reactivateUser = async (userId: string): Promise<UserWithRoles> => {
+    try {
+        const response = await api.post<UserWithRoles>(`${BASE_URL}/${userId}/reactivate/`);
+        return response.data;
+    } catch (error) {
+        console.error(`Error reactivating user ${userId}:`, error);
         throw error;
     }
 };

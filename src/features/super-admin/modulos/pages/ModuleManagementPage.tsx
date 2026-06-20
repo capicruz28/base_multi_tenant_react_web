@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import {
-  Search,
   Plus,
   Edit3,
   Trash2,
@@ -17,11 +17,15 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-// ✅ NUEVO: Usar servicios y tipos V2
 import { moduloV2Service } from '@/features/modulos/services/modulo-v2.service';
-import type { ModuloV2 } from '@/features/modulos/types/modulo-v2.types';
+import type { ModuloV2, ModuloV2Filters } from '@/features/modulos/types/modulo-v2.types';
 import { useAuth } from '@/shared/context/AuthContext';
 import { getErrorMessage } from '@/core/services/error.service';
+import { useDebouncedSearch } from '@/core/list';
+import { ErpPagination } from '@/shared/components/erp-list';
+import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
+import { InvTableSkeleton } from '@/features/inv/components/InvTableSkeleton';
+import { IamTableEmptyState } from '@/features/admin/components/iam';
 import CreateModuleModal from '../components/CreateModuleModal';
 import EditModuleModal from '../components/EditModuleModal';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
@@ -29,38 +33,35 @@ import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
 
 type ModuloActiveAction = 'deactivate' | 'reactivate';
 
+const TABLE_COLSPAN = 6;
+const LIMIT_OPTIONS = [10, 25, 50] as const;
+const DEFAULT_LIMIT = 25;
+
 const ModuleManagementPage: React.FC = () => {
   const { isSuperAdmin, isAuthenticated, loading: authLoading } = useAuth();
-  // ✅ NUEVO: Usar tipos ModuloV2
-  const [modulos, setModulos] = useState<ModuloV2[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const search = useDebouncedSearch();
 
-  // ✅ MEJORADO: Paginación con límite configurable
-  const LIMIT_OPTIONS = [20, 50, 100];
-  const DEFAULT_LIMIT = 20;
-  
-  // Cargar preferencia de límite desde localStorage
   const getStoredLimit = (): number => {
     try {
       const stored = localStorage.getItem('modulos_limit_per_page');
-      return stored ? parseInt(stored, 10) : DEFAULT_LIMIT;
+      if (stored) {
+        const parsed = parseInt(stored, 10);
+        if (LIMIT_OPTIONS.includes(parsed as (typeof LIMIT_OPTIONS)[number])) {
+          return parsed;
+        }
+      }
     } catch {
-      return DEFAULT_LIMIT;
+      /* preferencia no disponible */
     }
+    return DEFAULT_LIMIT;
   };
 
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [totalModulos, setTotalModulos] = useState<number>(0);
-  const [limitPerPage, setLimitPerPage] = useState<number>(getStoredLimit());
+  const [limitPerPage, setLimitPerPage] = useState<number>(getStoredLimit);
 
-  // ✅ NUEVO: Vista (tabla o tarjetas)
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
-  // Búsqueda y filtros
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
   const [selectedCategoria, setSelectedCategoria] = useState<string>('');
   const [soloActivos, setSoloActivos] = useState<boolean>(false);
 
@@ -77,71 +78,58 @@ const ModuleManagementPage: React.FC = () => {
 
   const pageActionsLocked = moduloDiscardPending !== null || activeTarget !== null;
 
-  // Debounce para búsqueda
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-      setCurrentPage(1);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+  const listEnabled = isSuperAdmin && isAuthenticated && !authLoading;
+  const skip = (currentPage - 1) * limitPerPage;
 
-  const fetchModulos = useCallback(async () => {
-    // ✅ CORRECCIÓN: No hacer petición si no está autenticado o está cargando
-    if (!isAuthenticated || authLoading) {
-      console.log('⏸️ [ModuleManagementPage] Esperando autenticación...');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // ✅ NUEVO: Usar moduloV2Service con nueva estructura de paginación
-      const skip = (currentPage - 1) * limitPerPage;
-      const filters: any = {
+  const {
+    data: modulosData,
+    isLoading,
+    isFetching,
+    error: queryError,
+    refetch,
+  } = useQuery({
+    queryKey: [
+      'modulos-v2',
+      currentPage,
+      limitPerPage,
+      search.debouncedValue,
+      selectedCategoria,
+      soloActivos,
+    ],
+    queryFn: () =>
+      moduloV2Service.getModulos({
         skip,
         limit: limitPerPage,
-      };
+        es_activo: soloActivos,
+        buscar: search.debouncedValue || undefined,
+        categoria: selectedCategoria || undefined,
+      }),
+    enabled: listEnabled,
+  });
 
-      // ✅ CORREGIDO: Enviar filtro de activos siempre (true o false)
-      // El backend espera 'solo_activos' y cuando es false muestra todos
-      filters.es_activo = soloActivos;
+  const modulos = modulosData?.items ?? [];
+  const totalModulos = modulosData?.total ?? 0;
+  const listError = queryError ? getErrorMessage(queryError).message : null;
 
-      // Agregar búsqueda si existe
-      if (debouncedSearchTerm) {
-        filters.nombre = debouncedSearchTerm;
+  const pagination = modulosData
+    ? {
+        total: modulosData.total,
+        pagina_actual: modulosData.page,
+        total_paginas: modulosData.pages,
+        limit: modulosData.size,
       }
+    : undefined;
 
-      // Agregar filtro de categoría si existe
-      if (selectedCategoria) {
-        filters.categoria = selectedCategoria;
-      }
+  const showInitialSkeleton = isLoading && modulos.length === 0;
+  const listIsRefreshing = isFetching && modulos.length > 0;
 
-      const data = await moduloV2Service.getModulos(filters);
-
-      // ✅ NUEVO: Estructura de respuesta diferente con validación robusta
-      if (!data) {
-        throw new Error('La respuesta del servidor está vacía');
-      }
-      
-      // Validar que items sea un array
-      const items = Array.isArray(data.items) ? data.items : [];
-      setModulos(items);
-      setTotalModulos(typeof data.total === 'number' ? data.total : items.length);
-      setTotalPages(typeof data.pages === 'number' ? data.pages : 1);
-      setError(null);
-    } catch (err) {
-      console.error('❌ Error cargando módulos:', err);
-      const errorData = getErrorMessage(err);
-      setError(errorData.message || 'Error al cargar los módulos');
-      toast.error(errorData.message || 'Error al cargar los módulos');
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearchTerm, currentPage, selectedCategoria, soloActivos, limitPerPage, isAuthenticated, authLoading]);
+  const invalidateModulosList = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['modulos-v2'] });
+  }, [queryClient]);
 
   useEffect(() => {
-    fetchModulos();
-  }, [fetchModulos]);
+    setCurrentPage(1);
+  }, [search.debouncedValue, selectedCategoria, soloActivos]);
 
   // ✅ NUEVO: Cerrar menú de exportación al hacer clic fuera
   useEffect(() => {
@@ -158,31 +146,17 @@ const ModuleManagementPage: React.FC = () => {
     }
   }, [showExportMenu]);
 
-  // Handlers
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(event.target.value);
-    setCurrentPage(1);
-  };
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage(prev => prev - 1);
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
-  };
-
   const handleCreateSuccess = () => {
     setModuloDiscardPending(null);
     setIsCreateModalOpen(false);
-    fetchModulos();
+    invalidateModulosList();
   };
 
   const handleEditSuccess = () => {
     setModuloDiscardPending(null);
     setIsEditModalOpen(false);
     setSelectedModulo(null);
-    fetchModulos();
+    invalidateModulosList();
   };
 
   const handleCreateModalClose = () => {
@@ -219,7 +193,7 @@ const ModuleManagementPage: React.FC = () => {
         toast.success('Módulo reactivado exitosamente');
       }
       closeActiveConfirm();
-      fetchModulos();
+      invalidateModulosList();
     } catch (err) {
       const errorData = getErrorMessage(err);
       toast.error(
@@ -257,15 +231,13 @@ const ModuleManagementPage: React.FC = () => {
   const exportToCSV = useCallback(async () => {
     setIsExporting(true);
     try {
-      // Obtener todos los módulos sin paginación para exportar
-      const filters: any = {};
+      const filters: ModuloV2Filters = {};
       if (soloActivos) filters.es_activo = true;
-      if (debouncedSearchTerm) filters.nombre = debouncedSearchTerm;
+      if (search.debouncedValue) filters.buscar = search.debouncedValue;
       if (selectedCategoria) filters.categoria = selectedCategoria;
-      
-      // Obtener todos los registros (sin límite)
+
       filters.skip = 0;
-      filters.limit = 1000; // Límite alto para obtener todos
+      filters.limit = 1000;
 
       const data = await moduloV2Service.getModulos(filters);
       const items = Array.isArray(data.items) ? data.items : [];
@@ -316,21 +288,18 @@ const ModuleManagementPage: React.FC = () => {
     } finally {
       setIsExporting(false);
     }
-  }, [debouncedSearchTerm, selectedCategoria, soloActivos]);
+  }, [search.debouncedValue, selectedCategoria, soloActivos]);
 
-  // ✅ NUEVO: Función para exportar a Excel
   const exportToExcel = useCallback(async () => {
     setIsExporting(true);
     try {
-      // Obtener todos los módulos sin paginación para exportar
-      const filters: any = {};
+      const filters: ModuloV2Filters = {};
       if (soloActivos) filters.es_activo = true;
-      if (debouncedSearchTerm) filters.nombre = debouncedSearchTerm;
+      if (search.debouncedValue) filters.buscar = search.debouncedValue;
       if (selectedCategoria) filters.categoria = selectedCategoria;
-      
-      // Obtener todos los registros (sin límite)
+
       filters.skip = 0;
-      filters.limit = 1000; // Límite alto para obtener todos
+      filters.limit = 1000;
 
       const data = await moduloV2Service.getModulos(filters);
       const items = Array.isArray(data.items) ? data.items : [];
@@ -374,7 +343,7 @@ const ModuleManagementPage: React.FC = () => {
     } finally {
       setIsExporting(false);
     }
-  }, [debouncedSearchTerm, selectedCategoria, soloActivos]);
+  }, [search.debouncedValue, selectedCategoria, soloActivos]);
 
   // ✅ NUEVO: Obtener categorías únicas para el filtro con validación
   const categorias = useMemo(() => {
@@ -422,20 +391,15 @@ const ModuleManagementPage: React.FC = () => {
       <div className="mb-6 bg-surface rounded-lg shadow-sm border border-border-base p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           {/* Búsqueda y Filtros */}
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-soft" />
-              <input
-                type="text"
-                placeholder="Buscar módulos..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                disabled={pageActionsLocked}
-                className="pl-10 pr-4 py-2 w-full border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base disabled:opacity-50"
-              />
-            </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto flex-wrap items-center">
+            <OrgToolbarSearch
+              value={search.inputValue}
+              onChange={search.setInputValue}
+              placeholder="Buscar módulos..."
+              disabled={pageActionsLocked}
+              aria-label="Buscar módulos"
+            />
 
-            {/* ✅ NUEVO: Filtro por categoría */}
             {categorias.length > 0 && (
               <select
                 value={selectedCategoria}
@@ -471,24 +435,6 @@ const ModuleManagementPage: React.FC = () => {
 
           {/* Acciones */}
           <div className="flex flex-wrap gap-2 items-center">
-            {/* ✅ NUEVO: Selector de límite por página */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-text-soft whitespace-nowrap">
-                Mostrar:
-              </label>
-              <select
-                value={limitPerPage}
-                onChange={(e) => handleLimitChange(Number(e.target.value))}
-                disabled={pageActionsLocked}
-                className="px-3 py-2 text-sm border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base disabled:opacity-50"
-              >
-                {LIMIT_OPTIONS.map(limit => (
-                  <option key={limit} value={limit}>{limit}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* ✅ NUEVO: Toggle de vista */}
             <div className="flex items-center gap-1 border border-border-base rounded-lg p-1">
               <button
                 type="button"
@@ -523,7 +469,7 @@ const ModuleManagementPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => !pageActionsLocked && setShowExportMenu(!showExportMenu)}
-                disabled={isExporting || loading || pageActionsLocked}
+                disabled={isExporting || isFetching || pageActionsLocked}
                 className="flex items-center gap-2 px-4 py-2 text-sm border border-border-base rounded-lg bg-surface text-text-soft hover:bg-overlay dark:hover:bg-overlay transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Exportar datos"
               >
@@ -559,12 +505,13 @@ const ModuleManagementPage: React.FC = () => {
 
             <button
               type="button"
-              onClick={fetchModulos}
-              disabled={loading || pageActionsLocked}
+              onClick={() => void refetch()}
+              disabled={isFetching || pageActionsLocked}
               className="p-2 text-text-soft hover:text-text-base hover:bg-overlay dark:hover:bg-overlay rounded-lg transition-colors disabled:opacity-50"
               title="Actualizar"
+              aria-label="Actualizar listado"
             >
-              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-5 w-5 ${isFetching ? 'animate-spin' : ''}`} />
             </button>
 
             <button
@@ -638,34 +585,31 @@ const ModuleManagementPage: React.FC = () => {
         </div>
       </div>
 
+      {listError && !isLoading ? (
+        <div className="mb-6 rounded-lg border border-border-base bg-surface p-6">
+          <p className="text-error bg-error/10 p-4 rounded-lg mb-4">{listError}</p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Reintentar
+          </button>
+        </div>
+      ) : null}
+
       {/* Contenido */}
+      {!listError ? (
       <div className="bg-surface rounded-lg shadow-sm border border-border-base overflow-hidden">
-        {/* Loading */}
-        {loading && (
-          <div className="flex items-center justify-center py-8">
-            <RefreshCw className="animate-spin h-6 w-6 text-brand-primary" />
-            <span className="ml-2 text-text-soft">Cargando módulos...</span>
-          </div>
-        )}
-
-        {/* Error */}
-        {error && !loading && (
-          <div className="p-6 text-center">
-            <div className="text-error bg-error/10 p-4 rounded-lg">
-              {error}
-            </div>
-            <button
-              onClick={fetchModulos}
-              className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors"
-            >
-              Reintentar
-            </button>
-          </div>
-        )}
-
-        {/* Contenido: Tabla o Grid */}
-        {!loading && !error && (
-          <>
+        <div
+          className={`transition-opacity duration-150 ${listIsRefreshing ? 'opacity-70' : 'opacity-100'}`}
+          aria-busy={listIsRefreshing}
+        >
+          {showInitialSkeleton ? (
+            <InvTableSkeleton columns={TABLE_COLSPAN} />
+          ) : (
+            <>
             {viewMode === 'table' ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-border-base">
@@ -777,24 +721,23 @@ const ModuleManagementPage: React.FC = () => {
                       </tr>
                     ))
                   ) : (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-sm text-text-soft">
-                        <Package className="mx-auto h-12 w-12 text-text-soft mb-4" />
-                        <p>No se encontraron módulos</p>
-                        {searchTerm ? (
-                          <p className="mt-1">Intenta ajustar los términos de búsqueda</p>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={openCreateModal}
-                            disabled={pageActionsLocked}
-                            className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors disabled:opacity-50"
-                          >
-                            Crear primer módulo
-                          </button>
-                        )}
-                      </td>
-                    </tr>
+                    <IamTableEmptyState
+                      colSpan={TABLE_COLSPAN}
+                      icon={Package}
+                      title={
+                        search.hasSearch
+                          ? 'No se encontraron módulos que coincidan con la búsqueda.'
+                          : 'No se encontraron módulos'
+                      }
+                      description={
+                        search.hasSearch
+                          ? 'Intenta ajustar los términos de búsqueda'
+                          : undefined
+                      }
+                      actionLabel={!search.hasSearch ? 'Crear primer módulo' : undefined}
+                      onAction={!search.hasSearch ? openCreateModal : undefined}
+                      actionDisabled={pageActionsLocked}
+                    />
                   )}
                 </tbody>
               </table>
@@ -900,7 +843,7 @@ const ModuleManagementPage: React.FC = () => {
                   <div className="text-center py-12">
                     <Package className="mx-auto h-12 w-12 text-text-soft mb-4" />
                     <p className="text-sm text-text-soft">No se encontraron módulos</p>
-                    {searchTerm && (
+                    {search.inputValue && (
                       <p className="mt-1 text-sm text-text-soft">
                         Intenta ajustar los términos de búsqueda
                       </p>
@@ -910,42 +853,20 @@ const ModuleManagementPage: React.FC = () => {
               </div>
             )}
 
-            {/* Paginación */}
-            {totalModulos > limitPerPage && (
-              <div className="px-6 py-4 border-t border-border-base bg-subtle">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-text-base">
-                    Mostrando <span className="font-medium">{(currentPage - 1) * limitPerPage + 1}</span> a{' '}
-                    <span className="font-medium">{Math.min(currentPage * limitPerPage, totalModulos)}</span> de{' '}
-                    <span className="font-medium">{totalModulos}</span> módulos
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handlePreviousPage}
-                      disabled={currentPage === 1 || pageActionsLocked}
-                      className="px-3 py-1 text-sm border border-border-base rounded-md bg-surface text-text-soft hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Anterior
-                    </button>
-                    <span className="px-3 py-1 text-sm text-text-base">
-                      Página {currentPage} de {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleNextPage}
-                      disabled={currentPage === totalPages || pageActionsLocked}
-                      className="px-3 py-1 text-sm border border-border-base rounded-md bg-surface text-text-soft hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Siguiente
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+            {pagination ? (
+              <ErpPagination
+                pagination={pagination}
+                onPageChange={setCurrentPage}
+                onLimitChange={handleLimitChange}
+                limitOptions={LIMIT_OPTIONS}
+                disabled={isFetching || pageActionsLocked}
+              />
+            ) : null}
+            </>
+          )}
+        </div>
       </div>
+      ) : null}
 
       {/* Modales */}
       {isCreateModalOpen && (

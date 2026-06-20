@@ -33,7 +33,7 @@ export function useRoleUserCounts(enabled: boolean): UseRoleUserCountsResult {
       setLoading(true);
       setUnavailable(false);
       try {
-        const firstPage = await getUsers(1, 1);
+        const firstPage = await getUsers({ page: 1, limit: 1, solo_activos: true });
         if (firstPage.total_usuarios > USER_COUNT_THRESHOLD) {
           if (!cancelled) {
             setUnavailable(true);
@@ -47,7 +47,7 @@ export function useRoleUserCounts(enabled: boolean): UseRoleUserCountsResult {
         let page = 2;
 
         while (aggregated.length < total) {
-          const next = await getUsers(page, PAGE_SIZE);
+          const next = await getUsers({ page, limit: PAGE_SIZE, solo_activos: true });
           aggregated.push(...next.usuarios);
           page += 1;
           if (next.usuarios.length === 0) break;
