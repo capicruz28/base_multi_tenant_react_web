@@ -1,4 +1,4 @@
-CAXIS ERP — PROMPT MAESTRO FRONTEND v4
+CAXIS ERP — PROMPT MAESTRO FRONTEND v4.2
 =======================================
 
 # CONTEXTO
@@ -10,9 +10,13 @@ Autenticación JWT, RBAC, arquitectura modular.
 Módulo objetivo: [MODULO]
 Código: [CODIGO]
 
-**Norma ERP:** `ERP_FRONTEND_STANDARDS_V2.md` (CONGELADO — única fuente normativa)
+**Norma ERP:** `ERP_FRONTEND_STANDARDS_V2.md` (CONGELADO — única fuente normativa UX/plataforma)
 
-**Precedencia:** OpenAPI > **V2** > `.cursorrules` > **este prompt**
+**Arquitectura estructural:** `docs/arquitectura/ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` (Provider + Compositors)
+
+**Precedencia:** OpenAPI > **V2** > **Baseline V1** > `.cursorrules` > **este prompt**
+
+**Alcance:** este prompt cubre **módulos ERP operativos** (Fase 0–3.5). Refactors estructurales core → **Fase E** + Baseline V1 §11.3–§11.4.
 
 **Diseño visual 2 capas (tokens + brand):** ver `.cursorrules` — no repetir aquí.
 
@@ -23,7 +27,7 @@ Código: [CODIGO]
 # REGLAS ABSOLUTAS (leer primero)
 
 ❌ NO consumir endpoints `deprecated: true` (V2 API-01)
-❌ NO eliminar componentes o archivos existentes
+❌ NO eliminar componentes o archivos existentes — **excepción:** reemplazo deprecated documentado (V2 API-01) en el mismo bloque; refactors estructurales certificados SIGNOFF (Baseline V1 §11.3)
 ❌ NO usar `any` en TypeScript
 ❌ NO inventar endpoints fuera del contrato OpenAPI
 ❌ NO fetch directo — solo service layer
@@ -93,6 +97,7 @@ Extrae patrones existentes (NO lógica de negocio):
 - RBAC negocio: `usePermission`, `INV_PERMISSIONS`, `useInvRbacFormAccess` — V2 §8.3.1, §7.2 SEC-14
 - Workflow: `movimiento-workflow.ui.ts`, `workflowConfirmOpen` — V2 §6.3.1
 - Branding: V2 §8.9 BR-01…05 + `.cursorrules` Capa 2
+- Auth L9 (solo lectura): `@/shared/context/AuthContext` shell público; capa interna `@/core/auth/provider/` — Baseline V1 §14; **no modificar sin epic estructural**
 
 ## Paso 0.3 — Inventario frontend del módulo + clasificación
 
@@ -400,6 +405,46 @@ Verificar checklist **`ERP_FRONTEND_STANDARDS_V2.md` §11** según sprint:
 - [ ] Tier C listado: LR-01, LR-02, LR-06, LR-08, LR-09, PR-01, PR-02 (§5.11) si aplica
 
 No pegar checklist completa aquí — leer V2 §11.
+
+---
+
+# FASE E — REFACTOR ESTRUCTURAL (solo epics)
+
+> **NO aplica a módulos ERP operativos** (PUR, SLS, FIN, INV catálogos, ORG pantallas, etc.).  
+> Esos módulos usan **Fase 0 → 3.5** y Gates **V2 §11** (Module Gates 0–4).
+
+**Cuándo usar Fase E:** descomposición de Context/provider core multi-dominio — criterios → `ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` §11.1–§11.2.
+
+**Metodología oficial:** Baseline V1 §11.3–§11.4 (plantilla certificada **IAM-FE-PHASE-09** SIGNOFF-02).
+
+**Reglas arquitectónicas (P-*, AC rules, fases A→D, budgets, testing):** **solo Baseline V1** §2–§8 — no redefinir aquí.
+
+**Reglas UX / multiempresa / OpenAPI:** **solo V2** — zero feature delta obligatorio (Baseline V1 P-03).
+
+## Índice de etapas (pointers — no duplicar contenido)
+
+| # | Etapa | Artefacto epic | Referencia canónica Phase-09 | Norma |
+|---|-------|----------------|------------------------------|-------|
+| 1 | Kickoff | `{EPIC}_KICKOFF.md` | `docs/arquitectura/IAM_FE_PHASE_09_KICKOFF.md` | Baseline §11.4 |
+| 2 | Technical Design | `{EPIC}_TECHNICAL_DESIGN.md` | `IAM_FE_PHASE_09_TECHNICAL_DESIGN.md` | Baseline §11.4 |
+| 3 | Design Review | Aprobación explícita en Design | G0 en Technical Design §22 | Baseline §11.3 |
+| 4 | Implementation Plan | `{EPIC}_IMPLEMENTATION_PLAN.md` | `IAM_FE_PHASE_09_IMPLEMENTATION_PLAN.md` | Baseline §11.4 |
+| 5 | IMPL incrementales | `{EPIC}_IMPL_NN_REPORT.md` | `IAM_FE_PHASE_09_IMPL_*_REPORT.md` | Baseline §11.3; Arch-Gate 2 → §10 |
+| 6 | Pre-Signoff Review | Informe READ ONLY (waivers P1/P2/P3) | Pre-Signoff Phase-09 | Baseline §11.3 |
+| 7 | Production Audit | Informe READ ONLY | Production Audit Phase-09 | Baseline §11.3 |
+| 8 | Validation | `{EPIC}_VALIDATION_REPORT.md` | `IAM_FE_PHASE_09_VALIDATION_REPORT.md` | Baseline §8 (testing — solo pointer) |
+| 9 | Closure Report | `{EPIC}_CLOSURE_REPORT.md` | `IAM_FE_PHASE_09_CLOSURE_REPORT.md` | Baseline §11.3 |
+| 10 | Signoff | `{EPIC}_SIGNOFF.md` | `IAM_FE_PHASE_09_SIGNOFF.md` | Baseline §11.3; Arch-Gate 3 → §10 |
+
+## Reglas operativas Fase E (resumen — detalle en Baseline)
+
+- ⛔ **NO iniciar IMPL** sin Kickoff + Technical Design + Design Review aprobados.
+- ⛔ **NO cerrar epic** sin Validation + Production Audit + Closure Report + **SIGNOFF** (eliminar artefactos temporales de fase en Signoff).
+- ⛔ **NO mezclar** con sprint módulo ERP (V2 §11) ni cambios UX/API (V2 + OpenAPI).
+- ✅ Manifesto/tests **verdes** antes de cada IMPL siguiente (Baseline §11.3).
+- ✅ Checklist cierre estructural → Baseline V1 **§10 Arch-Gates 0–3** (≠ V2 §11 Module Gates).
+
+**Inicio Fase E:** crear Kickoff siguiendo estructura `IAM_FE_PHASE_09_KICKOFF.md`. Detener tras Kickoff aprobado; continuar solo con Design Review explícito.
 
 ---
 

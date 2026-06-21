@@ -29,12 +29,22 @@ function readSource(relativePath: string): string {
   return readFileSync(path.join(ROOT, relativePath), 'utf8');
 }
 
+function readTerminationWiringSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-termination.compositor.ts');
+}
+
+function readUseAuthProviderSource(): string {
+  return readSource('src/core/auth/provider/useAuthProvider.ts');
+}
+
 describe('IAM-FE-PHASE-07 regression (IMPL-13)', () => {
   it('IMPL-09 — AuthContext wiring F7 createSessionUxTerminationWiring', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
-    expect(source).toContain('createSessionUxTerminationWiring');
-    expect(source).toContain('SESSION_UX_V7_ENABLED');
-    expect(source).not.toMatch(/terminateSession\s*\([\s\S]*?\/\/ F7/);
+    const assembly = readUseAuthProviderSource();
+    const termination = readTerminationWiringSource();
+    expect(assembly).toContain('useAuthProviderTerminationRuntime');
+    expect(termination).toContain('createSessionUxTerminationWiring');
+    expect(termination).toContain('SESSION_UX_V7_ENABLED');
+    expect(termination).not.toMatch(/terminateSession\s*\([\s\S]*?\/\/ F7/);
   });
 
   it('IMPL-10 — App monta SessionUxBinder + SessionBootstrapGate', () => {

@@ -41,28 +41,57 @@ function readSource(relativePath: string): string {
   return readFileSync(path.join(ROOT, relativePath), 'utf8');
 }
 
+function readBootstrapWiringSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-bootstrap.compositor.ts');
+}
+
+function readUseAuthProviderSource(): string {
+  return readSource('src/core/auth/provider/useAuthProvider.ts');
+}
+
+function readPublicActionsSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-public-actions.ts');
+}
+
+function readAuthSyncWiringSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-auth-sync.compositor.ts');
+}
+
+function readTerminationHelpersSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-termination.helpers.ts');
+}
+
+function readInterceptorsWiringSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-interceptors.compositor.ts');
+}
+
 describe('IAM-FE-PHASE-05 regression (IMPL-13)', () => {
   it('V5.1 — AuthContext usa executeRefreshWithResilience en interceptor', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
-    expect(source).toContain('executeRefreshWithResilience');
-    expect(source).toContain("source: 'interceptor'");
-    expect(source).not.toMatch(
+    const assembly = readUseAuthProviderSource();
+    const interceptors = readInterceptorsWiringSource();
+    expect(assembly).toContain('useAuthProviderResponseInterceptorEffect');
+    expect(interceptors).toContain('executeRefreshWithResilience');
+    expect(interceptors).toContain("source: 'interceptor'");
+    expect(interceptors).not.toMatch(
       /isRefreshingPromise[\s\S]{0,800}await authService\.refreshToken\(\)/,
     );
   });
 
   it('V5.1 — AuthContext usa executeRefreshWithResilience en bootstrap', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
-    expect(source).toContain("source: 'bootstrap'");
+    const assembly = readUseAuthProviderSource();
+    const bootstrap = readBootstrapWiringSource();
+    expect(assembly).toContain('useAuthProviderBootstrapEffect');
+    expect(bootstrap).toContain("source: 'bootstrap'");
+    expect(bootstrap).toContain('executeRefreshWithResilience');
   });
 
   it('IMPL-06 — cambiarEmpresaActiva registra guard L-02', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
+    const source = readPublicActionsSource();
     expect(source).toContain('registerCambiarEmpresaL02Guard');
   });
 
   it('IMPL-09 — executeInterceptorRefreshTermination enriquece classify L-02', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
+    const source = readTerminationHelpersSource();
     expect(source).toContain('applyL02GuardToRefreshClassifyInput');
     expect(source).toContain('clearCambiarEmpresaL02Guard');
   });

@@ -1,12 +1,12 @@
-# Estándares frontend ERP — v2.3
+# Estándares frontend ERP — v2.4
 
 **Sistema:** CAXIS ERP (SaaS multi-tenant)  
 **Stack:** React · TypeScript · Vite · Tailwind · React Query · Axios · Zustand  
-**Versión:** 2.3  
-**Fecha:** 13 junio 2026  
-**Estado:** **Normativo** — ORG e INV **referencia oficial** (jun 2026) · §5.11 listados PERF (F0–F7) · IAM · v2.1/v2.2  
+**Versión:** 2.4  
+**Fecha:** 19 junio 2026  
+**Estado:** **Normativo** — ORG e INV **referencia oficial** (jun 2026) · §5.11 listados PERF (F0–F7) · IAM · Baseline V1 post Phase-09  
 **Principio:** *Write once* — reglas con ID único; sin duplicar en `.cursorrules` ni PROMPT  
-**Precedencia:** OpenAPI > **este documento** > `.cursorrules` > `PROMPT_FRONTEND_MAESTRO.md`
+**Precedencia:** OpenAPI > **este documento** > `ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` > `.cursorrules` > `PROMPT_FRONTEND_MAESTRO.md`
 
 **Fuentes consolidadas:**
 
@@ -59,6 +59,7 @@ Este documento es la **única fuente normativa** de estándares UX/técnicos del
 | Integridad API resumida | `.cursorrules` (pointers a §8) |
 | Sistema diseño 2 capas (tokens + brand) | `.cursorrules` §4 |
 | Flujo auth detallado | `docs/FLUJO_AUTH_MULTIEMPRESA_FE.md` |
+| Arquitectura provider / compositors (L9) | `docs/arquitectura/ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` |
 | POS terminal, BI/dashboards dedicados | Fuera V2.0 — UI especial |
 
 ### §0.3 Precedencia y documentos relacionados
@@ -68,6 +69,8 @@ OpenAPI (contrato)
     ↓
 ERP_FRONTEND_STANDARDS_V2 (este documento)
     ↓
+ERP_FRONTEND_ARCHITECTURE_BASELINE_V1 (provider + compositors)
+    ↓
 .cursorrules (resumen operativo + diseño 2 capas)
     ↓
 PROMPT_FRONTEND_MAESTRO.md (proceso; Fase 0 OpenAPI obligatoria)
@@ -75,6 +78,7 @@ PROMPT_FRONTEND_MAESTRO.md (proceso; Fase 0 OpenAPI obligatoria)
 
 | Documento | Rol | Relación con V2 |
 |-----------|-----|-----------------|
+| `ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` | Patrón Provider + Compositors, refactor estructural core | Complementa §4.8 (comportamiento auth UX); **no** duplicar P-*, AC rules ni testing estructural |
 | `.cursorrules` | Recordatorios MUST diarios | Debe apuntar a §4, §7, §8, §11 — **no copiar tablas completas** |
 | `PROMPT_FRONTEND_MAESTRO.md` | Bootstrap módulo nuevo | Fase 0.4/0.5 → clasificación §2; Gates → §11 |
 | `AUDITORIA_FRONTEND_[CODIGO].md` | Inventario + contrato por módulo | Obligatorio pre-implementación (PROMPT Fase 1) |
@@ -111,7 +115,9 @@ PROMPT_FRONTEND_MAESTRO.md (proceso; Fase 0 OpenAPI obligatoria)
 | **B.1.1** | Cierre seguro con formulario dirty: confirmación antes de descartar | §7 |
 | **E-ME4** | Prohibición de UUID visible en UI | §4.6 |
 | **Baja lógica** | Desactivar / Reactivar — nunca “Eliminar” en vocabulario UI | §8.4 |
-| **Dirty / snapshot / baseline** | Comparación formulario vs estado inicial para discard | §7 |
+| **Dirty / snapshot / baseline (formulario)** | Comparación formulario vs estado inicial para discard (`useOrgModalCreateDirty`, `isDirtyAgainstBaseline`) | §7 |
+| **Architecture Baseline V1** | Documento normativo refactor estructural Provider + Compositors — **≠** baseline formulario §7 | `docs/arquitectura/ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` |
+| **Provider decomposition / L9** | Descomposición Context monolítico en shell + ensamblador + compositors | Baseline V1 §3, §14 |
 | **`discardPending`** | `'create' \| 'edit' \| null` — modal pendiente de confirm discard | §7.1 |
 | **Plantilla A / A+ / B-L / B-F / B-R** | Taxonomía de vistas ERP | §2 |
 | **T / H / Admin / Platform** | Vistas especiales fuera del par A/B estándar | §2 |
@@ -227,8 +233,9 @@ PROMPT_FRONTEND_MAESTRO.md (proceso; Fase 0 OpenAPI obligatoria)
 
 1. Contrato OpenAPI del módulo  
 2. **Este documento** (IDs MUST)  
-3. `.cursorrules`  
-4. `PROMPT_FRONTEND_MAESTRO.md`
+3. `ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` (refactor estructural core)  
+4. `.cursorrules`  
+5. `PROMPT_FRONTEND_MAESTRO.md`
 
 ### §3.2 Anti-patrones MUST NOT (lista única)
 
@@ -367,6 +374,15 @@ Detalle flujos: **§4.8**.
 | **IMP-04** | SHOULD | UI visible “modo soporte” sin exponer tokens ni UUID cliente |
 
 **Separación:** AUTH = selección normal; IMP = impersonation platform.
+
+#### §4.8.3 Implementación estructural auth (post Phase-09)
+
+Comportamiento observable auth/impersonation permanece en **§4.8.1–§4.8.2** (AUTH-*, IMP-*).  
+La **implementación interna** post IAM-FE-PHASE-09 SIGNOFF-02:
+
+- **Entrada pública app:** `@/shared/context/AuthContext` + `useAuth()` — **sin cambio** de contrato (§10).
+- **Capa L9 interna:** `src/core/auth/provider/` — ensamblador `useAuthProvider`; **MUST NOT** importar compositors desde features/UI.
+- **Refactor estructural core:** proceso y reglas → `docs/arquitectura/ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` §14.
 
 ---
 
@@ -1056,6 +1072,7 @@ Componentes hybrid: `OrgParametroHybridTabs`, `OrgParametroAlcanceField`, `OrgHy
 | Modal largo | ORG `SucursalesPage` / INV `ProductosPage` | §7.1.2 MD-05…08 |
 | Branding | §8.9 + `.cursorrules` Capa 2 | §8.9 |
 | Tenant scope | ORG `OrgTenantRouteGuard` | §4.5 |
+| Refactor Context monolítico core | Baseline V1 §10–§11 | Baseline V1 |
 
 ### §9.6 Módulos en migración (código legacy pre-M0)
 
@@ -1103,7 +1120,8 @@ Componentes hybrid: `OrgParametroHybridTabs`, `OrgParametroAlcanceField`, `OrgHy
 | Invalidación ORG | `invalidateOrgQueries` | `@/features/org/utils/invalidate-org-queries` | ME-03 |
 | Invalidación INV | `invalidateInvQueries` | `@/features/inv/utils/invalidate-inv-queries` | ME-03 |
 | Modal stack QA | `scheduleModalStackValidation` | `@/features/admin/utils/iam-modal-stack-validation` | §7.1 |
-| Sesión | `AuthContext` | `@/shared/context/AuthContext` | §4.8 |
+| Sesión (shell público) | `AuthContext` | `@/shared/context/AuthContext` | §4.8, §4.8.3 |
+| Auth ensamblador L9 (interno) | `useAuthProvider` | `@/core/auth/provider/useAuthProvider` | §4.8.3 — **MUST NOT** importar desde features |
 | Empresa activa | `useEmpresaActiva` | `@/features/auth/hooks/useEmpresaActiva` | §4 |
 | Impersonation | `useImpersonation` | `@/features/auth/hooks/useImpersonation` | §4.8 |
 | Post-login | `resolvePostLoginPath` | `@/core/routing/post-login-path.ts` | AUTH-02 |
@@ -1226,6 +1244,8 @@ Resolución de los 12 GAP identificados en [`AUDITORIA_FINAL_V2_GAPS.md`](./AUDI
 | **2.0** | **2026-05-31** | Post-cierre IAM/ORG/INV; Plantillas A/A+/B-*; B.1.1 modal + B-F; AUTH/IMP; Gates; supersede V1 |
 | **2.1** | **2026-06-10** | Modales stacking (B11-10/11, PB-13/14, MD-01…04); acciones fila RB-ROW; semántica ConfirmDialog UX-05…08; AP-13/14 |
 | **2.2** | **2026-06-13** | Congelamiento ORG/INV referencia oficial; MD-05…08; SEC-14; RB-N01…04; BR-01…05; §8.3.1; ampliaciones §4.5, §9, §10 |
+| **2.3** | **2026-06-13** | §5.11 listados PERF F0–F7; LR-N; PR-xx |
+| **2.4** | **2026-06-19** | Integración Baseline V1 post IAM-FE-PHASE-09 SIGNOFF-02: precedencia §0.3/§3.1, §4.8.3, glosario, §9.1/§9.5/§10 pointers |
 
 ### §13.1 Relación documentos derivados
 
@@ -1295,6 +1315,11 @@ Anexo A ←→ §12 GAP resueltos
 §8.9 BR-01…05 ←→ .cursorrules Capa 2
 §5.3.1 SR-04 deprecado ←→ §5.11 LR-xx; §10 matchesInvCatalogSearch (DEPRECATED)
 §5.11 LR / LR-N ←→ §8.7 PR; FRONTEND_LISTADOS_CONTRACT_V1.md
+§4.8 AUTH/IMP ←→ Baseline V1 §14 (estructura L9 auth)
+§10 AuthContext ←→ Baseline V1 §3.1 (capas internas)
+§9.1 IAM-REF-01 ←→ Baseline V1 §15 (IAM Admin vs core auth)
+§11 Module Gates ←→ Baseline V1 §10 Arch-Gates (alcance distinto)
+§7 baseline form ←→ Baseline V1 §0 (disambiguation)
 ```
 
 ---
@@ -1328,7 +1353,10 @@ Anexo A ←→ §12 GAP resueltos
 | Branding | §8.9 BR | `.cursorrules` |
 | Dirty create A+ | §7.1 + §5.8 PA+-02 | §10 |
 | Listados PERF Tier B/C | §5.11 | §8.7 PR, §10, §11 |
+| Provider L9 / compositors | Baseline V1 | §4.8.3, §10 pointer |
+| Refactor estructural core | Baseline V1 | §9.5, PROMPT pointer |
+| AC rules / testing estructural | Baseline V1 | No en V2 |
 
 ---
 
-*Documento normativo V2.3 — write once. `.cursorrules` y PROMPT referencian IDs; no redefinen reglas.*
+*Documento normativo V2.4 — write once. `.cursorrules` y PROMPT referencian IDs; no redefinen reglas.*

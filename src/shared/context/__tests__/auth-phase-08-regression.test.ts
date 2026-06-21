@@ -28,14 +28,31 @@ function readSource(relativePath: string): string {
   return readFileSync(path.join(ROOT, relativePath), 'utf8');
 }
 
+function readTelemetryBindersSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-telemetry-ux.compositor.tsx');
+}
+
+function readUseAuthProviderSource(): string {
+  return readSource('src/core/auth/provider/useAuthProvider.ts');
+}
+
+function readInterceptorsWiringSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-interceptors.compositor.ts');
+}
+
+function readTerminationWiringSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-termination.compositor.ts');
+}
+
 describe('IAM-FE-PHASE-08 regression (IMPL-13/14)', () => {
   it('IMPL-08/09 — AuthContext wiring F8 telemetry + composeTerminationEventEmitters', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
-    expect(source).toContain('composeTerminationEventEmitters');
-    expect(source).toContain('createSessionTelemetryTerminationEmitter');
-    expect(source).toContain('emitSessionRefreshOutcomeTelemetry');
-    expect(source).toContain('SESSION_TELEMETRY_V8_ENABLED');
-    expect(source).not.toMatch(/executeRefreshWithResilience\s*\([\s\S]*?\/\/ F8/);
+    const assembly = readUseAuthProviderSource();
+    const termination = readTerminationWiringSource();
+    expect(assembly).toContain('useAuthProviderTerminationRuntime');
+    expect(termination).toContain('composeTerminationEventEmitters');
+    expect(termination).toContain('createSessionTelemetryTerminationEmitter');
+    expect(assembly).toContain('SESSION_TELEMETRY_V8_ENABLED');
+    expect(termination).not.toMatch(/executeRefreshWithResilience\s*\([\s\S]*?\/\/ F8/);
   });
 
   it('IMPL-10 — auth-debug delega a telemetría cuando master ON', () => {
@@ -51,9 +68,9 @@ describe('IAM-FE-PHASE-08 regression (IMPL-13/14)', () => {
   });
 
   it('IMPL-11 — SessionTelemetryAuthSync binders montados', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
-    expect(source).toContain('SessionTelemetryAuthSyncEmittedBinder');
-    expect(source).toContain('SessionTelemetryAuthSyncBinder');
+    const telemetry = readTelemetryBindersSource();
+    expect(telemetry).toContain('SessionTelemetryAuthSyncEmittedBinder');
+    expect(telemetry).toContain('SessionTelemetryAuthSyncBinder');
   });
 
   it('P1-03 — composeTerminationEventEmitters compone emitters sin mutar payload', () => {

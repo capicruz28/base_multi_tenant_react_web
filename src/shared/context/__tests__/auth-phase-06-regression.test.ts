@@ -33,42 +33,74 @@ function readSource(relativePath: string): string {
   return readFileSync(path.join(ROOT, relativePath), 'utf8');
 }
 
+function readUseAuthProviderSource(): string {
+  return readSource('src/core/auth/provider/useAuthProvider.ts');
+}
+
+function readPublicActionsSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-public-actions.ts');
+}
+
+function readAuthSyncWiringSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-auth-sync.compositor.ts');
+}
+
+function readImpersonationWiringSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-impersonation.compositor.ts');
+}
+
+function readTerminationWiringSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-termination.compositor.ts');
+}
+
+function readBootstrapWiringSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-bootstrap.compositor.ts');
+}
+
+function readInterceptorsWiringSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-interceptors.compositor.ts');
+}
+
 describe('IAM-FE-PHASE-06 regression (IMPL-13)', () => {
   it('V6.1 — AuthContext interceptor usa resolveImpersonationExitPolicy + controlled exit', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
-    expect(source).toContain('resolveImpersonationExitPolicy');
-    expect(source).toContain('runImpersonationControlledExit');
-    expect(source).toContain("context: 'interceptor'");
-    expect(source).not.toMatch(
+    const assembly = readUseAuthProviderSource();
+    const interceptors = readInterceptorsWiringSource();
+    expect(assembly).toContain('useAuthProviderResponseInterceptorEffect');
+    expect(interceptors).toContain('resolveImpersonationExitPolicy');
+    expect(interceptors).toContain('runImpersonationControlledExit');
+    expect(interceptors).toContain("context: 'interceptor'");
+    expect(interceptors).not.toMatch(
       /isImpersonationSupportMode[\s\S]{0,200}sin refresh plataforma ni restore parent automático/,
     );
   });
 
   it('V6.1 — short-circuit soporte antes de executeRefreshWithResilience', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
-    const interceptorBlock = source.slice(
-      source.indexOf('// Modo soporte: salida controlada F6'),
-      source.indexOf('if (error.response?.status === 401 && !originalRequest._retry)'),
+    const interceptors = readInterceptorsWiringSource();
+    const interceptorBlock = interceptors.slice(
+      interceptors.indexOf('// Modo soporte: salida controlada F6'),
+      interceptors.indexOf('if (error.response?.status === 401 && !originalRequest._retry)'),
     );
     expect(interceptorBlock).toContain('resolveImpersonationExitPolicy');
     expect(interceptorBlock).not.toContain('executeRefreshWithResilience');
   });
 
   it('IMPL-07 — cambiarEmpresaActiva guard impersonación + handler 403', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
+    const source = readPublicActionsSource();
     expect(source).toContain("context: 'cambiar_empresa_precheck'");
     expect(source).toContain("context: 'cambiar_empresa_forbidden'");
   });
 
   it('IMPL-08 — bootstrap soporte delega controlled exit F6', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
-    expect(source).toContain("context: 'bootstrap'");
-    expect(source).toContain('controlledExitToPlatform');
-    expect(source).toContain('runImpersonationControlledExit');
+    const assembly = readUseAuthProviderSource();
+    const bootstrap = readBootstrapWiringSource();
+    expect(assembly).toContain('useAuthProviderBootstrapEffect');
+    expect(bootstrap).toContain("context: 'bootstrap'");
+    expect(bootstrap).toContain('controlledExitToPlatform');
+    expect(bootstrap).toContain('runImpersonationControlledExit');
   });
 
   it('V6.4 — endImpersonation usa orchestrator F6', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
+    const source = readPublicActionsSource();
     expect(source).toContain("context: 'manual'");
     expect(source).toContain('includeEndImpersonationApi: true');
   });
@@ -116,27 +148,36 @@ describe('IAM-FE-PHASE-06 regression (IMPL-13)', () => {
   });
 
   it('cuerpos congelados F1–F5 — restorePlatformSession body intacto', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
-    expect(source).toContain('const restorePlatformSession = useCallback');
-    expect(source).toContain('getPlatformParentSession()');
-    expect(source).toContain('await initializeAuth()');
-    expect(source).toContain('executeRefreshWithResilience');
-    expect(source).toContain('terminateSession');
+    const assembly = readUseAuthProviderSource();
+    const interceptors = readInterceptorsWiringSource();
+    const bootstrap = readBootstrapWiringSource();
+    const termination = readTerminationWiringSource();
+    const impersonation = readImpersonationWiringSource();
+    expect(assembly).toContain('useAuthProviderImpersonationLateRuntime');
+    expect(impersonation).toContain('const restorePlatformSession = useCallback');
+    expect(impersonation).toContain('getPlatformParentSession()');
+    expect(impersonation).toContain('await initializeAuth()');
+    expect(interceptors).toContain('executeRefreshWithResilience');
+    expect(bootstrap).toContain('executeRefreshWithResilience');
+    expect(termination).toContain('terminateSession');
+    expect(assembly).toContain('useAuthProviderTerminationRuntime');
   });
 
   it('PATCH-01 — follower IM-06 limpia sessionStorage tras inbound SESSION_LOGIN parent', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
-    expect(source).toContain('applyInboundImpersonationExitStorageCleanup');
-    expect(source).toContain('clearPlatformParentSession()');
-    expect(source).toContain('clearImpersonationSupportSession()');
-    expect(source).toContain('applyInboundImpersonationExitStorageCleanup(newToken)');
-    expect(source).toContain('applyInboundImpersonationExitStorageCleanup(accessToken)');
+    const assembly = readUseAuthProviderSource();
+    const impersonation = readImpersonationWiringSource();
+    const authSync = readAuthSyncWiringSource();
+    expect(assembly).toContain('applyInboundImpersonationExitStorageCleanup');
+    expect(impersonation).toContain('clearPlatformParentSession()');
+    expect(impersonation).toContain('clearImpersonationSupportSession()');
+    expect(authSync).toContain('applyInboundImpersonationExitStorageCleanup(newToken)');
+    expect(authSync).toContain('applyInboundImpersonationExitStorageCleanup(accessToken)');
   });
 
   it('PATCH-02 — bootstrap memoria delega me_failed a controlled exit F6', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
-    expect(source).toContain("bootstrapPath: 'memory-rehydrate'");
-    expect(source).toContain("await controlledExitToPlatform('me_failed'");
-    expect(source).not.toContain('/* sin refresh plataforma en modo soporte */');
+    const bootstrap = readBootstrapWiringSource();
+    expect(bootstrap).toContain("bootstrapPath: 'memory-rehydrate'");
+    expect(bootstrap).toContain("await controlledExitToPlatform('me_failed'");
+    expect(bootstrap).not.toContain('/* sin refresh plataforma en modo soporte */');
   });
 });

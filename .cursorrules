@@ -9,16 +9,18 @@ STACK: React + TypeScript + Vite + Tailwind + React Query + Axios + Zustand
 
 **Norma ERP:** `ERP_FRONTEND_STANDARDS_V2.md` (CONGELADO — única fuente normativa UX/plataforma)
 
-**Precedencia:** OpenAPI > **ERP_FRONTEND_STANDARDS_V2** > **este archivo** > `docs/prompts/PROMPT_FRONTEND_MAESTRO.md`
+**Arquitectura estructural:** `docs/arquitectura/ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` (Provider + Compositors — post Phase-09)
 
-Reglas detalladas con IDs (ME-xx, B11-xx, PA-xx, Gates §11, etc.) → **solo en V2**. Aquí: recordatorios operativos + diseño 2 capas.
+**Precedencia:** OpenAPI > **ERP_FRONTEND_STANDARDS_V2** > **ERP_FRONTEND_ARCHITECTURE_BASELINE_V1** > **este archivo** > `docs/prompts/PROMPT_FRONTEND_MAESTRO.md`
+
+Reglas detalladas con IDs (ME-xx, B11-xx, PA-xx, Gates §11, P-*, AC-*, Arch-Gates, etc.) → **solo en V2 o Baseline V1**. Aquí: recordatorios operativos + diseño 2 capas.
 
 ---
 
 ## REGLAS ABSOLUTAS DE INTEGRIDAD
 
 - NUNCA cambiar contratos de API (URLs, métodos, body, response)
-- NUNCA eliminar componentes o archivos existentes
+- NUNCA eliminar componentes o archivos existentes — **excepción:** refactors estructurales certificados con SIGNOFF (`ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` §11.3): legacy huérfano tras grep 0; artefactos temporales de fase eliminados en SIGNOFF; reemplazo deprecated documentado (V2 API-01) en el mismo bloque de trabajo
 - NUNCA usar `any` en TypeScript
 - NUNCA inventar endpoints que no existan en el contrato API del módulo
 - NUNCA hacer fetch directo — siempre usar el service layer del módulo
@@ -171,6 +173,19 @@ Norma: V2 §8.5 ER-02
 - Hybrid: `useOrgHybridQueryGate` — V2 §4.5
 - Reset empresa: `useOrgScopeEmpresaReset` / `useInvScopeEmpresaReset` — ME-09
 - Auth / impersonation: V2 §4.8 AUTH-xx, IMP-xx
+- AuthContext: consumir shell público `@/shared/context/AuthContext` + `useAuth()` — implementación L9 interna → Baseline V1 §14 (no importar compositors desde features)
+
+---
+
+## ERP — ARQUITECTURA ESTRUCTURAL (Baseline V1)
+
+Refactor estructural core (Provider monolítico >~800 líneas) → ticket epic + **`docs/arquitectura/ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md`**.
+
+- Copy-first, zero feature delta — Baseline V1 §2 (P-02, P-03)
+- Shell público estable — no cambiar paths de importación app (P-01)
+- **MUST NOT** importar `*-compositor.*` ni `useAuthProvider` desde features/UI
+- AC rules, fases A→D, budgets, testing estructural → **solo Baseline V1** — no redefinir aquí
+- Eliminación legacy: solo epic estructural con SIGNOFF (Baseline V1 §11.3, §12)
 
 ---
 
@@ -302,12 +317,13 @@ Norma detallada → V2 §5, §6, §8. Solo recordatorios diarios:
 
 0. Contrato OpenAPI del módulo
 1. **ERP_FRONTEND_STANDARDS_V2.md**
-2. Consumir solo endpoints activos (no deprecated)
-3. Nunca mostrar IDs en la UI (E-ME4)
-4. Multiempresa JWT — sin selector empresa local (ME-02)
-5. UX completo (loading/error/empty/toast/confirmación)
-6. Tipado estricto sin any
-7. Preservación de código existente (comentar, no eliminar)
+2. **`docs/arquitectura/ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md`** (refactor estructural core)
+3. Consumir solo endpoints activos (no deprecated)
+4. Nunca mostrar IDs en la UI (E-ME4)
+5. Multiempresa JWT — sin selector empresa local (ME-02)
+6. UX completo (loading/error/empty/toast/confirmación)
+7. Tipado estricto sin any
+8. Preservación de código módulo (comentar deprecated; no eliminar salvo excepción Baseline V1 SIGNOFF o reemplazo API-01)
 
 ---
 

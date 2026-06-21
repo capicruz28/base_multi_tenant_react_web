@@ -32,6 +32,26 @@ function readSource(relativePath: string): string {
   return readFileSync(path.join(ROOT, relativePath), 'utf8');
 }
 
+function readUseAuthProviderSource(): string {
+  return readSource('src/core/auth/provider/useAuthProvider.ts');
+}
+
+function readPublicActionsSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-public-actions.ts');
+}
+
+function readTelemetryBindersSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-telemetry-ux.compositor.tsx');
+}
+
+function readAuthSyncWiringSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-auth-sync.compositor.ts');
+}
+
+function readTerminationWiringSource(): string {
+  return readSource('src/core/auth/provider/auth-provider-termination.compositor.ts');
+}
+
 describe('IAM-FE-PHASE-04 regression (IMPL-14)', () => {
   it('V4.1 — canal auth-sync separado de tenant-sync', () => {
     expect(AUTH_SYNC_CHANNEL_NAME).toBe('auth-sync');
@@ -75,10 +95,13 @@ describe('IAM-FE-PHASE-04 regression (IMPL-14)', () => {
   });
 
   it('V4.3 — AuthContext wiring incluye AuthSyncListenerBinder', () => {
-    const source = readSource('src/shared/context/AuthContext.tsx');
-    expect(source).toContain('AuthSyncListenerBinder');
-    expect(source).toContain('emitAuthSyncSessionToken');
-    expect(source).toContain('createAuthSyncTerminationEmitter');
+    const assembly = readUseAuthProviderSource();
+    const telemetry = readTelemetryBindersSource();
+    const termination = readTerminationWiringSource();
+    expect(telemetry).toContain('AuthSyncListenerBinder');
+    expect(assembly).toContain('emitAuthSyncSessionToken');
+    expect(assembly).toContain('useAuthProviderTerminationRuntime');
+    expect(termination).toContain('createAuthSyncTerminationEmitter');
   });
 
   it('V4.4 — probe skip tras terminación BC reciente', async () => {
