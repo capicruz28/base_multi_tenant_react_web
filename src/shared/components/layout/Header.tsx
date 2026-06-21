@@ -6,7 +6,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useBreadcrumb } from '../../context/BreadcrumbContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useNavMode } from '../../context/NavModeContext';
-import { User, Mail, Settings, LogOut, ChevronDown, ChevronRight, Home, Shield, Building2, Crown, Sun, Moon, PanelLeft, PanelTop } from 'lucide-react';
+import { User, Mail, Settings, LogOut, MonitorSmartphone, ChevronDown, ChevronRight, Home, Shield, Building2, Crown, Sun, Moon, PanelLeft, PanelTop } from 'lucide-react';
+import { SESSION_LOGOUT_V3_ENABLED } from '@/core/auth/session/session-logout-v3.flags';
+import { LogoutAllConfirmDialog } from '@/features/auth/components/LogoutAllConfirmDialog';
 import useUserType from '../../../core/hooks/useUserType';
 import { useLayoutShell } from './LayoutShellContext';
 import { SHELL_HOME_PATH } from './layout-shell.types';
@@ -17,7 +19,15 @@ import ShellCrossNav from './ShellCrossNav';
 
 const Header = () => {
   const shell = useLayoutShell();
-  const { auth, logout, menuModulos } = useAuth();
+  const {
+    auth,
+    logout,
+    logoutAllSessions,
+    menuModulos,
+    isAuthenticated,
+    isImpersonation,
+    requiereSeleccionEmpresa,
+  } = useAuth();
   const { breadcrumbs, setBreadcrumbs } = useBreadcrumb();
   const { items: adminMenuItems } = useAdminMenuItems();
   const location = useLocation();
@@ -31,7 +41,43 @@ const Header = () => {
   const { navMode, toggleNavMode } = useNavMode();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLogoutAllDialogOpen, setIsLogoutAllDialogOpen] = useState(false);
+  const [logoutAllPending, setLogoutAllPending] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const showLogoutAllOption =
+    SESSION_LOGOUT_V3_ENABLED &&
+    isAuthenticated &&
+    !isImpersonation &&
+    !requiereSeleccionEmpresa;
+
+  const isLogoutActionDisabled = logoutAllPending;
+
+  const handleOpenLogoutAllDialog = () => {
+    setIsMenuOpen(false);
+    setIsLogoutAllDialogOpen(true);
+  };
+
+  const handleCloseLogoutAllDialog = () => {
+    if (logoutAllPending) {
+      return;
+    }
+    setIsLogoutAllDialogOpen(false);
+  };
+
+  const handleConfirmLogoutAll = async () => {
+    if (logoutAllPending) {
+      return;
+    }
+
+    setLogoutAllPending(true);
+    try {
+      await logoutAllSessions();
+      setIsLogoutAllDialogOpen(false);
+    } finally {
+      setLogoutAllPending(false);
+    }
+  };
   
   // ✅ CORREGIDO: Eliminadas variables no utilizadas
   const { 
@@ -298,10 +344,25 @@ const Header = () => {
 
               <div className="border-t border-brand-border my-1"></div>
 
+              {showLogoutAllOption && (
+                <button
+                  type="button"
+                  aria-label="Cerrar sesión en todos los dispositivos"
+                  disabled={isLogoutActionDisabled}
+                  onClick={handleOpenLogoutAllDialog}
+                  className="w-full px-4 py-2 text-sm text-left text-brand-text-primary hover:bg-overlay flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <MonitorSmartphone className="w-4 h-4 mr-3" />
+                  Cerrar sesión en todos los dispositivos
+                </button>
+              )}
+
               <button
+                type="button"
                 onClick={logout}
-                className="w-full px-4 py-2 text-sm text-left text-error hover:bg-error/10 flex items-center"
-                  >
+                disabled={isLogoutActionDisabled}
+                className="w-full px-4 py-2 text-sm text-left text-error hover:bg-error/10 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <LogOut className="w-4 h-4 mr-3" />
                 Cerrar Sesión
               </button>
@@ -309,6 +370,13 @@ const Header = () => {
           )}
         </div>
       </div>
+
+      <LogoutAllConfirmDialog
+        isOpen={isLogoutAllDialogOpen}
+        onClose={handleCloseLogoutAllDialog}
+        onConfirm={handleConfirmLogoutAll}
+        isPending={logoutAllPending}
+      />
     </header>
   );
 };

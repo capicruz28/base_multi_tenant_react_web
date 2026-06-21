@@ -1,7 +1,7 @@
 // src/features/auth/pages/Login.tsx
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { Eye, EyeOff, Loader } from 'lucide-react';
 import { useAuth } from '../../../shared/context/AuthContext';
@@ -20,6 +20,7 @@ import caxisLogoDark from '@/assets/images/caxis-logo-dark.svg';
 import { resolvePostLoginPath, APP_HOME } from '@/core/routing/post-login-path';
 import { logPostLoginDiag } from '@/core/auth/utils/post-login-diag-log';
 import { useEmpresaSelectionStore } from '../stores/empresa-selection.store';
+import { emitSelectionSyncFromResponse } from '@/core/auth/session/session-auth-sync-selection';
 import {
   ENABLE_CONTEXTUAL_LOGIN_UI,
   PLATFORM_LOGIN_SUBDOMAIN,
@@ -30,6 +31,11 @@ import {
   LoginPoweredBy,
   resolveClientDisplayName,
 } from './LoginBrandingHeader';
+import { LoginSessionTerminationBanner } from '../components/LoginSessionTerminationBanner';
+import {
+  parseSessionLoginQueryParam,
+  resolveLoginBannerFromSessionQuery,
+} from '../utils/login-session-termination';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -38,6 +44,7 @@ const Login: React.FC = () => {
   const { isDarkMode } = useTheme();
   const caxisLogoSrc = isDarkMode ? caxisLogoDark : caxisLogoLight;
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { setAuthFromLogin } = useAuth();
   const setPendingSelection = useEmpresaSelectionStore((s) => s.setPendingSelection);
   const [showPassword, setShowPassword] = useState(false);
@@ -69,6 +76,14 @@ const Login: React.FC = () => {
 
   const from = location.state?.from?.pathname as string | undefined;
 
+  const sessionTerminationBanner = useMemo(() => {
+    const queryParam = parseSessionLoginQueryParam(searchParams.get('session'));
+    if (!queryParam) {
+      return null;
+    }
+    return resolveLoginBannerFromSessionQuery(queryParam);
+  }, [searchParams]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -85,6 +100,7 @@ const Login: React.FC = () => {
       // Schema A — selección pendiente: sin access_token, sin /auth/me
       if (isLoginEmpresaSelectionResponse(loginResult)) {
         setPendingSelection(loginResult);
+        emitSelectionSyncFromResponse(loginResult);
         if (loginResult.user_data?.requires_password_change) {
           toast.success('Debe actualizar su contraseña para continuar', {
             duration: 3000,
@@ -179,6 +195,13 @@ const Login: React.FC = () => {
         ) : (
           <LoginLegacyHeader branding={branding} caxisLogoSrc={caxisLogoSrc} />
         )}
+
+        {sessionTerminationBanner ? (
+          <LoginSessionTerminationBanner
+            message={sessionTerminationBanner.message}
+            severity={sessionTerminationBanner.severity}
+          />
+        ) : null}
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
           <div className="space-y-4 rounded-md">

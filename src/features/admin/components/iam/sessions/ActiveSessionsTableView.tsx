@@ -55,7 +55,7 @@ export interface ActiveSessionsTableViewProps {
   sortOrder?: AdminSessionSortOrder;
   onSort: (column: AdminSessionSortBy) => void;
   onRevoke: (session: AdminSessionRead) => void;
-  isOwnSession: (session: AdminSessionRead) => boolean;
+  isCurrentSession: (session: AdminSessionRead) => boolean;
   actionsDisabled?: boolean;
 }
 
@@ -65,7 +65,7 @@ export function ActiveSessionsTableView({
   sortOrder,
   onSort,
   onRevoke,
-  isOwnSession,
+  isCurrentSession,
   actionsDisabled = false,
 }: ActiveSessionsTableViewProps) {
   const sortableTh = (
@@ -115,13 +115,13 @@ export function ActiveSessionsTableView({
         </thead>
         <tbody className="bg-surface divide-y divide-border-base">
           {sessions.map((session) => {
-            const own = isOwnSession(session);
+            const isCurrent = isCurrentSession(session);
             return (
               <tr key={session.token_id} className="hover:bg-overlay/50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <div className="font-medium text-text-base">{session.nombre_usuario ?? '—'}</div>
                   <div className="text-text-soft text-xs">{formatUserDisplayName(session)}</div>
-                  {own ? (
+                  {isCurrent ? (
                     <span className="mt-1 inline-block text-xs bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full">
                       Tu sesión
                     </span>
@@ -158,9 +158,9 @@ export function ActiveSessionsTableView({
                   <button
                     type="button"
                     onClick={() => onRevoke(session)}
-                    disabled={own || actionsDisabled}
+                    disabled={actionsDisabled}
                     className="inline-flex items-center gap-1 text-error hover:text-error/80 p-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={own ? 'No puedes revocar tu propia sesión' : 'Revocar sesión'}
+                    title="Revocar sesión"
                   >
                     <LogOut className="h-4 w-4" />
                     <span className="sr-only">Revocar sesión</span>

@@ -1,11 +1,12 @@
 // src/features/admin/pages/ActiveSessionsPage.tsx
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Grid3x3, List, RefreshCw, Shield } from 'lucide-react';
 
 import { revokeSessionById } from '@/features/admin/services/session.service';
+import { SESSION_LOGOUT_V3_ENABLED } from '@/core/auth/session/session-logout-v3.flags';
 import type {
   AdminSessionRead,
   AdminSessionClientTypeFilter,
@@ -30,6 +31,7 @@ import {
   invalidateActiveSessionsListQueries,
   useActiveSessionsList,
 } from '@/features/admin/hooks/useActiveSessionsList';
+import { isCurrentSession } from '@/features/admin/utils/iam-current-session';
 
 const VIEW_MODE_STORAGE_KEY = 'iam-active-sessions-view-mode';
 const AUTO_REFRESH_MS = 30_000;
@@ -46,8 +48,43 @@ function readStoredViewMode(): ViewMode {
   return 'table';
 }
 
+/** Dependencias inyectables del flujo revoke (IMPL-08 — tests). */
+export interface ActiveSessionRevokeDeps {
+  revokeSessionById: (tokenId: string) => Promise<void>;
+  invalidateActiveSessionsListQueries: (queryClient: QueryClient) => Promise<void>;
+  runSessionValidityProbe: () => Promise<void>;
+  isCurrentSession: (session: AdminSessionRead) => boolean;
+  showSuccessToast: (message: string) => void;
+  showErrorToast: (message: string) => void;
+}
+
+/**
+ * Orquesta revoke admin + invalidate + probe post-revoke si sesión propia (§15.1).
+ * No invoca terminateSession — probe delega al interceptor vía AuthContext.
+ */
+export async function executeActiveSessionRevoke(
+  target: AdminSessionRead,
+  queryClient: QueryClient,
+  deps: ActiveSessionRevokeDeps,
+): Promise<void> {
+  try {
+    await deps.revokeSessionById(target.token_id);
+    deps.showSuccessToast(
+      `Sesión de ${target.nombre_usuario ?? 'usuario'} revocada correctamente.`,
+    );
+    await deps.invalidateActiveSessionsListQueries(queryClient);
+
+    if (SESSION_LOGOUT_V3_ENABLED && deps.isCurrentSession(target)) {
+      await deps.runSessionValidityProbe();
+    }
+  } catch (err) {
+    deps.showErrorToast(getErrorMessage(err).message || 'Error al revocar sesión.');
+    throw err;
+  }
+}
+
 const ActiveSessionsPage: React.FC = () => {
-  const { isAuthenticated, loading: authLoading, auth } = useAuth();
+  const { isAuthenticated, loading: authLoading, auth, runSessionValidityProbe } = useAuth();
   const queryClient = useQueryClient();
   const search = useDebouncedSearch();
 
@@ -101,22 +138,28 @@ const ActiveSessionsPage: React.FC = () => {
     [sortBy],
   );
 
-  const isOwnSession = useCallback(
-    (session: AdminSessionRead) => session.usuario_id === auth.user?.usuario_id,
-    [auth.user?.usuario_id],
+  const currentTokenId = auth.user?.current_token_id ?? null;
+
+  const matchCurrentSession = useCallback(
+    (session: AdminSessionRead) => isCurrentSession(session, currentTokenId),
+    [currentTokenId],
   );
 
   const confirmRevoke = async () => {
     if (!revokeTarget) return;
     setIsRevoking(true);
     try {
-      await revokeSessionById(revokeTarget.token_id);
+      await executeActiveSessionRevoke(revokeTarget, queryClient, {
+        revokeSessionById,
+        invalidateActiveSessionsListQueries,
+        runSessionValidityProbe,
+        isCurrentSession: matchCurrentSession,
+        showSuccessToast: (message) => toast.success(message),
+        showErrorToast: (message) => toast.error(message),
+      });
       setRevokeTarget(null);
-      toast.success(`Sesión de ${revokeTarget.nombre_usuario ?? 'usuario'} revocada correctamente.`);
-      await invalidateActiveSessionsListQueries(queryClient);
     } catch (err) {
       console.error('Error revoking session:', err);
-      toast.error(getErrorMessage(err).message || 'Error al revocar sesión.');
     } finally {
       setIsRevoking(false);
     }
@@ -265,14 +308,14 @@ const ActiveSessionsPage: React.FC = () => {
                   sortOrder={sortOrder}
                   onSort={handleSort}
                   onRevoke={setRevokeTarget}
-                  isOwnSession={isOwnSession}
+                  isCurrentSession={matchCurrentSession}
                   actionsDisabled={pageActionsLocked}
                 />
               ) : (
                 <ActiveSessionsCardsView
                   sessions={sessions}
                   onRevoke={setRevokeTarget}
-                  isOwnSession={isOwnSession}
+                  isCurrentSession={matchCurrentSession}
                   actionsDisabled={pageActionsLocked}
                 />
               )

@@ -47,25 +47,25 @@ function ExpirationBadge({ expiresAt }: { expiresAt: string }) {
 export interface ActiveSessionsCardsViewProps {
   sessions: AdminSessionRead[];
   onRevoke: (session: AdminSessionRead) => void;
-  isOwnSession: (session: AdminSessionRead) => boolean;
+  isCurrentSession: (session: AdminSessionRead) => boolean;
   actionsDisabled?: boolean;
 }
 
 export function ActiveSessionsCardsView({
   sessions,
   onRevoke,
-  isOwnSession,
+  isCurrentSession,
   actionsDisabled = false,
 }: ActiveSessionsCardsViewProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
       {sessions.map((session) => {
-        const own = isOwnSession(session);
+        const isCurrent = isCurrentSession(session);
         return (
           <div
             key={session.token_id}
             className={`bg-surface rounded-lg shadow border p-5 transition-all hover:shadow-md ${
-              own
+              isCurrent
                 ? 'border-brand-primary ring-2 ring-brand-primary/20'
                 : 'border-border-base'
             }`}
@@ -74,7 +74,7 @@ export function ActiveSessionsCardsView({
               <div className="flex-1 min-w-0">
                 <h3 className="text-base font-semibold text-text-base truncate flex items-center gap-2">
                   {session.nombre_usuario ?? '—'}
-                  {own ? (
+                  {isCurrent ? (
                     <span className="text-xs bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full shrink-0">
                       Tu sesión
                     </span>
@@ -121,16 +121,12 @@ export function ActiveSessionsCardsView({
             <button
               type="button"
               onClick={() => onRevoke(session)}
-              disabled={own || actionsDisabled}
-              className={`w-full px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-                own
-                  ? 'bg-subtle text-text-soft cursor-not-allowed opacity-60'
-                  : 'bg-error text-white hover:bg-error/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error'
-              }`}
-              title={own ? 'No puedes revocar tu propia sesión' : 'Revocar sesión'}
+              disabled={actionsDisabled}
+              className="w-full px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-colors bg-error text-white hover:bg-error/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Revocar sesión"
             >
               <LogOut className="h-4 w-4" />
-              {own ? 'Tu sesión activa' : 'Revocar sesión'}
+              Revocar sesión
             </button>
           </div>
         );

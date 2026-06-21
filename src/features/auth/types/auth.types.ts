@@ -45,6 +45,8 @@ export interface UserData {
   es_admin_cliente?: boolean;
   /** Obligatorio cambiar contraseña antes de ERP (usuario local). */
   requires_password_change?: boolean;
+  /** UUID refresh_tokens de la sesión autenticada actual (GET /auth/me). */
+  current_token_id?: string | null;
 }
 
 /** Body POST /auth/password/change/ (web: sin refresh_token en body). */

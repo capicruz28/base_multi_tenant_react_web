@@ -1,18 +1,31 @@
 import type { AxiosError, AxiosResponse } from 'axios';
 import { tenantResolver } from '@/core/services/tenant-resolver.service';
 
-const PLATFORM_SUPERADMIN_CLIENTE_ID = '00000000-0000-0000-0000-000000000001';
+import {
+  emitSessionDiagContext,
+  isSessionTelemetryEffective,
+} from '@/core/auth/session/session-telemetry-auth-wiring';
+import { prepareSessionDiagContextFields } from '@/core/auth/session/session-telemetry-diag-context.policy';
 
-/** Logs de diagnóstico auth (solo DEV). */
+/** Logs de diagnóstico auth — delega a telemetría F8 cuando master ON (P1-02). */
 export function isAuthDebugEnabled(): boolean {
+  if (isSessionTelemetryEffective()) {
+    return false;
+  }
   return import.meta.env.DEV;
 }
 
 export function logAuthContext(label: string, extra?: Record<string, unknown>): void {
-  if (!isAuthDebugEnabled()) return;
+  if (isSessionTelemetryEffective()) {
+    emitSessionDiagContext(label, extra ?? {});
+    return;
+  }
+
+  if (!import.meta.env.DEV) {
+    return;
+  }
 
   const resolved = tenantResolver.resolve();
-  const visibleCookies = typeof document !== 'undefined' ? document.cookie : '';
 
   console.group(`[AuthDebug] ${label}`);
   console.log('location', {
@@ -24,24 +37,31 @@ export function logAuthContext(label: string, extra?: Record<string, unknown>): 
   console.log('tenantResolver', resolved);
   console.log('apiBaseUrl', import.meta.env.VITE_API_BASE_URL ?? '/api/v1');
   console.log('withCredentials', true, '(axios apiCentral / api default)');
-  console.log(
-    'document.cookie (solo cookies NO HttpOnly; refresh_token HttpOnly NO aparece aquí)',
-    visibleCookies || '(vacío)',
-  );
-  console.log('platformSuperadminClienteId', PLATFORM_SUPERADMIN_CLIENTE_ID);
   if (extra) {
     console.log('extra', extra);
   }
   console.groupEnd();
 }
 
-/** Set-Cookie no es legible desde JS en el navegador; registramos aviso + headers expuestos. */
+/** Set-Cookie no es legible desde JS; telemetría redacta headers expuestos. */
 export function logAuthResponse(
   operation: string,
   response: AxiosResponse<unknown>,
   requestUrl?: string,
 ): void {
-  if (!isAuthDebugEnabled()) return;
+  if (isSessionTelemetryEffective()) {
+    const exposed = response.headers as Record<string, unknown>;
+    emitSessionDiagContext(`${operation} response`, {
+      status: response.status,
+      requestUrl: requestUrl ?? response.config?.url,
+      headerKeys: Object.keys(exposed).filter((k) => !k.startsWith('access-control')),
+    });
+    return;
+  }
+
+  if (!import.meta.env.DEV) {
+    return;
+  }
 
   const exposed = response.headers as Record<string, unknown>;
   const setCookieRaw =
@@ -56,15 +76,23 @@ export function logAuthResponse(
     'headers expuestos',
     Object.keys(exposed).filter((k) => !k.startsWith('access-control')),
   );
-  console.log(
-    'nota',
-    'Compare en Network → login/refresh → Set-Cookie: Domain, Path, SameSite, Secure, Max-Age',
-  );
   console.groupEnd();
 }
 
 export function logAuthError(operation: string, error: unknown): void {
-  if (!isAuthDebugEnabled()) return;
+  if (isSessionTelemetryEffective()) {
+    const axiosError = error as AxiosError<{ detail?: string }>;
+    emitSessionDiagContext(`${operation} ERROR`, {
+      status: axiosError.response?.status,
+      message: axiosError.message,
+      url: axiosError.config?.url,
+    });
+    return;
+  }
+
+  if (!import.meta.env.DEV) {
+    return;
+  }
 
   const axiosError = error as AxiosError<{ detail?: string }>;
   console.group(`[AuthDebug] ${operation} ERROR`);
@@ -72,7 +100,6 @@ export function logAuthError(operation: string, error: unknown): void {
   console.log('data', axiosError.response?.data);
   console.log('message', axiosError.message);
   console.log('url', axiosError.config?.url);
-  console.log('withCredentials', axiosError.config?.withCredentials);
   console.groupEnd();
 }
 
@@ -80,6 +107,14 @@ export function logRefreshResult(
   outcome: 'ok' | 'fail',
   detail: { tokenPrefix?: string; status?: number; message?: string },
 ): void {
-  if (!isAuthDebugEnabled()) return;
+  if (isSessionTelemetryEffective()) {
+    emitSessionDiagContext(`refreshToken() → ${outcome}`, prepareSessionDiagContextFields({ ...detail }));
+    return;
+  }
+
+  if (!import.meta.env.DEV) {
+    return;
+  }
+
   console.log(`[AuthDebug] refreshToken() → ${outcome}`, detail);
 }

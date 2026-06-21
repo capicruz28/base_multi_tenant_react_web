@@ -62,6 +62,10 @@ import { waitForEmpresaSelectionHydration } from '@/features/auth/stores/empresa
 import { logAuthContext } from '@/core/auth/utils/auth-debug';
 import { logAuthSessionSnapshot } from '@/core/auth/utils/auth-session-snapshot';
 import {
+	logAuthSessionDiag,
+	runLegacySessionDevLog,
+} from '@/core/auth/utils/auth-session-log';
+import {
 	logImpersonationFe,
 	isImpersonationSupportMode,
 } from '@/core/auth/utils/impersonation-fe-log';
@@ -81,6 +85,81 @@ import {
 	normalizeEmpresaId,
 } from '@/core/auth/utils/empresa-eligibles';
 import { indexRoutePermissionsFromMenu } from '@/core/auth/utils/index-route-permissions-from-menu';
+import { hydrateSessionCore, type HydrateSessionCoreDeps } from '@/core/auth/session/session-refresh-hydrate';
+import { buildSessionClaimsSnapshot, type SessionClaimsSnapshot } from '@/core/auth/session/session-claims-snapshot';
+import { applyPostRefreshSession } from '@/core/auth/session/session-post-refresh';
+import {
+	applyPostRefreshRqInvalidation,
+	resolvePostRefreshRqAction,
+} from '@/core/auth/session/session-rq-invalidation';
+import {
+	getLoadMenuUxOptionsForMode,
+	type LoadMenuUxOptions,
+} from '@/core/auth/session/session-menu-ux';
+import { REFRESH_HYDRATE_ENABLED } from '@/core/auth/session/refresh-hydrate.flags';
+import { SESSION_TERMINATION_V2_ENABLED } from '@/core/auth/session/session-termination.flags';
+import { createSessionUxTerminationWiring } from '@/core/auth/session/session-ux-auth-wiring';
+import { SESSION_UX_V7_ENABLED } from '@/core/auth/session/session-ux.flags';
+import { SESSION_LOGOUT_V3_ENABLED, SESSION_REMOTE_PROBE_ENABLED } from '@/core/auth/session/session-logout-v3.flags';
+import {
+	executeLogoutAllFlow,
+	type LogoutAllFlowDeps,
+	type LogoutAllFlowInput,
+} from '@/core/auth/session/session-logout-all';
+import { createAuthSyncTerminationEmitter, emitEmpresaChangedSync, emitSessionLoginSync, emitSessionRefreshedSync } from '@/core/auth/session/session-auth-sync-emit';
+import { SESSION_AUTH_SYNC_V4_ENABLED } from '@/core/auth/session/session-auth-sync.flags';
+import { applySelectionSyncFromEnvelope, emitSelectionSyncCleared, emitSelectionSyncFromResponse } from '@/core/auth/session/session-auth-sync-selection';
+import type { ApplyInboundAuthSyncDeps } from '@/core/auth/session/session-auth-sync-apply';
+import { AuthSyncListenerBinder } from '@/core/auth/session/useAuthSyncListener';
+import { SessionRemoteProbeBinder } from '@/core/auth/session/useSessionRemoteProbe';
+import {
+	terminateSession,
+	type TerminateSessionDeps,
+	type TerminateSessionInput,
+} from '@/core/auth/session/session-terminate';
+import { logoutAllSessions as callLogoutAllSessionsApi } from '@/features/admin/services/session.service';
+import type {
+	ClassifySessionTerminationInput,
+	SessionTerminationClassification,
+} from '@/core/auth/session/session-termination-reason';
+import { classifySessionTermination } from '@/core/auth/session/session-termination-reason';
+import type { SessionTerminationUxProfile } from '@/core/auth/session/session-termination-ux';
+import {
+	applyL02GuardToRefreshClassifyInput,
+	clearCambiarEmpresaL02Guard,
+	registerCambiarEmpresaL02Guard,
+} from '@/core/auth/session/session-cambiar-empresa-l02';
+import type { RefreshOutcome } from '@/core/auth/session/session-refresh-outcome.types';
+import { executeRefreshWithResilience, getRefreshFailureOutcomeMetadata } from '@/core/auth/session/session-refresh-resilience';
+import { emitImpersonationPostRestoreSync } from '@/core/auth/session/session-impersonation-auth-sync';
+import {
+	executeImpersonationControlledExit,
+	type ExecuteImpersonationControlledExitDeps,
+} from '@/core/auth/session/session-impersonation-exit';
+import {
+	resolveImpersonationExitPolicy,
+	shouldRedirectToSuperAdminAfterImpersonationExit,
+} from '@/core/auth/session/session-impersonation-exit.policy';
+import type { ImpersonationExitSource } from '@/core/auth/session/session-impersonation.types';
+import {
+	composeTerminationEventEmitters,
+	createSessionTelemetryTerminationEmitter,
+	emitSessionBootstrapCompletedTelemetry,
+	emitSessionImpersonationExitFromSource,
+	emitSessionProbeCompletedTelemetry,
+	emitSessionRefreshFailureOutcomeTelemetry,
+	emitSessionRefreshOutcomeTelemetry,
+	SessionTelemetryAuthSyncBinder,
+	SessionTelemetryAuthSyncEmittedBinder,
+	trackSessionBootstrapCorrelation,
+	trackSessionLoginCorrelation,
+} from '@/core/auth/session/session-telemetry-auth-wiring';
+import { resetCorrelationId } from '@/core/auth/session/session-telemetry-correlation';
+import {
+	SESSION_TELEMETRY_V8_ENABLED,
+} from '@/core/auth/session/session-telemetry.flags';
+import type { SessionTerminationCaller } from '@/core/auth/session/session-telemetry.types';
+import { resolveTerminationCaller } from '@/core/auth/session/session-telemetry-events.policy';
 import { toast } from 'react-hot-toast';
 
 // ============================================================================
@@ -88,6 +167,503 @@ import { toast } from 'react-hot-toast';
 // ============================================================================
 type RefreshPromise = Promise<string> | null;
 let isRefreshingPromise: RefreshPromise = null;
+
+/** URL canónica refresh — requerida en classify bootstrap/interceptor (AUDIT-A P1-02). */
+export const AUTH_REFRESH_TERMINATION_URL = '/auth/refresh/';
+
+// ============================================================================
+// IAM-FE-PHASE-02 — factory TerminateSessionDeps + salida de sesión
+// ============================================================================
+
+export interface GetTerminateSessionDepsParams {
+	isTerminatingRef: { current: boolean };
+	processQueue: TerminateSessionDeps['processQueue'];
+	clearLocalAuthState: (preservePreLoginBranding: boolean) => void;
+	getHadAuthenticatedUser: () => boolean;
+	callLogoutEndpoint: () => void | Promise<void>;
+	clearQueryCache: () => void | Promise<void>;
+	showTerminationToast: TerminateSessionDeps['showTerminationToast'];
+	redirectToLogin: TerminateSessionDeps['redirectToLogin'];
+	clearRefreshingPromise?: () => void;
+	emitTerminationEvent?: TerminateSessionDeps['emitTerminationEvent'];
+}
+
+export function getTerminateSessionDeps(
+	params: GetTerminateSessionDepsParams,
+): TerminateSessionDeps {
+	return {
+		getIsTerminating: () => params.isTerminatingRef.current,
+		setIsTerminating: (value: boolean) => {
+			params.isTerminatingRef.current = value;
+		},
+		clearRefreshingPromise:
+			params.clearRefreshingPromise ??
+			(() => {
+				isRefreshingPromise = null;
+			}),
+		processQueue: params.processQueue,
+		clearAuthState: (options) => {
+			const preservePreLoginBranding =
+				options.preservePreLoginBranding ?? !params.getHadAuthenticatedUser();
+			params.clearLocalAuthState(preservePreLoginBranding);
+		},
+		callLogoutEndpoint: params.callLogoutEndpoint,
+		clearQueryCache: params.clearQueryCache,
+		showTerminationToast: params.showTerminationToast,
+		redirectToLogin: params.redirectToLogin,
+		...(params.emitTerminationEvent
+			? { emitTerminationEvent: params.emitTerminationEvent }
+			: {}),
+	};
+}
+
+/** Redirect post-terminación con `replace: true` (Paso 8). AuthProvider está fuera del Router. */
+export function createAuthTerminateRedirectToLogin(): (path: string) => void {
+	return (path: string) => {
+		void import('@/app/router').then(({ router }) => {
+			void router.navigate(path, { replace: true });
+		});
+	};
+}
+
+export interface AuthTerminationToastApi {
+	error: (message: string, options?: { duration?: number; position?: string }) => void;
+	success: (message: string, options?: { duration?: number; position?: string }) => void;
+}
+
+/**
+ * Toast post-terminación (Paso 8).
+ * Toast OR banner: omite toast cuando el redirect lleva query param (banner en Login).
+ */
+export function createAuthShowTerminationToast(
+	toastApi: AuthTerminationToastApi = toast,
+): (profile: SessionTerminationUxProfile) => void {
+	return (profile) => {
+		if (profile.loginQueryParam !== undefined || profile.toastMessage === null) {
+			return;
+		}
+
+		const options = { duration: 5000, position: 'top-right' as const };
+
+		switch (profile.severity) {
+			case 'info':
+				toastApi.success(profile.toastMessage, { duration: 3000, position: 'top-right' });
+				break;
+			case 'warning':
+				toastApi.error(profile.toastMessage, options);
+				break;
+			case 'error':
+			default:
+				toastApi.error(profile.toastMessage, options);
+				break;
+		}
+	};
+}
+
+/** Mensaje estable de cola en salida legacy pre-Fase-2 (Paso 9). */
+export const LEGACY_SESSION_QUEUE_ERROR_MESSAGE = 'Session expired';
+
+export interface LegacySessionLogoutDeps {
+	clearRefreshingPromise?: () => void;
+	processQueue: (error: Error | null, token: string | null) => void;
+	callLogoutEndpoint: () => void | Promise<void>;
+	clearLocalAuthState: (preservePreLoginBranding: boolean) => void;
+	getHadAuthenticatedUser: () => boolean;
+}
+
+/**
+ * Salida de sesión legacy (flag OFF): cleanup local sin terminateSession V2 (§21.2).
+ */
+export async function performLegacySessionLogout(
+	deps: LegacySessionLogoutDeps,
+	callServer: boolean,
+): Promise<void> {
+	deps.clearRefreshingPromise?.();
+	deps.processQueue(new Error(LEGACY_SESSION_QUEUE_ERROR_MESSAGE), null);
+
+	if (callServer) {
+		try {
+			await deps.callLogoutEndpoint();
+		} catch {
+			// Best-effort — no bloquea limpieza local.
+		}
+	}
+
+	const preservePreLoginBranding = !deps.getHadAuthenticatedUser();
+	deps.clearLocalAuthState(preservePreLoginBranding);
+}
+
+/**
+ * Factory clearQueryCache según flag Fase 2 (Paso 9).
+ * ON → queryClient.clear(); OFF → noop.
+ */
+export function buildTerminationClearQueryCache(
+	enabled: boolean,
+	clearCache: () => void,
+): () => void {
+	return enabled ? clearCache : () => undefined;
+}
+
+export interface RunSessionTerminationExitOptions {
+	v2Enabled: boolean;
+	legacyDeps: LegacySessionLogoutDeps;
+	legacyCallServer?: boolean;
+	v2Action: () => Promise<void>;
+}
+
+/**
+ * Dispatcher único V2 vs legacy (Paso 10 — estabilización wiring).
+ */
+export async function runSessionTerminationExit(
+	options: RunSessionTerminationExitOptions,
+): Promise<void> {
+	if (options.v2Enabled) {
+		await options.v2Action();
+		return;
+	}
+	await performLegacySessionLogout(options.legacyDeps, options.legacyCallServer ?? false);
+}
+
+export function extractTerminationHttpContextFromError(
+	error: unknown,
+	options?: { fallbackUrl?: string },
+): Pick<ClassifySessionTerminationInput, 'httpStatus' | 'detail' | 'url'> {
+	const fallbackUrl = options?.fallbackUrl ?? AUTH_REFRESH_TERMINATION_URL;
+
+	if (!error || typeof error !== 'object') {
+		return { url: fallbackUrl };
+	}
+
+	const axiosError = error as AxiosError<{ detail?: unknown }>;
+	const configUrl =
+		typeof axiosError.config?.url === 'string' ? axiosError.config.url : undefined;
+
+	return {
+		httpStatus: axiosError.response?.status,
+		detail: axiosError.response?.data?.detail,
+		url: configUrl ?? fallbackUrl,
+	};
+}
+
+/** Contexto classify para bootstrap refresh fail (Paso 6). */
+export function buildBootstrapTerminationClassifyInput(
+	error: unknown,
+): ClassifySessionTerminationInput {
+	return {
+		context: 'bootstrap',
+		...extractTerminationHttpContextFromError(error, {
+			fallbackUrl: AUTH_REFRESH_TERMINATION_URL,
+		}),
+	};
+}
+
+/** Contexto classify para interceptor refresh fail (Paso 6). */
+export function buildInterceptorRefreshTerminationClassifyInput(
+	error: unknown,
+): ClassifySessionTerminationInput {
+	return {
+		context: 'refresh',
+		...extractTerminationHttpContextFromError(error, {
+			fallbackUrl: AUTH_REFRESH_TERMINATION_URL,
+		}),
+	};
+}
+
+/**
+ * Entrada terminateSession preservando siempre el error original (AUDIT-A P1-01).
+ */
+export function buildTerminateSessionInput(
+	classification: SessionTerminationClassification,
+	options: {
+		error: unknown;
+		callServer?: boolean;
+		skipRedirect?: boolean;
+		preservePreLoginBranding?: boolean;
+	},
+): TerminateSessionInput {
+	return {
+		reason: classification.reason,
+		error: options.error,
+		callServer: options.callServer,
+		skipRedirect: options.skipRedirect,
+		preservePreLoginBranding: options.preservePreLoginBranding,
+	};
+}
+
+/**
+ * Entrada terminateSession para doLogout/logout (Paso 5 + 8).
+ * doLogout(false) → SILENT_CLEANUP sin redirect; doLogout(true)/logout → MANUAL_LOGOUT con redirect.
+ */
+export function buildDoLogoutTerminateInput(options: {
+	callServer: boolean;
+	error?: unknown;
+}): TerminateSessionInput {
+	return {
+		reason: options.callServer ? 'MANUAL_LOGOUT' : 'SILENT_CLEANUP',
+		callServer: options.callServer,
+		error: options.error,
+		skipRedirect: !options.callServer,
+	};
+}
+
+/** Único camino de salida vía runTerminateSession (Paso 5). */
+export async function executeDoLogoutTermination(
+	runTerminateSession: (input: TerminateSessionInput) => Promise<void>,
+	options: { callServer: boolean; error?: unknown },
+): Promise<void> {
+	await runTerminateSession(buildDoLogoutTerminateInput(options));
+}
+
+// ============================================================================
+// IAM-FE-PHASE-03 — Logout All wiring (IMPL-04)
+// ============================================================================
+
+/**
+ * Entrada terminateSession post logout_all 200 (§9.7, §13.3).
+ * callServer: false — el backend ya revocó todas las sesiones.
+ */
+export function buildLogoutAllTerminateInput(input: LogoutAllFlowInput): TerminateSessionInput {
+	return {
+		reason: 'MANUAL_LOGOUT',
+		callServer: false,
+		preservePreLoginBranding: input.preservePreLoginBranding ?? true,
+		skipRedirect: input.skipRedirect ?? false,
+	};
+}
+
+export interface GetLogoutAllFlowDepsParams {
+	isTerminatingRef: { current: boolean };
+	callLogoutAllEndpoint: () => Promise<void>;
+	runTerminateAfterLogoutAll: () => Promise<void>;
+	onLogoutAllRejected?: LogoutAllFlowDeps['onLogoutAllRejected'];
+}
+
+/** Factory DI para executeLogoutAllFlow (§9.2, AUDIT-A A2-02). */
+export function getLogoutAllFlowDeps(params: GetLogoutAllFlowDepsParams): LogoutAllFlowDeps {
+	return {
+		getIsTerminating: () => params.isTerminatingRef.current,
+		callLogoutAllEndpoint: params.callLogoutAllEndpoint,
+		runTerminateAfterLogoutAll: params.runTerminateAfterLogoutAll,
+		...(params.onLogoutAllRejected
+			? { onLogoutAllRejected: params.onLogoutAllRejected }
+			: {}),
+	};
+}
+
+/**
+ * Terminación local tras logout_all 200 vía dispatcher Fase 2 congelado.
+ * V2 OFF → legacy cleanup + redirect explícito (§12.5).
+ */
+export async function executeLogoutAllTermination(
+	runTerminateSession: (input: TerminateSessionInput) => Promise<void>,
+	legacyLogoutDeps: LegacySessionLogoutDeps,
+	input: LogoutAllFlowInput,
+	redirectToLogin?: (path: string) => void,
+): Promise<void> {
+	const v2Enabled = SESSION_TERMINATION_V2_ENABLED;
+
+	await runSessionTerminationExit({
+		v2Enabled,
+		legacyDeps: legacyLogoutDeps,
+		legacyCallServer: false,
+		v2Action: () => runTerminateSession(buildLogoutAllTerminateInput(input)),
+	});
+
+	if (!v2Enabled && redirectToLogin) {
+		redirectToLogin('/login');
+	}
+}
+
+// ============================================================================
+// IAM-FE-PHASE-03 — Session validity probe (IMPL-05)
+// ============================================================================
+
+export interface SessionValidityProbeDeps {
+	isProbeInFlightRef: { current: boolean };
+	fetchMe: () => Promise<UserData | null>;
+}
+
+export interface GetSessionValidityProbeDepsParams {
+	isProbeInFlightRef: { current: boolean };
+	fetchMe: () => Promise<UserData | null>;
+}
+
+/** Factory DI para runSessionValidityProbe (§9.6). */
+export function getSessionValidityProbeDeps(
+	params: GetSessionValidityProbeDepsParams,
+): SessionValidityProbeDeps {
+	return {
+		isProbeInFlightRef: params.isProbeInFlightRef,
+		fetchMe: params.fetchMe,
+	};
+}
+
+/**
+ * Probe de validez de sesión vía GET /auth/me (authService.me).
+ * - Single-flight: retorno inmediato si hay probe en curso.
+ * - Éxito: descarta resultado; sin mutación de estado.
+ * - 401/terminación: delegado al interceptor Axios (sin capture local).
+ */
+export async function runSessionValidityProbe(
+	deps: SessionValidityProbeDeps,
+): Promise<void> {
+	if (deps.isProbeInFlightRef.current) {
+		return;
+	}
+
+	deps.isProbeInFlightRef.current = true;
+	try {
+		await deps.fetchMe();
+	} finally {
+		deps.isProbeInFlightRef.current = false;
+	}
+}
+
+/** Errores post-refresh L2/L1 que deben clasificarse como HYDRATE_FAILED (Paso 6). */
+const HYDRATE_TERMINATION_ERROR_MESSAGES = new Set([
+	'Post-refresh full hydration failed',
+	'Invalid access token for claims sync',
+]);
+
+/**
+ * Classify input para fallo en interceptor: refresh 401 vs hydrate post-refresh (Paso 6).
+ */
+export function buildInterceptorTerminationClassifyInput(
+	error: unknown,
+): ClassifySessionTerminationInput {
+	if (error instanceof Error && HYDRATE_TERMINATION_ERROR_MESSAGES.has(error.message)) {
+		return { context: 'hydrate' };
+	}
+	return buildInterceptorRefreshTerminationClassifyInput(error);
+}
+
+export interface ExecuteClassifiedTerminationOptions {
+	classifyInput: ClassifySessionTerminationInput;
+	error: unknown;
+	callServer?: boolean;
+	skipRedirect?: boolean;
+	preservePreLoginBranding?: boolean;
+}
+
+/**
+ * classify → buildTerminateSessionInput → runTerminateSession (Paso 6).
+ * Preserva siempre el error original en el input (AUDIT-A P1-01).
+ */
+export async function executeClassifiedTermination(
+	runTerminateSession: (input: TerminateSessionInput) => Promise<void>,
+	options: ExecuteClassifiedTerminationOptions,
+): Promise<void> {
+	const classification = classifySessionTermination(options.classifyInput);
+	await runTerminateSession(
+		buildTerminateSessionInput(classification, {
+			error: options.error,
+			callServer: options.callServer,
+			skipRedirect: options.skipRedirect,
+			preservePreLoginBranding: options.preservePreLoginBranding,
+		}),
+	);
+}
+
+/** Bootstrap refresh fail → classify con contexto refresh URL (AUDIT-A P1-02). */
+export async function executeBootstrapRefreshTermination(
+	runTerminateSession: (input: TerminateSessionInput) => Promise<void>,
+	error: unknown,
+): Promise<void> {
+	try {
+		await executeClassifiedTermination(runTerminateSession, {
+			classifyInput: applyL02GuardToRefreshClassifyInput(
+				buildBootstrapTerminationClassifyInput(error),
+			),
+			error,
+			callServer: false,
+			skipRedirect: false,
+		});
+	} finally {
+		clearCambiarEmpresaL02Guard();
+	}
+}
+
+/** Interceptor refresh/hydrate fail → classify + terminate (Paso 6). */
+export async function executeInterceptorRefreshTermination(
+	runTerminateSession: (input: TerminateSessionInput) => Promise<void>,
+	error: unknown,
+): Promise<void> {
+	try {
+		await executeClassifiedTermination(runTerminateSession, {
+			classifyInput: applyL02GuardToRefreshClassifyInput(
+				buildInterceptorTerminationClassifyInput(error),
+			),
+			error,
+			callServer: false,
+			skipRedirect: false,
+		});
+	} finally {
+		clearCambiarEmpresaL02Guard();
+	}
+}
+
+/** Classify input canónico para fallo hydrate (Paso 7). */
+export function buildHydrateFailureClassifyInput(): ClassifySessionTerminationInput {
+	return { context: 'hydrate' };
+}
+
+/** hydrateSessionCore me null / fallo L2 → HYDRATE_FAILED (Paso 7). */
+export async function executeHydrateFailureTermination(
+	runTerminateSession: (input: TerminateSessionInput) => Promise<void>,
+	error?: unknown,
+): Promise<void> {
+	await executeClassifiedTermination(runTerminateSession, {
+		classifyInput: buildHydrateFailureClassifyInput(),
+		error,
+		callServer: false,
+		skipRedirect: false,
+	});
+}
+
+export interface HydrateFetchMeErrorRef {
+	current: unknown;
+}
+
+/**
+ * Envuelve fetchMe para capturar el error original en throws (Paso 7).
+ * /auth/me 401→null no expone error vía authService; solo aplica en throw.
+ */
+export function createHydrateFetchMeWithErrorCapture(
+	fetchMe: () => Promise<UserData | null>,
+	errorRef: HydrateFetchMeErrorRef,
+): () => Promise<UserData | null> {
+	return async () => {
+		errorRef.current = undefined;
+		try {
+			return await fetchMe();
+		} catch (error) {
+			errorRef.current = error;
+			throw error;
+		}
+	};
+}
+
+export interface CreateTerminateFromHydrateFailureOptions {
+	consumeFetchMeError?: () => unknown;
+}
+
+/**
+ * Callback DI para hydrateSessionCore.doLogout → terminateSession (Paso 7).
+ * callServer=false → HYDRATE_FAILED; callServer=true → MANUAL_LOGOUT (retrocompat).
+ */
+export function createTerminateFromHydrateFailure(
+	runTerminateSession: (input: TerminateSessionInput) => Promise<void>,
+	options?: CreateTerminateFromHydrateFailureOptions,
+): (callServer: boolean) => Promise<void> {
+	return async (callServer: boolean) => {
+		if (callServer) {
+			await executeDoLogoutTermination(runTerminateSession, { callServer: true });
+			return;
+		}
+		const error = options?.consumeFetchMeError?.();
+		await executeHydrateFailureTermination(runTerminateSession, error);
+	};
+}
 
 // ============================================================================
 // TIPOS
@@ -103,6 +679,10 @@ interface AuthContextType {
 	completeEmpresaSelection: (empresaId: string) => Promise<UserData | null>;
 	cambiarEmpresaActiva: (empresaId: string) => Promise<UserData | null>;
 	logout: () => Promise<void>;
+	/** POST /auth/logout_all/ + terminación local (IAM-FE-PHASE-03 IMPL-04). */
+	logoutAllSessions: () => Promise<void>;
+	/** GET /auth/me probe sin mutar estado (IAM-FE-PHASE-03 IMPL-05). */
+	runSessionValidityProbe: () => Promise<void>;
 	isAuthenticated: boolean;
 	loading: boolean;
 	authInitialized: boolean;
@@ -151,6 +731,8 @@ const AuthContext = createContext<AuthContextType>({
 	completeEmpresaSelection: async () => null,
 	cambiarEmpresaActiva: async () => null,
 	logout: async () => {},
+	logoutAllSessions: async () => {},
+	runSessionValidityProbe: async () => {},
 	isAuthenticated: false,
 	loading: true,
 	authInitialized: false,
@@ -218,12 +800,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 	// Refs para acceder al estado más reciente sin re-renders
 	const authRef = useRef(auth);
 	const loadingRef = useRef(loading);
+	const empresaActivaIdRef = useRef(empresaActivaId);
 	const isInitializedRef = useRef(false);
 	
 	const failedQueueRef = useRef<Array<{
 		resolve: (value: string) => void;
 		reject: (reason?: Error) => void;
 	}>>([]);
+	const isTerminatingRef = useRef(false);
+	const isLogoutAllInFlightRef = useRef(false);
+	const isSessionValidityProbeInFlightRef = useRef(false);
+	const terminationCallerHintRef = useRef<SessionTerminationCaller | undefined>(undefined);
 
 	// Sincronizar refs
 	useEffect(() => {
@@ -233,6 +820,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 	useEffect(() => {
 		loadingRef.current = loading;
 	}, [loading]);
+
+	useEffect(() => {
+		empresaActivaIdRef.current = empresaActivaId;
+	}, [empresaActivaId]);
 
 	// Logs temporales: mount/unmount para diagnosticar reinicialización
 	useEffect(() => {
@@ -343,7 +934,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 	 */
 	const loadMenuAndPermissionsFromAuthMenu = useCallback(async (
 		userData: UserData | null,
+		uxOptions?: LoadMenuUxOptions,
 	): Promise<AuthMenuModulo[] | null> => {
+		const preserveVisibleMenu = uxOptions?.preserveVisibleMenuDuringReload === true;
+
 		if (!userData) {
 			setPermissions(null);
 			setMenuModulos(null);
@@ -351,7 +945,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			return null;
 		}
 
-		setMenuPermissionsReady(false);
+		if (!preserveVisibleMenu) {
+			setMenuPermissionsReady(false);
+		}
 
 		const token = authRef.current.token;
 		if (shouldSkipErpMenuLoad(userData, token)) {
@@ -532,56 +1128,295 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		failedQueueRef.current = [];
 	}, []);
 
-	/**
-	 * Realiza el logout (local y servidor)
-	 */
-	const doLogout = useCallback(async (callServer = true) => {
-		try {
-			if (callServer) {
-				await authService.logout();
-			}
-		} catch (error) {
-			const axiosError = error as AxiosError;
-			console.error('❌ [Logout] Error:', axiosError.message);
-		} finally {
-			// Solo log en desarrollo
-		if (import.meta.env.DEV) {
+	const performLocalAuthCleanup = useCallback((preservePreLoginBranding: boolean) => {
+		runLegacySessionDevLog(() => {
 			console.log('🚪 [Logout] Limpiando estado...');
+		});
+
+		document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+
+		setAuth(initialAuth);
+		authRef.current = initialAuth;
+		setAccessLevel(0);
+		setIsSuperAdmin(false);
+		setUserType('user');
+		setClienteInfo(null);
+		setPermissions(null);
+		setMenuModulos(null);
+		setMenuPermissionsReady(false);
+		setEmpresaActivaId(null);
+		setEmpresasElegibles([]);
+		setRequiereSeleccionEmpresa(false);
+		setEsAdminCliente(false);
+		clearImpersonationState();
+		clearImpersonationSupportSession();
+		clearPlatformParentSession();
+		useBrandingStore.getState().clearAll(preservePreLoginBranding);
+		useEmpresaSelectionStore.getState().clearPendingSelection();
+	}, [clearImpersonationState]);
+
+	const sessionUxTerminationWiring = useMemo(() => {
+		const legacyShowToast = createAuthShowTerminationToast();
+		const legacyRedirect = createAuthTerminateRedirectToLogin();
+		if (!SESSION_UX_V7_ENABLED) {
+			return {
+				showTerminationToast: legacyShowToast,
+				redirectToLogin: legacyRedirect,
+			};
 		}
-			
-			// ✅ CORRECCIÓN CRÍTICA: Eliminar cookie del navegador SIEMPRE
-			document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-			
-			// Verificar si había un usuario autenticado antes de limpiar
-			// Si no había token, estamos en modo pre-login, así que preservamos el cache por subdominio
-			const hadAuthenticatedUser = !!authRef.current.token;
-			
-			setAuth(initialAuth);
-			authRef.current = initialAuth;
-			setAccessLevel(0);
-			setIsSuperAdmin(false);
-			setUserType('user');
-			setClienteInfo(null);
-			setPermissions(null);
-			setMenuModulos(null);
-			setMenuPermissionsReady(false);
-			setEmpresaActivaId(null);
-			setEmpresasElegibles([]);
-			setRequiereSeleccionEmpresa(false);
-			setEsAdminCliente(false);
-			clearImpersonationState();
-			clearImpersonationSupportSession();
-			clearPlatformParentSession();
-			isRefreshingPromise = null;
-			processQueue(new Error('Session expired'), null);
-			
-			// ✅ CORRECCIÓN: Solo limpiar branding completo si había un usuario autenticado
-			// Si no había token (modo pre-login), preservar el cache por subdominio
-			// para que el branding por subdominio persista después del refresh
-			useBrandingStore.getState().clearAll(!hadAuthenticatedUser);
-			useEmpresaSelectionStore.getState().clearPendingSelection();
+		return createSessionUxTerminationWiring({
+			legacyShowToast,
+			legacyRedirect,
+		});
+	}, []);
+
+	const redirectToLoginAfterTermination = useMemo(
+		() => sessionUxTerminationWiring.redirectToLogin,
+		[sessionUxTerminationWiring],
+	);
+	const showTerminationToastAfterTermination = useMemo(
+		() => sessionUxTerminationWiring.showTerminationToast,
+		[sessionUxTerminationWiring],
+	);
+
+	const legacyLogoutDeps = useMemo(
+		(): LegacySessionLogoutDeps => ({
+			clearRefreshingPromise: () => {
+				isRefreshingPromise = null;
+			},
+			processQueue,
+			callLogoutEndpoint: async () => {
+				try {
+					await authService.logout();
+				} catch (error) {
+					const axiosError = error as AxiosError;
+					console.error('❌ [Logout] Error:', axiosError.message);
+				}
+			},
+			clearLocalAuthState: performLocalAuthCleanup,
+			getHadAuthenticatedUser: () => Boolean(authRef.current.token),
+		}),
+		[processQueue, performLocalAuthCleanup],
+	);
+
+	const authSyncTerminationEmitter = useMemo(
+		() => createAuthSyncTerminationEmitter(),
+		[],
+	);
+
+	const sessionTelemetryTerminationEmitter = useMemo(
+		() =>
+			createSessionTelemetryTerminationEmitter({
+				resolveCaller: (payload) =>
+					terminationCallerHintRef.current ??
+					resolveTerminationCaller(payload.reason),
+			}),
+		[],
+	);
+
+	const composedTerminationEmitter = useMemo(
+		() =>
+			composeTerminationEventEmitters(
+				authSyncTerminationEmitter,
+				sessionTelemetryTerminationEmitter,
+			),
+		[authSyncTerminationEmitter, sessionTelemetryTerminationEmitter],
+	);
+
+	const emitAuthSyncSessionToken = useCallback(
+		(
+			eventType: 'SESSION_LOGIN' | 'SESSION_REFRESHED' | 'EMPRESA_CHANGED',
+			accessToken: string,
+			priorSnapshot?: SessionClaimsSnapshot,
+			refreshOutcome?: RefreshOutcome,
+			impersonationExitSource?: ImpersonationExitSource,
+		) => {
+			if (!SESSION_AUTH_SYNC_V4_ENABLED) {
+				return;
+			}
+
+			const snapshot =
+				priorSnapshot ??
+				buildSessionClaimsSnapshot(
+					accessToken,
+					authRef.current.user,
+					empresaActivaIdRef.current,
+				);
+
+			const payload = {
+				accessToken,
+				claimsSnapshot: snapshot,
+				empresaActivaId: empresaActivaIdRef.current,
+			};
+
+			switch (eventType) {
+				case 'SESSION_LOGIN':
+					emitSessionLoginSync({
+						...payload,
+						...(impersonationExitSource !== undefined
+							? { impersonationExitSource }
+							: {}),
+					});
+					break;
+				case 'SESSION_REFRESHED':
+					emitSessionRefreshedSync({
+						...payload,
+						...(refreshOutcome !== undefined ? { refreshOutcome } : {}),
+					});
+					break;
+				case 'EMPRESA_CHANGED':
+					emitEmpresaChangedSync(payload);
+					break;
+				default:
+					break;
+			}
+		},
+		[],
+	);
+
+	const terminateSessionDeps = useMemo(
+		() =>
+			getTerminateSessionDeps({
+				isTerminatingRef,
+				processQueue,
+				clearLocalAuthState: performLocalAuthCleanup,
+				getHadAuthenticatedUser: () => Boolean(authRef.current.token),
+				callLogoutEndpoint: legacyLogoutDeps.callLogoutEndpoint,
+				clearQueryCache: buildTerminationClearQueryCache(
+					SESSION_TERMINATION_V2_ENABLED,
+					() => queryClient.clear(),
+				),
+				showTerminationToast: SESSION_TERMINATION_V2_ENABLED
+					? showTerminationToastAfterTermination
+					: () => undefined,
+				redirectToLogin: SESSION_TERMINATION_V2_ENABLED
+					? redirectToLoginAfterTermination
+					: () => undefined,
+				emitTerminationEvent: composedTerminationEmitter,
+			}),
+		[
+			processQueue,
+			performLocalAuthCleanup,
+			legacyLogoutDeps,
+			queryClient,
+			showTerminationToastAfterTermination,
+			redirectToLoginAfterTermination,
+			composedTerminationEmitter,
+		],
+	);
+
+	const runTerminateSession = useCallback(
+		async (input: TerminateSessionInput) => {
+			if (!SESSION_TERMINATION_V2_ENABLED) {
+				return;
+			}
+			await terminateSession(input, terminateSessionDeps);
+		},
+		[terminateSessionDeps],
+	);
+
+	/**
+	 * Cierra todas las sesiones del usuario (logout_all + terminación local).
+	 * Flag V3 OFF → no-op. Sin UI en IMPL-04.
+	 */
+	const logoutAllSessions = useCallback(async () => {
+		if (!SESSION_LOGOUT_V3_ENABLED) {
+			return;
 		}
-	}, [processQueue, clearImpersonationState]);
+
+		if (!authRef.current.token) {
+			return;
+		}
+
+		if (isImpersonationActive()) {
+			toast.error('Finaliza el modo soporte antes de cerrar todas las sesiones.');
+			return;
+		}
+
+		if (requiereSeleccionEmpresa) {
+			toast.error('Completa la selección de empresa antes de continuar.');
+			return;
+		}
+
+		if (isLogoutAllInFlightRef.current || isTerminatingRef.current) {
+			return;
+		}
+
+		const flowInput: LogoutAllFlowInput = {
+			preservePreLoginBranding: true,
+		};
+
+		isLogoutAllInFlightRef.current = true;
+		try {
+			await executeLogoutAllFlow(
+				flowInput,
+				getLogoutAllFlowDeps({
+					isTerminatingRef,
+					callLogoutAllEndpoint: callLogoutAllSessionsApi,
+					runTerminateAfterLogoutAll: () =>
+						executeLogoutAllTermination(
+							runTerminateSession,
+							legacyLogoutDeps,
+							flowInput,
+							redirectToLoginAfterTermination,
+						),
+					onLogoutAllRejected: (error) => {
+						if (import.meta.env.DEV) {
+							console.error('[logoutAll] POST /auth/logout_all/ rejected', error);
+						}
+					},
+				}),
+			);
+		} finally {
+			isLogoutAllInFlightRef.current = false;
+		}
+	}, [
+		isImpersonationActive,
+		requiereSeleccionEmpresa,
+		runTerminateSession,
+		legacyLogoutDeps,
+		redirectToLoginAfterTermination,
+	]);
+
+	/**
+	 * Probe de sesión vía authService.me — interceptor maneja 401/refresh/terminate.
+	 * Sin mutación de estado en éxito. IMPL-06 conecta lifecycle DOM.
+	 */
+	const runSessionValidityProbeForSession = useCallback(async () => {
+		try {
+			await runSessionValidityProbe(
+				getSessionValidityProbeDeps({
+					isProbeInFlightRef: isSessionValidityProbeInFlightRef,
+					fetchMe: () => authService.me(),
+				}),
+			);
+			emitSessionProbeCompletedTelemetry({ result: 'ok' });
+		} catch (error) {
+			emitSessionProbeCompletedTelemetry({ result: 'error' });
+			throw error;
+		}
+	}, []);
+
+	/**
+	 * Realiza el logout (local y servidor).
+	 * Flag ON → terminateSession V2; Flag OFF → legacy (§21.2).
+	 */
+	const doLogout = useCallback(
+		async (callServer = true) => {
+			terminationCallerHintRef.current = 'manual_logout';
+			try {
+				await runSessionTerminationExit({
+					v2Enabled: SESSION_TERMINATION_V2_ENABLED,
+					legacyDeps: legacyLogoutDeps,
+					legacyCallServer: callServer,
+					v2Action: () => executeDoLogoutTermination(runTerminateSession, { callServer }),
+				});
+			} finally {
+				terminationCallerHintRef.current = undefined;
+			}
+		},
+		[runTerminateSession, legacyLogoutDeps],
+	);
 
 	/**
 	 * Empresas elegibles para cambio de sesión (modelo congelado).
@@ -647,126 +1482,147 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		[determineUserType],
 	);
 
+	const hydrateFetchMeErrorRef = useRef<unknown>(undefined);
+
+	const terminateFromHydrateFailure = useMemo(
+		() => async (callServer: boolean) => {
+			await runSessionTerminationExit({
+				v2Enabled: SESSION_TERMINATION_V2_ENABLED,
+				legacyDeps: legacyLogoutDeps,
+				legacyCallServer: callServer,
+				v2Action: async () => {
+					if (callServer) {
+						await executeDoLogoutTermination(runTerminateSession, { callServer: true });
+						return;
+					}
+					const error = hydrateFetchMeErrorRef.current;
+					hydrateFetchMeErrorRef.current = undefined;
+					await executeHydrateFailureTermination(runTerminateSession, error);
+				},
+			});
+		},
+		[runTerminateSession, legacyLogoutDeps],
+	);
+
+	const hydrateFetchMe = useCallback(
+		() =>
+			createHydrateFetchMeWithErrorCapture(
+				() => authService.me(),
+				hydrateFetchMeErrorRef,
+			)(),
+		[],
+	);
+
 	/**
 	 * Obtiene el usuario desde /auth/me y actualiza el estado.
 	 * El usuario SOLO proviene de /auth/me, nunca de la respuesta de login.
 	 */
-	const initializeAuth = useCallback(async (): Promise<UserData | null> => {
-		console.log('[initializeAuth] iniciando', {
-			tokenPresent: Boolean(authRef.current.token),
-			tokenPrefix: authRef.current.token?.slice(0, 20),
-		});
-		const token = authRef.current.token;
-		const claimsForInit = decodeAccessToken(token);
-		console.log('[initializeAuth] canInitializeFullSession check', {
-			canInitialize: canInitializeFullSession(token),
-			empresa_selection_pending: claimsForInit?.empresa_selection_pending,
-			empresa_id: claimsForInit?.empresa_id,
-		});
-		if (!canInitializeFullSession(token)) {
-			if (import.meta.env.DEV) {
-				console.warn('[AuthContext] initializeAuth omitido: token no es sesión completa');
-			}
-			return null;
-		}
-		console.log('[initializeAuth] llamando /auth/me');
-		const me = await authService.me();
-		if (!me) {
-			await doLogout(false);
-			return null;
-		}
+	const getHydrateSessionCoreDeps = useCallback(
+		(menuUx?: LoadMenuUxOptions): HydrateSessionCoreDeps => ({
+			getToken: () => authRef.current.token,
+			getTokenUser: () => authRef.current.user,
+			setAuthUser: (user) => {
+				setAuth((prev) => ({ ...prev, user }));
+				authRef.current = { ...authRef.current, user };
+			},
+			fetchMe: hydrateFetchMe,
+			doLogout: terminateFromHydrateFailure,
+			syncEmpresaSession,
+			syncImpersonationFromToken,
+			updateAccessLevels,
+			loadMenuAndPermissionsFromAuthMenu: (userData) =>
+				loadMenuAndPermissionsFromAuthMenu(userData, menuUx),
+			loadEmpresasElegiblesForSession,
+			determineUserType,
+			setRequiereSeleccionEmpresa,
+			setMenuModulos,
+			setPermissions,
+			setMenuPermissionsReady,
+			setEmpresasElegibles,
+			setAuthInitialized,
+			setIsBootstrapped,
+			setSessionMenuSnapshot: (modulos) => {
+				sessionMenuSnapshotRef.current = modulos;
+			},
+		}),
+		[
+			terminateFromHydrateFailure,
+			hydrateFetchMe,
+			syncEmpresaSession,
+			syncImpersonationFromToken,
+			updateAccessLevels,
+			loadMenuAndPermissionsFromAuthMenu,
+			loadEmpresasElegiblesForSession,
+			determineUserType,
+		],
+	);
 
-		const claims = decodeAccessToken(authRef.current.token);
-		const tokenUser = authRef.current.user;
-		const mergedUser: UserData = {
-			...me,
-			usuario_id: me.usuario_id || claims?.sub || '',
-			cliente_id: me.cliente_id || claims?.cliente_id || '',
-			es_admin_cliente: me.es_admin_cliente || Boolean(claims?.es_admin_cliente),
-			empresa_activa: me.empresa_activa || claims?.empresa_id || null,
-			requires_password_change:
-				me.requires_password_change ?? Boolean(claims?.requires_password_change),
-		};
-
-		let sessionUser = mergedUser;
-		if (!mergedUser.usuario_id?.trim()) {
-			if (import.meta.env.DEV) {
-				console.warn(
-					'[initializeAuth] usuario_id vacío tras /auth/me; manteniendo user_data del token',
-					{ meUsuarioId: me.usuario_id, tokenUsuarioId: tokenUser?.usuario_id, sub: claims?.sub },
-				);
-			}
-			if (tokenUser) {
-				sessionUser = {
-					...tokenUser,
-					...mergedUser,
-					usuario_id:
-						mergedUser.usuario_id ||
-						tokenUser.usuario_id ||
-						claims?.sub ||
-						'',
-					cliente_id:
-						mergedUser.cliente_id ||
-						tokenUser.cliente_id ||
-						claims?.cliente_id ||
-						'',
-					es_admin_cliente:
-						mergedUser.es_admin_cliente ||
-						tokenUser.es_admin_cliente ||
-						Boolean(claims?.es_admin_cliente),
-					empresa_activa:
-						mergedUser.empresa_activa ||
-						tokenUser.empresa_activa ||
-						claims?.empresa_id ||
-						null,
-				};
-			}
-		}
-
-		setAuth((prev) => ({ ...prev, user: sessionUser }));
-		authRef.current = { ...authRef.current, user: sessionUser };
-		syncEmpresaSession(sessionUser, authRef.current.token);
-
-		if (claims?.empresa_selection_pending) {
-			setRequiereSeleccionEmpresa(true);
-			setMenuModulos(null);
-			setPermissions(null);
-			setMenuPermissionsReady(false);
-			if (import.meta.env.DEV) {
-				console.log('[AuthContext] JWT empresa_selection_pending: sesión requiere selección de empresa');
-			}
-		}
-
-		updateAccessLevels(sessionUser);
-
-		if (!claims?.empresa_selection_pending) {
-			const modulos = await loadMenuAndPermissionsFromAuthMenu(sessionUser);
-			sessionMenuSnapshotRef.current = modulos;
-		}
-
-		const type =
-			sessionUser.user_type ??
-			determineUserType(sessionUser.access_level ?? 0, !!sessionUser.is_super_admin);
-		const isOnboardingAdmin =
-			Boolean(sessionUser.es_admin_cliente) && !hasEmpresaActiva(sessionUser.empresa_activa);
-
-		if (type === 'platform_admin' || isOnboardingAdmin) {
-			setEmpresasElegibles([]);
-		} else {
+	const runHydrateSessionCore = useCallback(
+		async (
+			mode: 'bootstrap' | 'interceptor' | 'full-session-token',
+		): Promise<UserData | null> => {
 			try {
-				const elegibles = await loadEmpresasElegiblesForSession(sessionUser);
-				setEmpresasElegibles(elegibles);
-			} catch {
-				// mantener lista previa (p. ej. desde login selection)
+				return await hydrateSessionCore(
+					{ mode },
+					getHydrateSessionCoreDeps(getLoadMenuUxOptionsForMode(mode)),
+				);
+			} catch (error) {
+				await runSessionTerminationExit({
+					v2Enabled: SESSION_TERMINATION_V2_ENABLED,
+					legacyDeps: legacyLogoutDeps,
+					legacyCallServer: false,
+					v2Action: () => executeHydrateFailureTermination(runTerminateSession, error),
+				});
+				return null;
 			}
-		}
+		},
+		[getHydrateSessionCoreDeps, runTerminateSession, legacyLogoutDeps],
+	);
 
-		syncImpersonationFromToken(authRef.current.token);
+	const runPostRefreshSession = useCallback(
+		async (newToken: string, priorSnapshot: SessionClaimsSnapshot) =>
+			applyPostRefreshSession(
+				{
+					newToken,
+					priorSnapshot,
+					currentUser: authRef.current.user,
+					mode: 'interceptor',
+				},
+				{
+					swapAccessToken: (token) => {
+						const newAuth = { ...authRef.current, token };
+						if (!loadingRef.current) {
+							setAuth(newAuth);
+						}
+						authRef.current = newAuth;
+					},
+					claimsSyncCallbacks: {
+						syncEmpresaSession,
+						syncImpersonationFromToken,
+					},
+					applyAuthUserAfterClaimsSync: (mergedUser, token) => {
+						if (!mergedUser) {
+							return;
+						}
+						const updated = {
+							...authRef.current,
+							token,
+							user: mergedUser as UserData,
+						};
+						if (!loadingRef.current) {
+							setAuth(updated);
+						}
+						authRef.current = updated;
+					},
+					hydrateDeps: getHydrateSessionCoreDeps(getLoadMenuUxOptionsForMode('interceptor')),
+				},
+			),
+		[getHydrateSessionCoreDeps, syncEmpresaSession, syncImpersonationFromToken],
+	);
 
-		setAuthInitialized(true);
-		setIsBootstrapped(true);
-		return sessionUser;
-	}, [updateAccessLevels, doLogout, syncEmpresaSession, determineUserType, syncImpersonationFromToken, loadEmpresasElegiblesForSession]);
+	const initializeAuth = useCallback(async (): Promise<UserData | null> => {
+		return runHydrateSessionCore('bootstrap');
+	}, [runHydrateSessionCore]);
 
 	/**
 	 * Restaura la sesión platform_admin guardada antes de impersonar.
@@ -824,6 +1680,79 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		],
 	);
 
+	const getImpersonationExitDeps = useCallback((): ExecuteImpersonationControlledExitDeps => ({
+		showToast: (message, severity) => {
+			if (severity === 'error') {
+				toast.error(message, { duration: 6000 });
+				return;
+			}
+			toast(message, { duration: 6000 });
+		},
+		restorePlatformSession,
+		emitPostRestoreAuthSync: emitImpersonationPostRestoreSync,
+		getRestoredAccessToken: () => authRef.current.token,
+		getCurrentUser: () => authRef.current.user,
+		getEmpresaActivaId: () => empresaActivaIdRef.current,
+		logDev: (message, extra) => {
+			if (import.meta.env.DEV) {
+				console.warn(message, extra);
+			}
+		},
+	}), [restorePlatformSession]);
+
+	const runImpersonationControlledExit = useCallback(
+		async (input: {
+			source: ImpersonationExitSource;
+			redirectToSuperAdmin?: boolean;
+			skipEndImpersonationApi?: boolean;
+			includeEndImpersonationApi?: boolean;
+		}) => {
+			const deps = getImpersonationExitDeps();
+			if (input.includeEndImpersonationApi) {
+				deps.callEndImpersonationApi = async () => {
+					const token = authRef.current.token;
+					if (token && isImpersonationToken(token)) {
+						await authService.endImpersonation(token);
+					}
+				};
+			}
+			await executeImpersonationControlledExit(
+				{
+					source: input.source,
+					redirectToSuperAdmin: input.redirectToSuperAdmin,
+					skipEndImpersonationApi: input.skipEndImpersonationApi,
+				},
+				deps,
+			);
+			emitSessionImpersonationExitFromSource({
+				source: input.source,
+				action: 'CONTROLLED_EXIT',
+			});
+			resetCorrelationId('impersonation_exit');
+		},
+		[getImpersonationExitDeps],
+	);
+
+	/**
+	 * IM-06 follower: limpia sessionStorage impersonación tras SESSION_LOGIN parent (F4 wiring).
+	 * Equivalente a la limpieza de restorePlatformSession — sin modificar módulos auth-sync.
+	 */
+	const applyInboundImpersonationExitStorageCleanup = useCallback(
+		(accessToken: string) => {
+			if (!hasPlatformParentSession()) {
+				return;
+			}
+			if (isImpersonationToken(accessToken)) {
+				return;
+			}
+			clearImpersonationState();
+			clearImpersonationSupportSession();
+			clearPlatformParentSession();
+			syncImpersonationFromToken(accessToken);
+		},
+		[clearImpersonationState, syncImpersonationFromToken],
+	);
+
 	// ============================================================================
 	// INTERCEPTORES
 	// ============================================================================
@@ -869,14 +1798,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 				// Solo agregar access ERP si hay token y no es público ni endpoint sin sesión ERP
 				if (currentToken && !skipRefresh && !isPublic) {
 					headers.Authorization = `Bearer ${currentToken}`;
-					// Solo log en desarrollo
-					if (import.meta.env.DEV) {
+					runLegacySessionDevLog(() => {
 						console.log(`🔑 [Request] Token agregado para ${config.url}`);
-					}
-				} else if (!currentToken && !skipRefresh && !isPublic && import.meta.env.DEV) {
-					// Solo mostrar warning si NO es endpoint público ni de auth
-					// Los endpoints públicos no requieren token, es normal
-					console.warn(`⚠️ [Request] No hay token para ${config.url}`);
+					});
+				} else if (!currentToken && !skipRefresh && !isPublic) {
+					runLegacySessionDevLog(() => {
+						console.warn(`⚠️ [Request] No hay token para ${config.url}`);
+					});
 				}
 				
 				// ✅ FASE 2: Ya no modificamos baseURL aquí
@@ -984,14 +1912,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 					console.log(`❌ [Response] ${status || 'Network'} - ${url}`);
 				}
 
-				// Modo soporte: no usar refresh cookie de plataforma ni restaurar parent en 401 genérico
+				// Modo soporte: salida controlada F6 antes de refresh plataforma / F5
 				if (
 					isImpersonationSupportMode(authRef.current.token) &&
 					isImpersonationAuthErrorStatus(error.response?.status)
 				) {
+					const status = error.response?.status;
+					const decision = resolveImpersonationExitPolicy({
+						isSupportMode: true,
+						context: 'interceptor',
+						httpStatus: status,
+					});
+
+					if (decision.action === 'CONTROLLED_EXIT' && decision.source) {
+						const redirectToSuperAdmin = shouldRedirectToSuperAdminAfterImpersonationExit(
+							window.location.pathname,
+							decision.source,
+						);
+						void runImpersonationControlledExit({
+							source: decision.source,
+							redirectToSuperAdmin,
+							skipEndImpersonationApi: true,
+						}).catch((exitError) => {
+							if (import.meta.env.DEV) {
+								console.error(
+									'[Response] controlled exit impersonation falló',
+									exitError,
+								);
+							}
+						});
+						return Promise.reject(error);
+					}
+
 					if (import.meta.env.DEV) {
 						console.warn(
-							'[Response] 401/403 en modo soporte — sin refresh plataforma ni restore parent automático',
+							'[Response] 401/403 en modo soporte — sin refresh plataforma (legacy reject)',
 							originalRequest.url,
 						);
 					}
@@ -999,16 +1954,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 				}
 
 				if (error.response?.status === 401 && !originalRequest._retry) {
-					if (isImpersonationSupportMode(authRef.current.token)) {
-						if (import.meta.env.DEV) {
-							console.warn(
-								'[Response] 401 en modo soporte — omitiendo refresh cookie plataforma',
-								originalRequest.url,
-							);
-						}
-						return Promise.reject(error);
-					}
-
 					console.warn(`🚨 [Response Interceptor] 401 capturado en ${originalRequest.url}`);
 
 					// Control de concurrencia
@@ -1030,7 +1975,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 								// La instancia ya está configurada correctamente
 								
 								originalRequest._retry = true;
+							runLegacySessionDevLog(() => {
 								console.log(`🔄 [Response Interceptor] Reintentando petición encolada con nuevo token: ${originalRequest.url}`);
+							});
 								return api(originalRequest);
 							})
 							.catch(err => {
@@ -1043,43 +1990,124 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 					
 					isRefreshingPromise = (async () => {
 						try {
-							console.log('🔄 [Response Interceptor] Iniciando refresh...');
-							
-							const newToken = await authService.refreshToken();
-							
-							console.log('✅ [Response Interceptor] Token refrescado');
+							runLegacySessionDevLog(() => {
+								console.log('🔄 [Response Interceptor] Iniciando refresh...');
+							});
 
-							const refreshClaims = decodeAccessToken(newToken);
-							const refreshedUser = authRef.current.user
-								? {
-										...authRef.current.user,
-										requires_password_change: Boolean(
-											refreshClaims?.requires_password_change,
-										),
-									}
-								: authRef.current.user;
-							const newAuth = {
-								...authRef.current,
-								token: newToken,
-								user: refreshedUser,
-							};
-
-							if (!loadingRef.current) {
-								setAuth(newAuth);
+							let priorSnapshot: SessionClaimsSnapshot | undefined;
+							if (REFRESH_HYDRATE_ENABLED) {
+								priorSnapshot = buildSessionClaimsSnapshot(
+									authRef.current.token,
+									authRef.current.user,
+									empresaActivaIdRef.current,
+								);
 							}
-							authRef.current = newAuth;
+
+							const refreshResult = await executeRefreshWithResilience(
+								{ source: 'interceptor', singleFlightRole: 'leader' },
+								{ callRefresh: () => authService.refreshToken() },
+							);
+							const newToken = refreshResult.accessToken;
+							const refreshOutcome = refreshResult.metadata.outcome;
+
+							emitSessionRefreshOutcomeTelemetry(
+								refreshResult.metadata,
+								newToken,
+							);
+
+							runLegacySessionDevLog(() => {
+								console.log('✅ [Response Interceptor] Token refrescado');
+							});
+
+							if (REFRESH_HYDRATE_ENABLED && priorSnapshot) {
+								const postRefreshResult = await runPostRefreshSession(
+									newToken,
+									priorSnapshot,
+								);
+
+								applyPostRefreshRqInvalidation(
+									resolvePostRefreshRqAction(
+										priorSnapshot,
+										postRefreshResult.hydrationLevel,
+										{
+											empresaId: empresaActivaIdRef.current,
+											clienteId: authRef.current.user?.cliente_id ?? null,
+										},
+									),
+									queryClient,
+								);
+
+								emitAuthSyncSessionToken(
+									'SESSION_REFRESHED',
+									newToken,
+									priorSnapshot,
+									refreshOutcome,
+								);
+							} else {
+								const refreshClaims = decodeAccessToken(newToken);
+								const refreshedUser = authRef.current.user
+									? {
+											...authRef.current.user,
+											requires_password_change: Boolean(
+												refreshClaims?.requires_password_change,
+											),
+										}
+									: authRef.current.user;
+								const newAuth = {
+									...authRef.current,
+									token: newToken,
+									user: refreshedUser,
+								};
+
+								if (!loadingRef.current) {
+									setAuth(newAuth);
+								}
+								authRef.current = newAuth;
+
+								emitAuthSyncSessionToken(
+									'SESSION_REFRESHED',
+									newToken,
+									undefined,
+									refreshOutcome,
+								);
+							}
 
 							processQueue(null, newToken);
 
-							return newToken; 
+							return newToken;
 						} catch (refreshError) {
 							const axiosError = refreshError as AxiosError;
 							console.error('❌ [Response Interceptor] Refresh falló:', axiosError.message);
-							
-							processQueue(new Error('Token refresh failed'), null);
-							await doLogout(false);
-							
-							throw refreshError;
+
+							const failureOutcomeMetadata =
+								getRefreshFailureOutcomeMetadata(refreshError);
+							if (failureOutcomeMetadata) {
+								emitSessionRefreshFailureOutcomeTelemetry(failureOutcomeMetadata);
+								if (import.meta.env.DEV) {
+									console.debug(
+										'[Response Interceptor] Refresh failure outcome:',
+										failureOutcomeMetadata,
+									);
+								}
+							}
+
+							terminationCallerHintRef.current = 'refresh_fail';
+							try {
+								await runSessionTerminationExit({
+									v2Enabled: SESSION_TERMINATION_V2_ENABLED,
+									legacyDeps: legacyLogoutDeps,
+									legacyCallServer: false,
+									v2Action: () =>
+										executeInterceptorRefreshTermination(
+											runTerminateSession,
+											refreshError,
+										),
+								});
+
+								throw refreshError;
+							} finally {
+								terminationCallerHintRef.current = undefined;
+							}
 						} finally {
 							if (isRefreshingPromise !== null) {
 								isRefreshingPromise = null;
@@ -1101,7 +2129,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 						// ✅ FASE 2: Ya no modificamos baseURL aquí
 						// La instancia ya está configurada correctamente
 						
+					runLegacySessionDevLog(() => {
 						console.log(`🔄 [Response Interceptor] Reintentando petición con nuevo token: ${originalRequest.url}`);
+					});
 						return api(originalRequest);
 					} catch (e) {
 						console.error('❌ [Response Interceptor] Error al reintentar petición:', e);
@@ -1126,7 +2156,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			}
 			api.interceptors.response.eject(responseInterceptor);
 		};
-	}, [skipsTokenRefresh, processQueue, doLogout, isImpersonationActive, restorePlatformSession]);
+	}, [skipsTokenRefresh, runTerminateSession, legacyLogoutDeps, isImpersonationActive, restorePlatformSession, runPostRefreshSession, emitAuthSyncSessionToken, queryClient, runImpersonationControlledExit]);
 
 	// ============================================================================
 	// BOOTSTRAP - Usuario SOLO desde /auth/me
@@ -1144,11 +2174,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 				hasPlatformParentSession: hasPlatformParentSession(),
 				hasPendingSelection: useEmpresaSelectionStore.getState().hasPendingSelection(),
 			});
+			trackSessionBootstrapCorrelation();
 
 			if (window.location.pathname === '/login') {
 				setLoading(false);
 				setAuthInitialized(true);
 				setIsBootstrapped(true);
+				emitSessionBootstrapCompletedTelemetry({
+					path: '/login',
+					hydrateSkipped: true,
+				});
 				if (import.meta.env.DEV) {
 					console.log('ℹ️ [Bootstrap] Ruta /login: omitiendo POST /auth/refresh');
 				}
@@ -1184,6 +2219,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 						reason,
 						...extra,
 					});
+
+					const decision = resolveImpersonationExitPolicy({
+						isSupportMode: true,
+						context: 'bootstrap',
+						bootstrapReason: reason,
+					});
+
+					if (decision.action === 'CONTROLLED_EXIT' && decision.source) {
+						await runImpersonationControlledExit({
+							source: decision.source,
+							redirectToSuperAdmin,
+							skipEndImpersonationApi: true,
+						});
+						return;
+					}
+
 					toast.error(
 						'Tu sesión de soporte expiró o ya no es válida. Retornando a Platform Admin…',
 						{ duration: 6000 },
@@ -1273,10 +2324,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 					try {
 						const me = await initializeAuth();
 						if (me && import.meta.env.DEV) {
+						runLegacySessionDevLog(() => {
 							console.log('✅ [Bootstrap] Sesión impersonada rehidratada desde token en memoria');
+						});
 						}
-					} catch {
-						/* sin refresh plataforma en modo soporte */
+					} catch (e) {
+						await controlledExitToPlatform('me_failed', {
+							bootstrapPath: 'memory-rehydrate',
+							error: e instanceof Error ? e.message : String(e),
+						});
+						setLoading(false);
+						setAuthInitialized(true);
+						setIsBootstrapped(true);
+						return;
 					}
 					setLoading(false);
 					setAuthInitialized(true);
@@ -1305,10 +2365,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			}
 			try {
 				console.log('🔍 [Bootstrap] Verificando sesión existente (POST /auth/refresh/)...');
-				const newToken = await authService.refreshToken();
-				if (import.meta.env.DEV) {
-					console.log('✅ [Bootstrap] refresh OK, token prefix:', newToken?.slice(0, 24));
-				}
+				const refreshResult = await executeRefreshWithResilience(
+					{ source: 'bootstrap', singleFlightRole: 'leader' },
+					{ callRefresh: () => authService.refreshToken() },
+				);
+				const newToken = refreshResult.accessToken;
+				const refreshOutcome = refreshResult.metadata.outcome;
+				emitSessionRefreshOutcomeTelemetry(refreshResult.metadata, newToken);
+				runLegacySessionDevLog(() => {
+					console.log('✅ [Bootstrap] refresh OK');
+				});
 				logAuthSessionSnapshot('post-refresh (bootstrap OK)', newToken, null);
 				if (isSelectionPendingToken(newToken)) {
 					if (import.meta.env.DEV) {
@@ -1316,7 +2382,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 							'[Bootstrap] refresh devolvió selection token; no se llama /auth/me',
 						);
 					}
-					await doLogout(false);
+					await runSessionTerminationExit({
+						v2Enabled: SESSION_TERMINATION_V2_ENABLED,
+						legacyDeps: legacyLogoutDeps,
+						legacyCallServer: false,
+						v2Action: () =>
+							executeClassifiedTermination(runTerminateSession, {
+								classifyInput: { context: 'selection' },
+								error: undefined,
+								callServer: false,
+								skipRedirect: false,
+							}),
+					});
 					return;
 				}
 
@@ -1324,12 +2401,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 				setAuth({ token: newToken, user: null });
 				authRef.current = { token: newToken, user: null };
 				const me = await initializeAuth();
-				if (me && import.meta.env.DEV) {
-					console.log('✅ [Bootstrap] Perfil obtenido:', { usuario: me.nombre_usuario, user_type: me.user_type });
+				if (me) {
+					logAuthSessionDiag('Bootstrap perfil obtenido', {
+						user_type: me.user_type,
+					});
+				}
+				if (me) {
+					emitAuthSyncSessionToken(
+						'SESSION_REFRESHED',
+						newToken,
+						undefined,
+						refreshOutcome,
+					);
 				}
 			} catch (error) {
 				const axiosError = error as AxiosError;
 				const statusCode = axiosError.response?.status;
+				const failureOutcomeMetadata = getRefreshFailureOutcomeMetadata(error);
+				if (failureOutcomeMetadata) {
+					emitSessionRefreshFailureOutcomeTelemetry(failureOutcomeMetadata);
+					if (import.meta.env.DEV) {
+						console.debug(
+							'[Bootstrap] Refresh failure outcome:',
+							failureOutcomeMetadata,
+						);
+					}
+				}
 				logAuthContext('bootstrap refresh FAILED → doLogout(false)', {
 					status: statusCode,
 					detail: (axiosError.response?.data as { detail?: string })?.detail,
@@ -1339,20 +2436,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 					console.warn(
 						'[Bootstrap] refresh 401 — abrir Network: comparar login vs refresh (Cookie request header, Set-Cookie response). Ver docs/frontend/auditoria/PLATFORM_REFRESH_DIAGNOSTIC.md',
 					);
-					logAuthSessionSnapshot('bootstrap refresh FAILED (sin token nuevo)', null, null);
+					logAuthSessionSnapshot('bootstrap refresh FAILED (sin token nuevo)', null, null, statusCode);
 				}
 				document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-				await doLogout(false);
+				terminationCallerHintRef.current = 'bootstrap_fail';
+				try {
+					await runSessionTerminationExit({
+						v2Enabled: SESSION_TERMINATION_V2_ENABLED,
+						legacyDeps: legacyLogoutDeps,
+						legacyCallServer: false,
+						v2Action: () => executeBootstrapRefreshTermination(runTerminateSession, error),
+					});
+				} finally {
+					terminationCallerHintRef.current = undefined;
+				}
 			} finally {
 				setLoading(false);
 				setAuthInitialized(true);
 				setIsBootstrapped(true);
+				emitSessionBootstrapCompletedTelemetry({
+					path: typeof window !== 'undefined' ? window.location.pathname : '',
+				});
 				console.log('🏁 [Bootstrap] Inicialización finalizada');
 			}
 		}
 
 		runBootstrap();
-	}, [doLogout, initializeAuth, restorePlatformSession, syncImpersonationFromToken]);
+	}, [runTerminateSession, legacyLogoutDeps, initializeAuth, restorePlatformSession, syncImpersonationFromToken, emitAuthSyncSessionToken, runImpersonationControlledExit]);
 
 	// ============================================================================
 	// FUNCIONES PÚBLICAS
@@ -1360,26 +2470,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 	const applyFullSessionToken = useCallback(
 		async (response: Token): Promise<AuthLoginSession | null> => {
-			console.log('[applyFullSessionToken] inicio', {
+			logAuthSessionDiag('applyFullSessionToken inicio', {
 				hasAccessToken: Boolean(response?.access_token),
-				accessTokenPrefix: response?.access_token?.slice(0, 20),
 				hasUserData: Boolean(response?.user_data),
 			});
 			if (!response?.access_token) {
-				console.log('[applyFullSessionToken] abort: sin access_token');
+				logAuthSessionDiag('applyFullSessionToken abort', { hasAccessToken: false });
 				return null;
 			}
-			const previousTokenPrefix = authRef.current.token?.slice(0, 20) ?? null;
 			const claimsIncoming = decodeAccessToken(response.access_token);
 			const canInit = canInitializeFullSession(response.access_token);
-			console.log('[applyFullSessionToken] token evaluado', {
+			logAuthSessionDiag('applyFullSessionToken token evaluado', {
 				canInitializeFullSession: canInit,
-				empresa_selection_pending: claimsIncoming?.empresa_selection_pending,
-				empresa_id: claimsIncoming?.empresa_id,
-				rawPendingClaim: claimsIncoming?.empresa_selection_pending,
+				empresa_selection_pending: Boolean(claimsIncoming?.empresa_selection_pending),
+				rawPendingClaim: Boolean(claimsIncoming?.empresa_selection_pending),
 			});
 			if (!canInit) {
-				console.error('❌ [AuthContext] access_token con empresa_selection_pending; no es sesión completa');
+				runLegacySessionDevLog(() => {
+					console.error('❌ [AuthContext] access_token con empresa_selection_pending; no es sesión completa');
+				});
 				return null;
 			}
 			setMenuPermissionsReady(false);
@@ -1399,14 +2508,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			}
 			logImpersonationFe('applyFullSessionToken', response.access_token, {
 				token_replaced: true,
-				previous_token_prefix: previousTokenPrefix,
 			});
 			const me = await initializeAuth();
+			trackSessionLoginCorrelation();
 			useEmpresaSelectionStore.getState().clearPendingSelection();
+			emitSelectionSyncCleared();
 			logAuthSessionSnapshot('post-login (applyFullSessionToken)', authRef.current.token, me);
-			console.log('[applyFullSessionToken] initializeAuth resultado', {
+			logAuthSessionDiag('applyFullSessionToken initializeAuth resultado', {
 				meReceived: Boolean(me),
-				usuarioId: me?.usuario_id,
 			});
 			if (!me) return null;
 			return { user: me, menuModulos: sessionMenuSnapshotRef.current };
@@ -1426,13 +2535,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 				updateAccessLevels(null);
 				return null;
 			}
-			return applyFullSessionToken(response);
+			const session = await applyFullSessionToken(response);
+			if (session) {
+				emitAuthSyncSessionToken('SESSION_LOGIN', response.access_token);
+			}
+			return session;
 		},
-		[updateAccessLevels, applyFullSessionToken],
+		[updateAccessLevels, applyFullSessionToken, emitAuthSyncSessionToken],
 	);
 
 	const invalidateSelectionSession = useCallback(() => {
 		useEmpresaSelectionStore.getState().clearPendingSelection();
+		emitSelectionSyncCleared();
 		setAuth(initialAuth);
 		authRef.current = initialAuth;
 		clearImpersonationSupportSession();
@@ -1456,6 +2570,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 					user_type: session?.user.user_type,
 					empresa_activa: session?.user.empresa_activa,
 				});
+				if (session && tokenResponse.access_token) {
+					emitAuthSyncSessionToken('SESSION_LOGIN', tokenResponse.access_token);
+				}
 				return session?.user ?? null;
 			} catch (error) {
 				const axiosError = error as AxiosError;
@@ -1466,6 +2583,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 								'[completeEmpresaSelection] selección impersonada falló; saliendo modo soporte',
 							);
 						}
+						const decision = resolveImpersonationExitPolicy({
+							isSupportMode: true,
+							context: 'selection_failed',
+						});
+						if (decision.action === 'CONTROLLED_EXIT' && decision.source) {
+							await runImpersonationControlledExit({
+								source: decision.source,
+								redirectToSuperAdmin: true,
+								skipEndImpersonationApi: true,
+							});
+							return null;
+						}
 						await restorePlatformSession({ redirectToSuperAdmin: true });
 						return null;
 					}
@@ -1474,16 +2603,72 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 				throw error;
 			}
 		},
-		[applyFullSessionToken, invalidateSelectionSession, restorePlatformSession],
+		[applyFullSessionToken, invalidateSelectionSession, restorePlatformSession, emitAuthSyncSessionToken, runImpersonationControlledExit],
 	);
 
 	const cambiarEmpresaActiva = useCallback(
 		async (empresaId: string): Promise<UserData | null> => {
-			const tokenResponse = await authService.cambiarEmpresa(empresaId);
-			const session = await applyFullSessionToken(tokenResponse);
-			return session?.user ?? null;
+			if (isImpersonationSupportMode(authRef.current.token)) {
+				const precheckDecision = resolveImpersonationExitPolicy({
+					isSupportMode: true,
+					context: 'cambiar_empresa_precheck',
+				});
+				if (
+					precheckDecision.action === 'CONTROLLED_EXIT' &&
+					precheckDecision.source
+				) {
+					const redirectToSuperAdmin = shouldRedirectToSuperAdminAfterImpersonationExit(
+						window.location.pathname,
+						precheckDecision.source,
+					);
+					await runImpersonationControlledExit({
+						source: precheckDecision.source,
+						redirectToSuperAdmin,
+						skipEndImpersonationApi: true,
+					});
+					return null;
+				}
+			}
+
+			try {
+				const tokenResponse = await authService.cambiarEmpresa(empresaId);
+				const session = await applyFullSessionToken(tokenResponse);
+				if (session?.user && tokenResponse.access_token) {
+					registerCambiarEmpresaL02Guard(empresaId);
+					emitAuthSyncSessionToken('EMPRESA_CHANGED', tokenResponse.access_token);
+				}
+				return session?.user ?? null;
+			} catch (error) {
+				const axiosError = error as AxiosError;
+				if (
+					isImpersonationSupportMode(authRef.current.token) &&
+					axiosError.response?.status === 403
+				) {
+					const forbiddenDecision = resolveImpersonationExitPolicy({
+						isSupportMode: true,
+						context: 'cambiar_empresa_forbidden',
+						httpStatus: 403,
+					});
+					if (
+						forbiddenDecision.action === 'CONTROLLED_EXIT' &&
+						forbiddenDecision.source
+					) {
+						const redirectToSuperAdmin = shouldRedirectToSuperAdminAfterImpersonationExit(
+							window.location.pathname,
+							forbiddenDecision.source,
+						);
+						await runImpersonationControlledExit({
+							source: forbiddenDecision.source,
+							redirectToSuperAdmin,
+							skipEndImpersonationApi: true,
+						});
+						return null;
+					}
+				}
+				throw error;
+			}
 		},
-		[applyFullSessionToken],
+		[applyFullSessionToken, emitAuthSyncSessionToken, runImpersonationControlledExit],
 	);
 
 	const reloadMenuAndPermissions = useCallback(async () => {
@@ -1571,6 +2756,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 			if (isLoginEmpresaSelectionResponse(response)) {
 				useEmpresaSelectionStore.getState().setPendingSelection(response);
+				emitSelectionSyncFromResponse(response);
 				syncImpersonationFromToken(response.selection_token);
 				setAuth(initialAuth);
 				authRef.current = initialAuth;
@@ -1584,6 +2770,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 				clearImpersonationState();
 				throw new Error('No se pudo iniciar la sesión de soporte');
 			}
+			emitAuthSyncSessionToken('SESSION_LOGIN', (response as Token).access_token);
 			return { requiresEmpresaSelection: false };
 		},
 		[
@@ -1592,6 +2779,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			syncImpersonationFromToken,
 			applyFullSessionToken,
 			clearImpersonationState,
+			emitAuthSyncSessionToken,
 		],
 	);
 
@@ -1599,6 +2787,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		if (!isImpersonationActive() && !hasPlatformParentSession()) {
 			return;
 		}
+
+		const decision = resolveImpersonationExitPolicy({
+			isSupportMode:
+				isImpersonationSupportMode(authRef.current.token) ||
+				hasPlatformParentSession(),
+			context: 'manual',
+		});
+
+		if (decision.action === 'CONTROLLED_EXIT' && decision.source) {
+			await runImpersonationControlledExit({
+				source: decision.source,
+				includeEndImpersonationApi: true,
+			});
+			return;
+		}
+
 		try {
 			const token = authRef.current.token;
 			if (token && isImpersonationToken(token)) {
@@ -1614,7 +2818,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			}
 		}
 		await restorePlatformSession();
-	}, [isImpersonationActive, restorePlatformSession]);
+	}, [isImpersonationActive, restorePlatformSession, runImpersonationControlledExit]);
 
 	/**
 	 * Cierra la sesión del usuario
@@ -1624,9 +2828,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			await endImpersonationHandler();
 			return;
 		}
-		console.log('🚪 [Logout] Cerrando sesión...');
+		runLegacySessionDevLog(() => {
+			console.log('🚪 [Logout] Cerrando sesión...');
+		});
 		await doLogout(true);
-		console.log('✅ [Logout] Sesión cerrada');
+		runLegacySessionDevLog(() => {
+			console.log('✅ [Logout] Sesión cerrada');
+		});
 	}, [doLogout, isImpersonationActive, endImpersonationHandler]);
 
 	/**
@@ -1687,6 +2895,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			completeEmpresaSelection,
 			cambiarEmpresaActiva,
 			logout,
+			logoutAllSessions,
+			runSessionValidityProbe: runSessionValidityProbeForSession,
 			isAuthenticated: !!auth.token && !!auth.user,
 			loading,
 			authInitialized,
@@ -1726,6 +2936,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 			completeEmpresaSelection,
 			cambiarEmpresaActiva,
 			logout,
+			logoutAllSessions,
+			runSessionValidityProbeForSession,
 			hasRole,
 			accessLevel,
 			isSuperAdmin,
@@ -1752,7 +2964,95 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 		],
 	);
 
-	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+	const getAuthSyncListenerDeps = useCallback(
+		(): ApplyInboundAuthSyncDeps => ({
+			getCurrentAccessToken: () => authRef.current.token,
+			getIsTerminating: () => isTerminatingRef.current,
+			clearRefreshingPromise: () => {
+				isRefreshingPromise = null;
+			},
+			buildPriorSnapshot: () =>
+				buildSessionClaimsSnapshot(
+					authRef.current.token,
+					authRef.current.user,
+					empresaActivaIdRef.current,
+				),
+			runPostRefreshFromSync: async (newToken, priorSnapshot) => {
+				const postRefreshResult = await runPostRefreshSession(newToken, priorSnapshot);
+				applyPostRefreshRqInvalidation(
+					resolvePostRefreshRqAction(
+						priorSnapshot,
+						postRefreshResult.hydrationLevel,
+						{
+							empresaId: empresaActivaIdRef.current,
+							clienteId: authRef.current.user?.cliente_id ?? null,
+						},
+					),
+					queryClient,
+				);
+				applyInboundImpersonationExitStorageCleanup(newToken);
+			},
+			applyFullSessionFromSync: async (accessToken) => {
+				const session = await applyFullSessionToken({
+					access_token: accessToken,
+					user_data: authRef.current.user ?? undefined,
+				});
+				if (session) {
+					applyInboundImpersonationExitStorageCleanup(accessToken);
+				}
+				return Boolean(session);
+			},
+			runTerminateFromSync: async (input) => {
+				const skipRedirect =
+					typeof document !== 'undefined' && document.visibilityState !== 'visible';
+				terminationCallerHintRef.current = 'auth_sync_follower';
+				try {
+					await runTerminateSession({
+						reason: input.reason,
+						callServer: false,
+						skipRedirect,
+						preservePreLoginBranding: input.preservePreLoginBranding,
+					});
+				} finally {
+					terminationCallerHintRef.current = undefined;
+				}
+			},
+			applySelectionFromSync: applySelectionSyncFromEnvelope,
+			invalidateModulesAfterEmpresaChange: () => {
+				invalidateOrgQueries(queryClient);
+				invalidateInvQueries(queryClient);
+			},
+		}),
+		[
+			runPostRefreshSession,
+			applyFullSessionToken,
+			runTerminateSession,
+			queryClient,
+			applyInboundImpersonationExitStorageCleanup,
+		],
+	);
+
+	return (
+		<AuthContext.Provider value={value}>
+			<AuthSyncListenerBinder
+				enabled={SESSION_AUTH_SYNC_V4_ENABLED}
+				getDeps={getAuthSyncListenerDeps}
+			/>
+			<SessionRemoteProbeBinder
+				enabled={SESSION_REMOTE_PROBE_ENABLED}
+				getRuntimeState={() => ({
+					isAuthenticated: Boolean(authRef.current.token && authRef.current.user),
+					isImpersonationActive: isImpersonationActive(),
+					isSelectionPending: requiereSeleccionEmpresa,
+					isTerminating: isTerminatingRef.current,
+				})}
+				runSessionValidityProbe={runSessionValidityProbeForSession}
+			/>
+			<SessionTelemetryAuthSyncEmittedBinder enabled={SESSION_TELEMETRY_V8_ENABLED} />
+			<SessionTelemetryAuthSyncBinder enabled={SESSION_TELEMETRY_V8_ENABLED} />
+			{children}
+		</AuthContext.Provider>
+	);
 };
 
 // ============================================================================

@@ -1,5 +1,5 @@
 // src/shared/components/ProtectedRoute.tsx
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePermission } from '@/core/auth/PermissionContext';
@@ -12,6 +12,11 @@ import { useEmpresaSelectionStore } from '@/features/auth/stores/empresa-selecti
 import { useEmpresaSelectionHydrated } from '@/features/auth/stores/empresa-selection-hydration';
 import { logPostLoginDiag, warnPostLoginDiag } from '@/core/auth/utils/post-login-diag-log';
 import { APP_CHANGE_PASSWORD } from '@/features/auth/types/auth.types';
+import { isSessionGateReady } from '@/core/auth/session/session-bootstrap-gate.policy';
+import {
+  getSessionUxFlagsSnapshot,
+  isSessionBootstrapGateActive,
+} from '@/core/auth/session/session-ux.flags';
 
 interface ProtectedRouteProps {
   requiredRole?: string;
@@ -37,6 +42,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     isAuthenticated,
     loading: authLoading,
     authInitialized,
+    isBootstrapped,
     accessLevel,
     isSuperAdmin,
     userType,
@@ -59,6 +65,35 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   const pendingEmpresaCount = useEmpresaSelectionStore((s) => s.empresasDisponibles.length);
 
+  const sessionUxFlags = getSessionUxFlagsSnapshot();
+  const unifiedGateActive = isSessionBootstrapGateActive(sessionUxFlags);
+
+  const gateInput = useMemo(
+    () => ({
+      isBootstrapped,
+      authInitialized,
+      authLoading,
+      isAuthenticated,
+      permissionsInitialized,
+      menuPermissionsReady,
+      isPublicRoute: false,
+      isSelectionRoute: isSeleccionEmpresaRoute,
+      selectionHydrated,
+    }),
+    [
+      isBootstrapped,
+      authInitialized,
+      authLoading,
+      isAuthenticated,
+      permissionsInitialized,
+      menuPermissionsReady,
+      isSeleccionEmpresaRoute,
+      selectionHydrated,
+    ],
+  );
+
+  const sessionGateReady = isSessionGateReady(gateInput, sessionUxFlags);
+
   const flowInput = {
     userType,
     empresaActivaId,
@@ -68,7 +103,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   };
 
   if (isSeleccionEmpresaRoute) {
-    if (!selectionHydrated) {
+    if (!selectionHydrated && !unifiedGateActive) {
       return (
         <div className="flex items-center justify-center min-h-screen">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary" />
@@ -86,7 +121,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const sessionGatesPending =
     isAuthenticated && (!permissionsInitialized || !menuPermissionsReady);
 
-  if (!authInitialized || authLoading || sessionGatesPending) {
+  if (
+    (!authInitialized || authLoading || sessionGatesPending) &&
+    !(unifiedGateActive && sessionGateReady)
+  ) {
     logPostLoginDiag('ProtectedRoute', 'spinner', {
       pathname: location.pathname,
       authInitialized,

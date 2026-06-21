@@ -2,6 +2,11 @@ import { decodeAccessToken } from './decodeAccessToken';
 import { tenantResolver } from '@/core/services/tenant-resolver.service';
 import type { UserData } from '@/features/auth/types/auth.types';
 
+import {
+  isSessionTelemetryEffective,
+} from '@/core/auth/session/session-telemetry.flags';
+import { emitPlatformRefreshDiagTelemetry } from '@/core/auth/session/session-telemetry.emitter';
+
 export const PLATFORM_SUPERADMIN_CLIENTE_ID = '00000000-0000-0000-0000-000000000001';
 
 export interface AuthSessionSnapshot {
@@ -64,9 +69,27 @@ export function logAuthSessionSnapshot(
   label: string,
   accessToken: string | null | undefined,
   user: UserData | null | undefined,
+  httpStatus?: number,
 ): void {
-  if (!import.meta.env.DEV) return;
   const snap = buildAuthSessionSnapshot(label, accessToken, user);
+
+  if (isSessionTelemetryEffective()) {
+    emitPlatformRefreshDiagTelemetry({
+      label: snap.label,
+      feHost: snap.feHost,
+      feSubdomain: snap.feSubdomain,
+      jwtClienteMatchesSuperadmin: snap.jwtClienteMatchesSuperadmin,
+      userClienteMatchesSuperadmin: snap.userClienteMatchesSuperadmin,
+      accessTokenPrefix: snap.accessTokenPrefix,
+      httpStatus,
+    });
+    return;
+  }
+
+  if (!import.meta.env.DEV) {
+    return;
+  }
+
   console.group(`[AuthSnapshot] ${label}`);
   console.table(snap);
   if (snap.feSubdomain === 'platform') {
@@ -79,8 +102,5 @@ export function logAuthSessionSnapshot(
       console.warn('[AuthSnapshot] user_data.cliente_id ≠ SUPERADMIN esperado');
     }
   }
-  console.log(
-    'Network checklist: login Set-Cookie → F5 refresh Request Headers debe incluir Cookie: refresh_token=...',
-  );
   console.groupEnd();
 }

@@ -17,6 +17,8 @@ import {
   logAuthResponse,
   logRefreshResult,
 } from '@/core/auth/utils/auth-debug';
+import { logAuthSessionDiag, runLegacySessionDevLog } from '@/core/auth/utils/auth-session-log';
+import { isSessionTelemetryEffective } from '@/core/auth/session/session-telemetry.flags';
 import { normalizeEmpresasElegibles } from '@/core/auth/utils/empresa-eligibles';
 
 interface RefreshRequestConfig extends AxiosRequestConfig {
@@ -48,6 +50,12 @@ function normalizeEmpresaActiva(value: unknown): string | null {
   return s.length > 0 ? s : null;
 }
 
+function normalizeCurrentTokenId(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const s = String(value).trim();
+  return s.length > 0 ? s : null;
+}
+
 function normalizeUserData(raw: UserData & Record<string, unknown>): UserData {
   const usuario_id =
     raw.usuario_id ?? (raw as Record<string, unknown>).user_id ?? (raw as Record<string, unknown>).id;
@@ -70,6 +78,9 @@ function normalizeUserData(raw: UserData & Record<string, unknown>): UserData {
     es_admin_cliente: toApiBoolean(raw.es_admin_cliente ?? record.es_admin_cliente),
     requires_password_change: toApiBoolean(
       raw.requires_password_change ?? record.requires_password_change,
+    ),
+    current_token_id: normalizeCurrentTokenId(
+      raw.current_token_id ?? record.current_token_id,
     ),
   };
 }
@@ -98,7 +109,7 @@ const changePassword = async (
  * Login — respuesta A (Token) o B (LoginEmpresaSelectionResponse).
  */
 const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
-  logAuthContext('login BEFORE', { username: credentials.username });
+  logAuthContext('login BEFORE', { hasCredentials: true });
 
   const params = new URLSearchParams();
   params.append('username', credentials.username);
@@ -144,16 +155,13 @@ const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
 const getCurrentUserProfile = async (): Promise<UserData | null> => {
   try {
     const response = await api.get<UserData>('/auth/me/');
-    if (import.meta.env.DEV) {
-      console.log('[/auth/me] response crudo:', response.data);
+    if (!isSessionTelemetryEffective() && import.meta.env.DEV) {
+      console.log('[/auth/me] response received');
     }
     return normalizeUserData(response.data as UserData & Record<string, unknown>);
   } catch (error) {
     const axiosError = error as AxiosError;
     console.error('Error fetching user profile:', axiosError.response?.data || axiosError.message);
-    if (axiosError.response?.status === 401 || axiosError.response?.status === 403) {
-      return null;
-    }
     throw error;
   }
 };
@@ -181,7 +189,7 @@ const refreshToken = async (): Promise<string> => {
     );
     logAuthResponse('refresh', response);
     const token = response.data.access_token;
-    logRefreshResult('ok', { tokenPrefix: token?.slice(0, 24) });
+    logRefreshResult('ok', { refreshOk: true });
     return token;
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -226,13 +234,14 @@ const startImpersonation = async (
   const url = `/auth/impersonate/${encodeURIComponent(clienteId)}/`;
   const bearer = `Bearer ${accessToken}`;
 
-  if (import.meta.env.DEV) {
-    console.log('[IMPERSONATE-FE]', {
-      hasAccessToken: Boolean(accessToken?.trim()),
-      tokenPrefix: accessToken?.slice(0, 20),
-      url,
-    });
-  }
+  logAuthSessionDiag('IMPERSONATE-FE request', {
+    hasAccessToken: Boolean(accessToken?.trim()),
+    url,
+  });
+
+  runLegacySessionDevLog(() => {
+    console.log('[IMPERSONATE-FE] Authorization header configured');
+  });
 
   const requestConfig = {
     headers: {
@@ -240,10 +249,6 @@ const startImpersonation = async (
       Authorization: bearer,
     },
   };
-
-  if (import.meta.env.DEV) {
-    console.log('[IMPERSONATE-FE] Authorization header', requestConfig.headers.Authorization);
-  }
 
   const { data } = await api.post<LoginResponse>(url, {}, requestConfig);
 
@@ -275,14 +280,14 @@ const endImpersonation = async (accessToken: string): Promise<void> => {
   const url = '/auth/impersonate/end/';
   const bearer = `Bearer ${accessToken}`;
 
-  if (import.meta.env.DEV) {
-    console.log('[IMPERSONATE-FE] end', {
-      hasAccessToken: Boolean(accessToken?.trim()),
-      tokenPrefix: accessToken?.slice(0, 20),
-      url,
-    });
-    console.log('[IMPERSONATE-FE] end Authorization header', bearer);
-  }
+  logAuthSessionDiag('IMPERSONATE-FE end', {
+    hasAccessToken: Boolean(accessToken?.trim()),
+    url,
+  });
+
+  runLegacySessionDevLog(() => {
+    console.log('[IMPERSONATE-FE] end request prepared');
+  });
 
   try {
     await api.post(url, {}, { headers: { ...WEB_HEADERS, Authorization: bearer } });

@@ -4,6 +4,9 @@ import { ThemeProvider } from '@/shared/context/ThemeContext';
 import { NavModeProvider } from '@/shared/context/NavModeContext';
 import { AuthProvider } from '@/shared/context/AuthContext';
 import { AuthGate } from '@/core/auth/AuthGate';
+import { SessionBootstrapGate } from '@/core/auth/session/components/SessionBootstrapGate';
+import { SessionUxBinder } from '@/core/auth/session/components/SessionUxBinder';
+import { isSessionBootstrapGateActive } from '@/core/auth/session/session-ux.flags';
 import { PermissionProvider } from '@/core/auth/PermissionContext';
 import { useAuth } from '@/shared/context/AuthContext';
 import { usePermission } from '@/core/auth/PermissionContext';
@@ -31,6 +34,11 @@ const queryClient = new QueryClient({
 function AppReadyGate({ children }: { children: ReactNode }) {
   const { loading: authLoading } = useAuth();
   const { loading: permissionLoading } = usePermission();
+  const useUnifiedGate = isSessionBootstrapGateActive();
+
+  if (useUnifiedGate) {
+    return <SessionBootstrapGate>{children}</SessionBootstrapGate>;
+  }
 
   const appReady = !authLoading && !permissionLoading;
 
@@ -48,20 +56,22 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <AuthGate>
-            <TenantProvider>
-              <PermissionProvider>
-                <AppReadyGate>
-                  <BrandingInitializer />
-                  <DndProvider backend={HTML5Backend}>
-                    <NavModeProvider>
-                      {children}
-                    </NavModeProvider>
-                  </DndProvider>
-                </AppReadyGate>
-              </PermissionProvider>
-            </TenantProvider>
-          </AuthGate>
+          <SessionUxBinder>
+            <AuthGate>
+              <TenantProvider>
+                <PermissionProvider>
+                  <AppReadyGate>
+                    <BrandingInitializer />
+                    <DndProvider backend={HTML5Backend}>
+                      <NavModeProvider>
+                        {children}
+                      </NavModeProvider>
+                    </DndProvider>
+                  </AppReadyGate>
+                </PermissionProvider>
+              </TenantProvider>
+            </AuthGate>
+          </SessionUxBinder>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
