@@ -1,11 +1,13 @@
-import type { RouteObject } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { Navigate } from 'react-router-dom';
+import type { RouteObject } from 'react-router-dom';
 import SeleccionarEmpresaPage from '@/features/auth/pages/SeleccionarEmpresaPage';
 import OnboardingEmpresaPage from '@/features/auth/pages/OnboardingEmpresaPage';
-import { lazy, Suspense } from 'react';
-import { PermissionGuard } from '@/app/router/guards/PermissionGuard';
 import LoadingSpinner from '@/shared/components/LoadingSpinner';
+import { PermissionGuard } from '@/app/router/guards/PermissionGuard';
 import { homeRoutes } from '@/features/home/routes';
+
+const MySessionsPage = lazy(() => import('@/features/auth/pages/MySessionsPage'));
 
 const AutorizacionRouter = lazy(() => import('@/features/hcm/asistencia/autorizacion/routes'));
 const ReportesHCMRouter = lazy(() => import('@/features/hcm/reportes/routes'));
@@ -42,6 +44,14 @@ export const appRouteChildren: RouteObject[] = [
   { index: true, element: <Navigate to="/app/home" replace /> },
   { path: 'seleccionar-empresa', element: <SeleccionarEmpresaPage /> },
   { path: 'onboarding', element: <OnboardingEmpresaPage /> },
+  {
+    path: 'cuenta/sesiones',
+    element: (
+      <Suspense fallback={<LoadingSpinner message="Cargando sesiones..." />}>
+        <MySessionsPage />
+      </Suspense>
+    ),
+  },
   ...homeRoutes,
   {
     path: 'autorizacion/*',

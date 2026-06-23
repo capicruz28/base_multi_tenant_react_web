@@ -5,11 +5,13 @@ import type {
   GetAdminSessionsParams,
   LogoutAllSessionsResponse,
   PaginatedAdminSessionsResponse,
+  RevokeSessionResponse,
+  UserSessionRead,
 } from '@/features/admin/types/session.types';
 
 /**
  * Listado admin — siempre envía `page` (modo paginado opt-in).
- * El normalizador tolera respuesta legacy array.
+ * El normalizador tolera respuesta legacy array y dual envelope RC1.
  */
 export const getAdminSessions = async (
   params: GetAdminSessionsParams,
@@ -49,6 +51,36 @@ export const getAdminSessions = async (
   }
 };
 
+/** Sesiones del usuario autenticado — RC1 PATH A. */
+export const getMySessions = async (): Promise<UserSessionRead[]> => {
+  try {
+    const { data } = await api.get<UserSessionRead[]>('/auth/sessions/');
+    return data;
+  } catch (error) {
+    const axiosError = error as AxiosError<{ detail?: string }>;
+    console.error(
+      'Error fetching user sessions:',
+      axiosError.response?.data || axiosError.message,
+    );
+    throw error;
+  }
+};
+
+/** @deprecated Usar `getMySessions` — alias de compatibilidad (firma legacy `AdminSessionRead[]`). */
+export const getCurrentUserSessions = async (): Promise<AdminSessionRead[]> => {
+  try {
+    const { data } = await api.get<AdminSessionRead[]>('/auth/sessions/');
+    return data;
+  } catch (error) {
+    const axiosError = error as AxiosError<{ detail?: string }>;
+    console.error(
+      'Error fetching user sessions:',
+      axiosError.response?.data || axiosError.message,
+    );
+    throw error;
+  }
+};
+
 export const revokeSessionById = async (tokenId: string): Promise<void> => {
   try {
     await api.post(`/auth/sessions/${tokenId}/revoke_admin/`);
@@ -62,15 +94,17 @@ export const revokeSessionById = async (tokenId: string): Promise<void> => {
   }
 };
 
-/** Sesiones del usuario autenticado (self-service — fuera de pantalla admin). */
-export const getCurrentUserSessions = async (): Promise<AdminSessionRead[]> => {
+/** Self-revoke idempotente — RC1 POST /sessions/{token_id}/revoke/ */
+export const revokeSessionSelf = async (tokenId: string): Promise<RevokeSessionResponse> => {
   try {
-    const { data } = await api.get<AdminSessionRead[]>('/auth/sessions/');
+    const { data } = await api.post<RevokeSessionResponse>(
+      `/auth/sessions/${tokenId}/revoke/`,
+    );
     return data;
   } catch (error) {
     const axiosError = error as AxiosError<{ detail?: string }>;
     console.error(
-      'Error fetching user sessions:',
+      'Error revoking own session:',
       axiosError.response?.data || axiosError.message,
     );
     throw error;
@@ -89,4 +123,3 @@ export const logoutAllSessions = async (): Promise<void> => {
     throw error;
   }
 };
-

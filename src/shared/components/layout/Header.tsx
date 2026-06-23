@@ -306,6 +306,17 @@ const Header = () => {
               {/* Menú de opciones */}
               <button
                 className="w-full px-4 py-2 text-sm text-left text-brand-text-primary hover:bg-overlay flex items-center"
+                onClick={() => {
+                  navigate('/app/cuenta/sesiones');
+                  setIsMenuOpen(false);
+                }}
+              >
+                <MonitorSmartphone className="w-4 h-4 mr-3" />
+                Mis sesiones
+              </button>
+
+              <button
+                className="w-full px-4 py-2 text-sm text-left text-brand-text-primary hover:bg-overlay flex items-center"
               >
                 <User className="w-4 h-4 mr-3" />
                 Mi perfil

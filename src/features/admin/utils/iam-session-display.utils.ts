@@ -1,8 +1,6 @@
-import { parseUserAgentSummary } from '@/features/admin/utils/iam-session-user-agent.utils';
+import type { UserSessionStatus } from '@/features/admin/types/session.types';
 
 const DATE_PLACEHOLDER = '—';
-
-export type SessionExpirationStatus = 'active' | 'expiring_soon' | 'expired';
 
 export function formatSessionDateTime(value: string | null | undefined): string {
   if (value == null || value.trim() === '') {
@@ -18,19 +16,25 @@ export function formatSessionDateTime(value: string | null | undefined): string 
   }).format(date);
 }
 
-export function formatLastUsedAt(value: string | null | undefined): string {
-  if (value == null || value.trim() === '') {
-    return 'Nunca utilizada';
-  }
-  const formatted = formatSessionDateTime(value);
-  return formatted === DATE_PLACEHOLDER ? 'Nunca utilizada' : formatted;
+/** RC1 — `issued_at` con fallback legacy `created_at`. */
+export function formatIssuedAt(session: {
+  issued_at?: string;
+  created_at: string;
+}): string {
+  return formatSessionDateTime(session.issued_at ?? session.created_at);
 }
 
-export function formatDeviceName(value: string | null | undefined): string {
+/** RC1 — `last_refresh_at` con fallback legacy `last_used_at`. */
+export function formatLastRefreshAt(session: {
+  last_refresh_at?: string | null;
+  last_used_at?: string | null;
+}): string {
+  const value = session.last_refresh_at ?? session.last_used_at;
   if (value == null || value.trim() === '') {
-    return DATE_PLACEHOLDER;
+    return 'Sin refresh';
   }
-  return value;
+  const formatted = formatSessionDateTime(value);
+  return formatted === DATE_PLACEHOLDER ? 'Sin refresh' : formatted;
 }
 
 export function formatUserDisplayName(session: {
@@ -43,28 +47,16 @@ export function formatUserDisplayName(session: {
   return session.nombre_usuario ?? DATE_PLACEHOLDER;
 }
 
-export function getSessionExpirationStatus(expiresAt: string | null | undefined): SessionExpirationStatus | null {
-  if (expiresAt == null || expiresAt.trim() === '') {
-    return null;
+export function formatEmpresaNombre(value: string | null | undefined): string {
+  if (value == null || value.trim() === '') {
+    return DATE_PLACEHOLDER;
   }
-  const expiration = new Date(expiresAt);
-  if (Number.isNaN(expiration.getTime())) {
-    return null;
-  }
-  const diffHours = (expiration.getTime() - Date.now()) / (1000 * 60 * 60);
-  if (diffHours < 0) {
-    return 'expired';
-  }
-  if (diffHours < 24) {
-    return 'expiring_soon';
-  }
-  return 'active';
+  return value;
 }
 
-export function getSessionExpirationBadgeLabel(status: SessionExpirationStatus | null): string {
+/** Etiqueta badge — consume únicamente `status` del Backend RC1. */
+export function getSessionStatusBadgeLabel(status: UserSessionStatus | undefined): string {
   switch (status) {
-    case 'expired':
-      return 'Expirada';
     case 'expiring_soon':
       return 'Expira pronto';
     case 'active':
@@ -74,10 +66,8 @@ export function getSessionExpirationBadgeLabel(status: SessionExpirationStatus |
   }
 }
 
-export function getSessionExpirationBadgeClass(status: SessionExpirationStatus | null): string {
+export function getSessionStatusBadgeClass(status: UserSessionStatus | undefined): string {
   switch (status) {
-    case 'expired':
-      return 'bg-error/10 text-error';
     case 'expiring_soon':
       return 'bg-warning/10 text-warning';
     case 'active':
@@ -87,10 +77,7 @@ export function getSessionExpirationBadgeClass(status: SessionExpirationStatus |
   }
 }
 
-export function formatBrowserLabel(userAgent: string | null | undefined): string {
-  return parseUserAgentSummary(userAgent).browser;
-}
-
-export function formatOsLabel(userAgent: string | null | undefined): string {
-  return parseUserAgentSummary(userAgent).os;
+/** Copy acción cierre sesión — FE-IMPL-03-V2. */
+export function getSessionCloseActionLabel(isCurrent: boolean): string {
+  return isCurrent ? 'Cerrar esta sesión' : 'Cerrar sesión';
 }

@@ -1,5 +1,4 @@
 import {
-  AlertTriangle,
   Calendar,
   Globe,
   LogOut,
@@ -8,15 +7,19 @@ import {
 } from 'lucide-react';
 import type { AdminSessionRead } from '@/features/admin/types/session.types';
 import {
-  formatBrowserLabel,
-  formatDeviceName,
-  formatLastUsedAt,
-  formatOsLabel,
+  getCurrentSessionCardClass,
+  SessionCurrentMarker,
+} from '@/features/admin/components/iam/sessions/SessionCurrentMarker';
+import { SessionDeviceCell } from '@/features/admin/components/iam/sessions/SessionDeviceCell';
+import { SessionStatusBadge } from '@/features/admin/components/iam/sessions/SessionStatusBadge';
+import type { ActiveSessionsViewVariant } from '@/features/admin/components/iam/sessions/ActiveSessionsTableView';
+import {
+  formatEmpresaNombre,
+  formatIssuedAt,
+  formatLastRefreshAt,
   formatSessionDateTime,
   formatUserDisplayName,
-  getSessionExpirationBadgeClass,
-  getSessionExpirationBadgeLabel,
-  getSessionExpirationStatus,
+  getSessionCloseActionLabel,
 } from '@/features/admin/utils/iam-session-display.utils';
 
 function ClientTypeIcon({ clientType }: { clientType: string }) {
@@ -30,25 +33,12 @@ function ClientTypeIcon({ clientType }: { clientType: string }) {
   }
 }
 
-function ExpirationBadge({ expiresAt }: { expiresAt: string }) {
-  const status = getSessionExpirationStatus(expiresAt);
-  const label = getSessionExpirationBadgeLabel(status);
-  const className = getSessionExpirationBadgeClass(status);
-  return (
-    <span
-      className={`px-2 py-1 text-xs font-semibold rounded-full inline-flex items-center gap-1 ${className}`}
-    >
-      {status === 'expiring_soon' ? <AlertTriangle className="h-3 w-3" aria-hidden /> : null}
-      {label}
-    </span>
-  );
-}
-
 export interface ActiveSessionsCardsViewProps {
   sessions: AdminSessionRead[];
   onRevoke: (session: AdminSessionRead) => void;
   isCurrentSession: (session: AdminSessionRead) => boolean;
   actionsDisabled?: boolean;
+  variant?: ActiveSessionsViewVariant;
 }
 
 export function ActiveSessionsCardsView({
@@ -56,61 +46,72 @@ export function ActiveSessionsCardsView({
   onRevoke,
   isCurrentSession,
   actionsDisabled = false,
+  variant = 'admin',
 }: ActiveSessionsCardsViewProps) {
+  const isAdminVariant = variant === 'admin';
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
       {sessions.map((session) => {
         const isCurrent = isCurrentSession(session);
+        const closeLabel = getSessionCloseActionLabel(isCurrent);
+
         return (
           <div
             key={session.token_id}
-            className={`bg-surface rounded-lg shadow border p-5 transition-all hover:shadow-md ${
-              isCurrent
-                ? 'border-brand-primary ring-2 ring-brand-primary/20'
-                : 'border-border-base'
-            }`}
+            className={`bg-surface rounded-lg shadow border p-5 transition-all ${getCurrentSessionCardClass(isCurrent)}`}
+            data-current-session={isCurrent ? 'true' : 'false'}
           >
             <div className="flex items-start justify-between mb-3 gap-2">
               <div className="flex-1 min-w-0">
-                <h3 className="text-base font-semibold text-text-base truncate flex items-center gap-2">
-                  {session.nombre_usuario ?? '—'}
-                  {isCurrent ? (
-                    <span className="text-xs bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full shrink-0">
-                      Tu sesión
-                    </span>
-                  ) : null}
-                </h3>
-                <p className="text-sm text-text-soft truncate">{formatUserDisplayName(session)}</p>
+                {isAdminVariant ? (
+                  <>
+                    <h3 className="text-base font-semibold text-text-base truncate flex flex-wrap items-center gap-2">
+                      {session.nombre_usuario ?? '—'}
+                      {isCurrent ? <SessionCurrentMarker /> : null}
+                    </h3>
+                    <p className="text-sm text-text-soft truncate">{formatUserDisplayName(session)}</p>
+                  </>
+                ) : (
+                  <h3 className="text-base font-semibold text-text-base flex flex-wrap items-center gap-2">
+                    <SessionDeviceCell device={session.device} display="label" />
+                    {isCurrent ? <SessionCurrentMarker /> : null}
+                  </h3>
+                )}
               </div>
-              <ExpirationBadge expiresAt={session.expires_at} />
+              <SessionStatusBadge status={session.status} />
             </div>
 
             <div className="space-y-2 mb-4 text-sm text-text-soft">
+              {isAdminVariant ? (
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 shrink-0" aria-hidden />
+                  <span>Empresa: {formatEmpresaNombre(session.empresa_nombre)}</span>
+                </div>
+              ) : null}
               <div className="flex items-center gap-2">
                 <ClientTypeIcon clientType={session.client_type} />
                 <span className="capitalize">{session.client_type}</span>
               </div>
               <div className="flex items-start gap-2">
                 <Monitor className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
-                <span>Dispositivo: {formatDeviceName(session.device_name)}</span>
+                <SessionDeviceCell device={session.device} display="label" />
               </div>
               <div className="flex items-start gap-2">
                 <Globe className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
-                <span>
-                  {formatBrowserLabel(session.user_agent)} · {formatOsLabel(session.user_agent)}
-                </span>
+                <SessionDeviceCell device={session.device} display="browser" />
               </div>
               <div className="flex items-center gap-2">
                 <Globe className="h-4 w-4" aria-hidden />
-                <span className="truncate">{session.ip_address ?? '—'}</span>
+                <SessionDeviceCell device={session.device} display="ip" />
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" aria-hidden />
-                <span>Creada: {formatSessionDateTime(session.created_at)}</span>
+                <span>Emitida: {formatIssuedAt(session)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" aria-hidden />
-                <span>Última actividad: {formatLastUsedAt(session.last_used_at)}</span>
+                <span>Último refresh: {formatLastRefreshAt(session)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" aria-hidden />
@@ -123,10 +124,11 @@ export function ActiveSessionsCardsView({
               onClick={() => onRevoke(session)}
               disabled={actionsDisabled}
               className="w-full px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-colors bg-error text-white hover:bg-error/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Revocar sesión"
+              title={closeLabel}
+              aria-label={closeLabel}
             >
-              <LogOut className="h-4 w-4" />
-              Revocar sesión
+              <LogOut className="h-4 w-4" aria-hidden />
+              {closeLabel}
             </button>
           </div>
         );

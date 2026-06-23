@@ -4,7 +4,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import {
   executeActiveSessionRevoke,
   type ActiveSessionRevokeDeps,
-} from '@/features/admin/pages/ActiveSessionsPage';
+} from '@/features/admin/utils/iam-session-revoke.utils';
 import type { AdminSessionRead } from '@/features/admin/types/session.types';
 import { isCurrentSession } from '@/features/admin/utils/iam-current-session';
 
@@ -14,13 +14,32 @@ vi.mock('@/core/auth/session/session-logout-v3.flags', () => ({
 
 const CURRENT_TOKEN_ID = 'token-browser-b';
 
+const RC1_DEVICE = {
+  client_type: 'web',
+  browser: 'Chrome',
+  browser_version: '120',
+  os: 'Windows',
+  platform: 'desktop',
+  device_label: 'Chrome en Windows',
+  ip_address: '127.0.0.1',
+  device_id: 'device-b',
+} as const;
+
 const currentSession: AdminSessionRead = {
   token_id: CURRENT_TOKEN_ID,
   usuario_id: 'user-tenant-admin',
   cliente_id: 'client-1',
+  empresa_id: null,
+  empresa_nombre: null,
+  issued_at: '2026-01-01T00:00:00Z',
   created_at: '2026-01-01T00:00:00Z',
+  last_refresh_at: '2026-01-01T12:00:00Z',
   last_used_at: '2026-01-01T12:00:00Z',
   expires_at: '2026-12-31T00:00:00Z',
+  is_current: true,
+  status: 'active',
+  duration_seconds: 86400,
+  device: { ...RC1_DEVICE },
   device_name: 'Chrome',
   device_id: 'device-b',
   ip_address: '127.0.0.1',
@@ -34,14 +53,22 @@ const currentSession: AdminSessionRead = {
 const otherBrowserSameUserSession: AdminSessionRead = {
   ...currentSession,
   token_id: 'token-browser-a',
+  is_current: false,
   device_id: 'device-a',
   device_name: 'Firefox',
   user_agent: 'Mozilla/5.0 Firefox',
+  device: {
+    ...RC1_DEVICE,
+    browser: 'Firefox',
+    device_label: 'Firefox en Windows',
+    device_id: 'device-a',
+  },
 };
 
 const otherUserSession: AdminSessionRead = {
   ...currentSession,
   token_id: 'token-other-user',
+  is_current: false,
   usuario_id: 'user-other',
   nombre_usuario: 'Bob Usuario',
   nombre: 'Bob',
@@ -104,12 +131,27 @@ describe('executeActiveSessionRevoke post-revoke probe (IMPL-08)', () => {
     expect(deps.showSuccessToast).toHaveBeenCalledTimes(1);
   });
 
-  it('current_token_id null — ninguna sesión dispara probe', async () => {
+  it('is_current false — probe solo si token no coincide', async () => {
+    const deps = createDeps({
+      isCurrentSession: (session) => isCurrentSession(session, CURRENT_TOKEN_ID),
+    });
+    const sessionWithFalseFlag = { ...currentSession, is_current: false };
+
+    await executeActiveSessionRevoke(sessionWithFalseFlag, queryClient, deps);
+
+    expect(deps.runSessionValidityProbe).toHaveBeenCalledTimes(1);
+  });
+
+  it('current_token_id null — fallback no dispara probe sin is_current true', async () => {
     const deps = createDeps({
       isCurrentSession: (session) => isCurrentSession(session, null),
     });
+    const sessionWithoutFlag = {
+      ...currentSession,
+      is_current: undefined as unknown as boolean,
+    };
 
-    await executeActiveSessionRevoke(currentSession, queryClient, deps);
+    await executeActiveSessionRevoke(sessionWithoutFlag, queryClient, deps);
 
     expect(deps.runSessionValidityProbe).not.toHaveBeenCalled();
   });
@@ -137,5 +179,13 @@ describe('executeActiveSessionRevoke post-revoke probe (IMPL-08)', () => {
     expect(deps.showSuccessToast).toHaveBeenCalledTimes(1);
     expect(deps.invalidateActiveSessionsListQueries).toHaveBeenCalledTimes(1);
     expect(deps.showErrorToast).not.toHaveBeenCalled();
+  });
+});
+
+/** Compatibilidad: re-export desde ActiveSessionsPage sigue resolviendo el mismo símbolo. */
+describe('ActiveSessionsPage re-export', () => {
+  it('executeActiveSessionRevoke re-exportado desde la page', async () => {
+    const pageModule = await import('@/features/admin/pages/ActiveSessionsPage');
+    expect(pageModule.executeActiveSessionRevoke).toBe(executeActiveSessionRevoke);
   });
 });

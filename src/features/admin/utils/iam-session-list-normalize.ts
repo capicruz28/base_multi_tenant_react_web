@@ -4,21 +4,41 @@ import type {
   PaginatedAdminSessionsResponse,
 } from '@/features/admin/types/session.types';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 export function isPaginatedAdminSessionsResponse(
   data: unknown,
 ): data is PaginatedAdminSessionsResponse {
-  return (
-    data !== null &&
-    typeof data === 'object' &&
-    !Array.isArray(data) &&
-    'sessions' in data &&
-    Array.isArray((data as PaginatedAdminSessionsResponse).sessions)
-  );
+  if (!isRecord(data)) {
+    return false;
+  }
+
+  const hasItemsEnvelope = Array.isArray(data.items);
+  const hasLegacyEnvelope = Array.isArray(data.sessions);
+
+  return hasItemsEnvelope || hasLegacyEnvelope;
+}
+
+function resolvePaginatedItems(data: PaginatedAdminSessionsResponse): AdminSessionRead[] {
+  if (Array.isArray(data.items)) {
+    return data.items;
+  }
+  return data.sessions ?? [];
+}
+
+function resolvePaginatedTotal(data: PaginatedAdminSessionsResponse): number {
+  if (typeof data.total === 'number') {
+    return data.total;
+  }
+  return data.total_sesiones ?? 0;
 }
 
 /**
- * Normaliza legacy `AdminSessionRead[]` o envelope paginado → ErpPaginatedResponse.
- * Legacy: aplica slice client-side según page/limit solicitados.
+ * Normaliza legacy `AdminSessionRead[]` o envelope paginado RC1 → ErpPaginatedResponse.
+ * Dual envelope: `items`/`total` (canónico) + `sessions`/`total_sesiones` (legacy).
+ * Array legacy: slice client-side según page/limit solicitados.
  */
 export function normalizeAdminSessionsResponse(
   data: AdminSessionRead[] | PaginatedAdminSessionsResponse,
@@ -27,8 +47,8 @@ export function normalizeAdminSessionsResponse(
 ): ErpPaginatedResponse<AdminSessionRead> {
   if (isPaginatedAdminSessionsResponse(data)) {
     return {
-      items: data.sessions,
-      total: data.total_sesiones,
+      items: resolvePaginatedItems(data),
+      total: resolvePaginatedTotal(data),
       pagina_actual: data.pagina_actual,
       total_paginas: data.total_paginas,
       limit: data.limit,

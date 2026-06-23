@@ -1,15 +1,18 @@
-import { AlertTriangle, LogOut, Monitor, Smartphone, Globe } from 'lucide-react';
+import { LogOut, Monitor, Smartphone, Globe } from 'lucide-react';
 import type { AdminSessionRead, AdminSessionSortBy, AdminSessionSortOrder } from '@/features/admin/types/session.types';
+import { SessionCurrentMarker, getCurrentSessionLeadingCellClass, getCurrentSessionRowClass } from '@/features/admin/components/iam/sessions/SessionCurrentMarker';
+import { SessionDeviceCell } from '@/features/admin/components/iam/sessions/SessionDeviceCell';
+import { SessionStatusBadge } from '@/features/admin/components/iam/sessions/SessionStatusBadge';
 import {
-  formatBrowserLabel,
-  formatDeviceName,
-  formatLastUsedAt,
+  formatEmpresaNombre,
+  formatIssuedAt,
+  formatLastRefreshAt,
   formatSessionDateTime,
   formatUserDisplayName,
-  getSessionExpirationBadgeClass,
-  getSessionExpirationBadgeLabel,
-  getSessionExpirationStatus,
+  getSessionCloseActionLabel,
 } from '@/features/admin/utils/iam-session-display.utils';
+
+export type ActiveSessionsViewVariant = 'admin' | 'self';
 
 function SortIndicator({
   column,
@@ -35,20 +38,6 @@ function ClientTypeIcon({ clientType }: { clientType: string }) {
   }
 }
 
-function ExpirationBadge({ expiresAt }: { expiresAt: string }) {
-  const status = getSessionExpirationStatus(expiresAt);
-  const label = getSessionExpirationBadgeLabel(status);
-  const className = getSessionExpirationBadgeClass(status);
-  return (
-    <span
-      className={`px-2 py-1 text-xs font-semibold rounded-full inline-flex items-center gap-1 ${className}`}
-    >
-      {status === 'expiring_soon' ? <AlertTriangle className="h-3 w-3" aria-hidden /> : null}
-      {label}
-    </span>
-  );
-}
-
 export interface ActiveSessionsTableViewProps {
   sessions: AdminSessionRead[];
   sortBy?: AdminSessionSortBy;
@@ -57,6 +46,7 @@ export interface ActiveSessionsTableViewProps {
   onRevoke: (session: AdminSessionRead) => void;
   isCurrentSession: (session: AdminSessionRead) => boolean;
   actionsDisabled?: boolean;
+  variant?: ActiveSessionsViewVariant;
 }
 
 export function ActiveSessionsTableView({
@@ -67,7 +57,10 @@ export function ActiveSessionsTableView({
   onRevoke,
   isCurrentSession,
   actionsDisabled = false,
+  variant = 'admin',
 }: ActiveSessionsTableViewProps) {
+  const isAdminVariant = variant === 'admin';
+
   const sortableTh = (
     column: AdminSessionSortBy,
     label: string,
@@ -94,7 +87,12 @@ export function ActiveSessionsTableView({
       <table className="min-w-full divide-y divide-border-base">
         <thead className="bg-subtle">
           <tr>
-            {sortableTh('nombre_usuario', 'Usuario')}
+            {isAdminVariant ? sortableTh('nombre_usuario', 'Usuario') : null}
+            {isAdminVariant ? (
+              <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
+                Empresa
+              </th>
+            ) : null}
             {sortableTh('client_type', 'Tipo cliente')}
             <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
               Dispositivo
@@ -105,8 +103,8 @@ export function ActiveSessionsTableView({
             <th className="px-6 py-3 text-left text-xs font-medium text-text-soft uppercase tracking-wider">
               IP
             </th>
-            {sortableTh('created_at', 'Creada')}
-            {sortableTh('last_used_at', 'Última actividad')}
+            {sortableTh('created_at', 'Emitida')}
+            {sortableTh('last_used_at', 'Último refresh')}
             {sortableTh('expires_at', 'Expira')}
             <th className="px-6 py-3 text-center text-xs font-medium text-text-soft uppercase tracking-wider">
               Acciones
@@ -116,42 +114,62 @@ export function ActiveSessionsTableView({
         <tbody className="bg-surface divide-y divide-border-base">
           {sessions.map((session) => {
             const isCurrent = isCurrentSession(session);
+            const closeLabel = getSessionCloseActionLabel(isCurrent);
+
             return (
-              <tr key={session.token_id} className="hover:bg-overlay/50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <div className="font-medium text-text-base">{session.nombre_usuario ?? '—'}</div>
-                  <div className="text-text-soft text-xs">{formatUserDisplayName(session)}</div>
-                  {isCurrent ? (
-                    <span className="mt-1 inline-block text-xs bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full">
-                      Tu sesión
+              <tr
+                key={session.token_id}
+                className={getCurrentSessionRowClass(isCurrent)}
+                data-current-session={isCurrent ? 'true' : 'false'}
+              >
+                {isAdminVariant ? (
+                  <td
+                    className={`px-6 py-4 whitespace-nowrap text-sm ${getCurrentSessionLeadingCellClass(isCurrent)}`}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div>
+                        <div className="font-medium text-text-base">{session.nombre_usuario ?? '—'}</div>
+                        <div className="text-text-soft text-xs">{formatUserDisplayName(session)}</div>
+                      </div>
+                      {isCurrent ? <SessionCurrentMarker /> : null}
+                    </div>
+                  </td>
+                ) : null}
+                {isAdminVariant ? (
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
+                    {formatEmpresaNombre(session.empresa_nombre)}
+                  </td>
+                ) : null}
+                <td
+                  className={`px-6 py-4 whitespace-nowrap text-sm text-text-soft ${!isAdminVariant ? getCurrentSessionLeadingCellClass(isCurrent) : ''}`}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!isAdminVariant && isCurrent ? <SessionCurrentMarker /> : null}
+                    <span className="inline-flex items-center gap-2 capitalize">
+                      <ClientTypeIcon clientType={session.client_type} />
+                      {session.client_type}
                     </span>
-                  ) : null}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <SessionDeviceCell device={session.device} display="label" />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <SessionDeviceCell device={session.device} display="browser" />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <SessionDeviceCell device={session.device} display="ip" />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
-                  <span className="inline-flex items-center gap-2 capitalize">
-                    <ClientTypeIcon clientType={session.client_type} />
-                    {session.client_type}
-                  </span>
+                  {formatIssuedAt(session)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
-                  {formatDeviceName(session.device_name)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
-                  {formatBrowserLabel(session.user_agent)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
-                  {session.ip_address ?? '—'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
-                  {formatSessionDateTime(session.created_at)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-text-soft">
-                  {formatLastUsedAt(session.last_used_at)}
+                  {formatLastRefreshAt(session)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <div className="flex flex-col gap-1">
                     <span className="text-text-soft">{formatSessionDateTime(session.expires_at)}</span>
-                    <ExpirationBadge expiresAt={session.expires_at} />
+                    <SessionStatusBadge status={session.status} />
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
@@ -159,11 +177,12 @@ export function ActiveSessionsTableView({
                     type="button"
                     onClick={() => onRevoke(session)}
                     disabled={actionsDisabled}
-                    className="inline-flex items-center gap-1 text-error hover:text-error/80 p-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Revocar sesión"
+                    className="inline-flex items-center gap-1.5 text-error hover:text-error/80 px-2 py-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={closeLabel}
+                    aria-label={closeLabel}
                   >
-                    <LogOut className="h-4 w-4" />
-                    <span className="sr-only">Revocar sesión</span>
+                    <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+                    <span className="text-xs font-medium">{closeLabel}</span>
                   </button>
                 </td>
               </tr>

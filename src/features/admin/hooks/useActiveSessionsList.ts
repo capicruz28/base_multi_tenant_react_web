@@ -15,7 +15,7 @@ export const ACTIVE_SESSIONS_LIST_QUERY_KEY = ['admin', 'sessions', 'list'] as c
 
 export const DEFAULT_ACTIVE_SESSIONS_LIST_LIMIT = 25;
 
-export const ACTIVE_SESSIONS_TABLE_COLSPAN = 9;
+export const ACTIVE_SESSIONS_TABLE_COLSPAN = 10;
 
 export const ACTIVE_SESSIONS_LIMIT_OPTIONS = [10, 25, 50] as const;
 

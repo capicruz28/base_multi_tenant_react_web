@@ -375,9 +375,13 @@ describe('IAM-FE-PHASE-03 Paso 9 — integración V3.x', () => {
 
     it('ActiveSessionsPage consume runSessionValidityProbe vía useAuth/deps (IMPL-08)', () => {
       const pageSrc = readSource('src/features/admin/pages/ActiveSessionsPage.tsx');
+      const revokeHookSrc = readSource('src/features/admin/hooks/useRevokeSession.ts');
+      const revokeUtilsSrc = readSource('src/features/admin/utils/iam-session-revoke.utils.ts');
 
-      expect(pageSrc).toMatch(/runSessionValidityProbe/);
+      expect(pageSrc).toMatch(/useRevokeSession/);
       expect(pageSrc).toMatch(/useAuth\(\)/);
+      expect(revokeHookSrc).toMatch(/runSessionValidityProbe/);
+      expect(revokeUtilsSrc).toMatch(/runSessionValidityProbe/);
       expect(pageSrc).not.toMatch(/authService\.me/);
       expect(pageSrc).not.toMatch(/import.*terminateSession/);
       expect(pageSrc).not.toMatch(/terminateSession\s*\(/);

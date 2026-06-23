@@ -1,3 +1,8 @@
+/**
+ * DEPRECATED (RC1 §9): no usar para display en Table/Cards/MySessions.
+ * El Backend expone `device.browser`, `device.os` y `device.device_label`.
+ * Mantener solo para diagnóstico legacy o referencias históricas hasta V2.
+ */
 export interface UserAgentSummary {
   browser: string;
   os: string;
@@ -5,6 +10,7 @@ export interface UserAgentSummary {
 
 const PLACEHOLDER = '—';
 
+/** @deprecated RC1 — usar `session.device.browser` / `session.device.os` en UI. */
 export function parseUserAgentSummary(userAgent: string | null | undefined): UserAgentSummary {
   if (userAgent == null || userAgent.trim() === '') {
     return { browser: PLACEHOLDER, os: PLACEHOLDER };
