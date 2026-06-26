@@ -16,6 +16,7 @@ export function useEmpresaActiva() {
     mustSelectEmpresa,
     cambiarEmpresaActiva,
     userType,
+    isImpersonation,
   } = useAuth();
 
   const isPlatformAdmin = userType === 'platform_admin';
@@ -23,8 +24,10 @@ export function useEmpresaActiva() {
   const showEmpresaActiva =
     hasEmpresaActivaFlag && !requiereSeleccionEmpresa && !isPlatformAdmin;
 
-  /** Dropdown interactivo solo si hay más de una empresa elegible. */
-  const canSwitchEmpresa = empresasElegibles.length > 1;
+  /** Dropdown interactivo solo si hay más de una empresa elegible y no hay impersonación. */
+  const cambiarEmpresaBlockedByImpersonation = isImpersonation;
+  const canSwitchEmpresa =
+    empresasElegibles.length > 1 && !cambiarEmpresaBlockedByImpersonation;
 
   return {
     empresaActivaId,
@@ -41,6 +44,7 @@ export function useEmpresaActiva() {
     /** @deprecated Usar showEmpresaActiva */
     showEmpresaSelector: showEmpresaActiva,
     canSwitchEmpresa,
+    cambiarEmpresaBlockedByImpersonation,
     /** @deprecated Usar canSwitchEmpresa */
     isMultiEmpresa: canSwitchEmpresa,
     userType,

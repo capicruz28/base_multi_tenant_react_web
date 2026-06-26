@@ -15,7 +15,8 @@ export const ACTIVE_SESSIONS_LIST_QUERY_KEY = ['admin', 'sessions', 'list'] as c
 
 export const DEFAULT_ACTIVE_SESSIONS_LIST_LIMIT = 25;
 
-export const ACTIVE_SESSIONS_TABLE_COLSPAN = 10;
+/** Columnas tabla admin enterprise — spec v1.1 Fase 1A. */
+export const ACTIVE_SESSIONS_TABLE_COLSPAN = 5;
 
 export const ACTIVE_SESSIONS_LIMIT_OPTIONS = [10, 25, 50] as const;
 
@@ -101,5 +102,6 @@ export function useActiveSessionsList(options: UseActiveSessionsListOptions) {
     isError: query.isError,
     error: query.error,
     refetch: query.refetch,
+    dataUpdatedAt: query.dataUpdatedAt,
   };
 }

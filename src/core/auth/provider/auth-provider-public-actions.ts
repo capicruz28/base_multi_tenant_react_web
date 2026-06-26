@@ -4,6 +4,7 @@
 import { useCallback, useMemo } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
+import { toast } from 'react-hot-toast';
 
 import type {
 	AuthProviderAuthState,
@@ -65,6 +66,7 @@ import {
 	shouldRedirectToSuperAdminAfterImpersonationExit,
 } from '@/core/auth/session/session-impersonation-exit.policy';
 import { registerCambiarEmpresaL02Guard } from '@/core/auth/session/session-cambiar-empresa-l02';
+import { evaluateCambiarEmpresaImpersonationGuard } from '@/core/auth/session/session-cambiar-empresa-impersonation.guard';
 
 export interface UseAuthProviderPublicActionsParams {
 	readonly initialAuth: AuthProviderAuthState;
@@ -277,67 +279,21 @@ export function useAuthProviderPublicActions(
 
 	const cambiarEmpresaActiva = useCallback(
 		async (empresaId: string): Promise<UserData | null> => {
-			if (isImpersonationSupportMode(authRef.current.token)) {
-				const precheckDecision = resolveImpersonationExitPolicy({
-					isSupportMode: true,
-					context: 'cambiar_empresa_precheck',
-				});
-				if (
-					precheckDecision.action === 'CONTROLLED_EXIT' &&
-					precheckDecision.source
-				) {
-					const redirectToSuperAdmin = shouldRedirectToSuperAdminAfterImpersonationExit(
-						window.location.pathname,
-						precheckDecision.source,
-					);
-					await runImpersonationControlledExit({
-						source: precheckDecision.source,
-						redirectToSuperAdmin,
-						skipEndImpersonationApi: true,
-					});
-					return null;
-				}
+			const guard = evaluateCambiarEmpresaImpersonationGuard(authRef.current.token);
+			if (guard.blocked) {
+				toast(guard.message);
+				return null;
 			}
 
-			try {
-				const tokenResponse = await authService.cambiarEmpresa(empresaId);
-				const session = await applyFullSessionToken(tokenResponse);
-				if (session?.user && tokenResponse.access_token) {
-					registerCambiarEmpresaL02Guard(empresaId);
-					emitAuthSyncSessionToken('EMPRESA_CHANGED', tokenResponse.access_token);
-				}
-				return session?.user ?? null;
-			} catch (error) {
-				const axiosError = error as AxiosError;
-				if (
-					isImpersonationSupportMode(authRef.current.token) &&
-					axiosError.response?.status === 403
-				) {
-					const forbiddenDecision = resolveImpersonationExitPolicy({
-						isSupportMode: true,
-						context: 'cambiar_empresa_forbidden',
-						httpStatus: 403,
-					});
-					if (
-						forbiddenDecision.action === 'CONTROLLED_EXIT' &&
-						forbiddenDecision.source
-					) {
-						const redirectToSuperAdmin = shouldRedirectToSuperAdminAfterImpersonationExit(
-							window.location.pathname,
-							forbiddenDecision.source,
-						);
-						await runImpersonationControlledExit({
-							source: forbiddenDecision.source,
-							redirectToSuperAdmin,
-							skipEndImpersonationApi: true,
-						});
-						return null;
-					}
-				}
-				throw error;
+			const tokenResponse = await authService.cambiarEmpresa(empresaId);
+			const session = await applyFullSessionToken(tokenResponse);
+			if (session?.user && tokenResponse.access_token) {
+				registerCambiarEmpresaL02Guard(empresaId);
+				emitAuthSyncSessionToken('EMPRESA_CHANGED', tokenResponse.access_token);
 			}
+			return session?.user ?? null;
 		},
-		[applyFullSessionToken, emitAuthSyncSessionToken, runImpersonationControlledExit],
+		[applyFullSessionToken, emitAuthSyncSessionToken],
 	);
 
 	const { reloadMenuAndPermissions } = useAuthProviderPermissionsReloadMenu({

@@ -1,5 +1,11 @@
 import type { UserSessionRead } from '@/features/admin/types/session.types';
 
+/** Contexto de sesión actual desde GET /auth/me/ (IAM V2 + fallback RC1). */
+export interface CurrentSessionMatchContext {
+  currentSessionId: string | null | undefined;
+  currentTokenId: string | null | undefined;
+}
+
 function coerceIsCurrentFlag(value: unknown): boolean | undefined {
   if (value === true || value === 1) {
     return true;
@@ -19,7 +25,7 @@ function coerceIsCurrentFlag(value: unknown): boolean | undefined {
   return undefined;
 }
 
-function normalizeTokenId(value: string | null | undefined): string | null {
+function normalizeId(value: string | null | undefined): string | null {
   if (value == null) {
     return null;
   }
@@ -27,29 +33,32 @@ function normalizeTokenId(value: string | null | undefined): string | null {
   return trimmed.length > 0 ? trimmed.toLowerCase() : null;
 }
 
-function tokensMatch(
-  sessionTokenId: string,
-  currentTokenId: string | null | undefined,
+function idsMatch(
+  sessionValue: string | null | undefined,
+  currentValue: string | null | undefined,
 ): boolean {
-  const sessionToken = normalizeTokenId(sessionTokenId);
-  const currentToken = normalizeTokenId(currentTokenId);
-  return sessionToken !== null && currentToken !== null && sessionToken === currentToken;
+  const sessionId = normalizeId(sessionValue);
+  const currentId = normalizeId(currentValue);
+  return sessionId !== null && currentId !== null && sessionId === currentId;
 }
 
 /**
- * Identifica la sesión refresh actual del cliente autenticado.
- * RC1: `is_current === true` del Backend; fallback `current_token_id === token_id`.
- * HOTFIX RC1: si el Backend envía `is_current: false` pero el token coincide, confiar en el token.
+ * Identifica la sesión actual del cliente autenticado.
+ * Prioridad: `is_current` → `session_id` vs `current_session_id` → `token_id` vs `current_token_id` (RC1).
  */
 export function isCurrentSession(
-  session: Pick<UserSessionRead, 'token_id' | 'is_current'>,
-  currentTokenId: string | null | undefined,
+  session: Pick<UserSessionRead, 'session_id' | 'token_id' | 'is_current'>,
+  context: CurrentSessionMatchContext,
 ): boolean {
   if (coerceIsCurrentFlag(session.is_current) === true) {
     return true;
   }
 
-  if (tokensMatch(session.token_id, currentTokenId)) {
+  if (idsMatch(session.session_id, context.currentSessionId)) {
+    return true;
+  }
+
+  if (idsMatch(session.token_id, context.currentTokenId)) {
     return true;
   }
 

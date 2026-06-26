@@ -19,15 +19,20 @@ import {
 } from 'lucide-react';
 import { conexionService } from '../services/conexion.service';
 import { Conexion } from '../types/conexion.types';
+import type { Cliente } from '../types/cliente.types';
 import { getErrorMessage } from '@/core/services/error.service';
 import CreateConnectionModal from './CreateConnectionModal';
 import EditConnectionModal from './EditConnectionModal';
 
 interface ClientConnectionsTabProps {
   clienteId: string;
+  tipoInstalacion: Cliente['tipo_instalacion'];
 }
 
-const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }) => {
+const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({
+  clienteId,
+  tipoInstalacion,
+}) => {
   const [conexiones, setConexiones] = useState<Conexion[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -355,6 +360,7 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({ clienteId }
           onClose={() => setIsCreateModalOpen(false)}
           onSuccess={handleCreateSuccess}
           clienteId={clienteId}
+          tipoInstalacion={tipoInstalacion}
         />
       )}
 

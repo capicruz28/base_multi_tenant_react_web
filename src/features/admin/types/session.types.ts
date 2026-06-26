@@ -1,4 +1,8 @@
-/** Contrato ERP-IAM-SESSIONS-API-CONTRACT-V1 (RC1). */
+/**
+ * Contrato IAM Session Management V2 — Password Authentication.
+ * Referencia: IAM_SESSION_MANAGEMENT_V2_BACKEND_SPECIFICATION.md §6.10, §8.3.
+ * Compat: campos legacy RC1 (`created_at`, `last_used_at`, `ip_address` raíz) permanecen opcionales.
+ */
 
 export type UserSessionStatus = 'active' | 'expiring_soon';
 
@@ -9,34 +13,47 @@ export interface SessionDeviceRead {
   os: string;
   platform: string;
   device_label: string;
+  /** Última IP conocida (`last_seen_ip` en BD). */
   ip_address: string | null;
   device_id: string | null;
 }
 
 export interface UserSessionRead {
+  /** Identificador estable de sesión (IAM V2). Fallback revoke/UI: `token_id` si ausente. */
+  session_id?: string | null;
+  /** Refresh vigente — cambia en RTR; no usar como ID de sesión en V2. */
   token_id: string;
   usuario_id: string;
   cliente_id: string;
   empresa_id: string | null;
   empresa_nombre: string | null;
+  /** Inicio de sesión (`user_session.created_at` en V2). Estable tras RTR. */
   issued_at: string;
-  /** Legacy alias — mismo valor que `issued_at`. */
+  /** Alias legacy — mismo valor que `issued_at`. */
   created_at: string;
+  /** Último refresh exitoso. No refleja actividad API de negocio. */
   last_refresh_at: string | null;
-  /** Legacy alias — mismo valor que `last_refresh_at`. */
+  /** Alias legacy — mismo valor que `last_refresh_at`. */
   last_used_at: string | null;
+  /** Expiración absoluta de sesión (`user_session.expires_at` en V2). */
   expires_at: string;
   is_current: boolean;
   status: UserSessionStatus;
   duration_seconds: number;
   device: SessionDeviceRead;
   client_type: string;
-  /** Legacy alias — preferir `device.ip_address`. */
+  /** IP original del login (inmutable, auditoría). No confundir con última IP. */
+  login_ip?: string | null;
+  /** Alias legacy de `device.ip_address` — última IP conocida (`last_seen_ip`). */
   ip_address: string | null;
-  /** Legacy — preferir `device.device_label`. */
+  /** Alias legacy — preferir `device.device_label`. */
   device_name: string | null;
-  /** Legacy — preferir `device.device_id`. */
+  /** Alias legacy — preferir `device.device_id`. */
   device_id: string | null;
+  /** Superset V2 — método de autenticación (ej. password). */
+  login_method?: string | null;
+  /** Superset V2 — última actividad ERP (throttle BE); no revoca sesión. */
+  last_business_activity_at?: string | null;
 }
 
 export interface AdminSessionRead extends UserSessionRead {
@@ -48,19 +65,19 @@ export interface AdminSessionRead extends UserSessionRead {
 }
 
 export interface PaginatedAdminSessionsResponse {
-  /** Envelope canónico RC1. */
+  /** Envelope paginado canónico. */
   items?: AdminSessionRead[];
   total?: number;
-  /** Legacy dual envelope — mismos datos que `items`. */
+  /** Dual envelope legacy — mismos datos que `items`. */
   sessions?: AdminSessionRead[];
-  /** Legacy dual envelope — mismo valor que `total`. */
+  /** Dual envelope legacy — mismo valor que `total`. */
   total_sesiones?: number;
   pagina_actual: number;
   limit: number;
   total_paginas: number;
 }
 
-/** Whitelist sort UI (subset RC1 §7). */
+/** Whitelist sort UI admin (subset BE). */
 export type AdminSessionSortBy =
   | 'nombre_usuario'
   | 'created_at'
@@ -84,10 +101,16 @@ export interface GetAdminSessionsParams {
 
 export interface RevokeSessionResponse {
   message: string;
+  /** Refresh revocado (alias compat). */
   token_id: string;
+  /** Superset V2 — identificador de sesión cerrada. */
+  session_id?: string | null;
 }
 
 export interface LogoutAllSessionsResponse {
   message: string;
   sessions_closed?: number;
 }
+
+/** Campos V2 adicionales tolerados en JSON superset sin tipado estricto. */
+export type UserSessionReadSuperset = UserSessionRead & Record<string, unknown>;

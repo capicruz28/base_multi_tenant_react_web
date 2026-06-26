@@ -2,7 +2,7 @@ import type { UserSessionRead } from '@/features/admin/types/session.types';
 
 /**
  * Ordena sesiones: actual primero, resto mantiene orden relativo.
- * Usar con `isCurrentSession` (RC1 `is_current` + fallback token).
+ * Usar con `isCurrentSession` (V2 `session_id` + fallback `token_id`).
  */
 export function sortSessionsCurrentFirst<T extends UserSessionRead>(
   sessions: T[],

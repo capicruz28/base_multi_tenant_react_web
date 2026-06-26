@@ -54,12 +54,15 @@ export const conexionService = {
    */
   async createConexion(cliente_id: string, conexionData: ConexionCreate): Promise<Conexion> {
     try {
-      conexionData.cliente_id = cliente_id;
-      const { data } = await api.post<Conexion>(`${BASE_URL}/clientes/${cliente_id}/`, conexionData);
+      const payload: ConexionCreate = {
+        ...conexionData,
+        cliente_id,
+      };
+      const { data } = await api.post<Conexion>(`${BASE_URL}/clientes/${cliente_id}/`, payload);
       return data;
     } catch (error) {
       console.error('Error creating connection:', error);
-      throw new Error(getErrorMessage(error).message || 'Error al crear la conexión');
+      throw error;
     }
   },
 

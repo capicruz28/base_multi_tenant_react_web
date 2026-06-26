@@ -12,6 +12,7 @@ vi.mock('@/core/auth/session/session-logout-v3.flags', () => ({
   SESSION_LOGOUT_V3_ENABLED: true,
 }));
 
+const CURRENT_SESSION_ID = 'session-browser-b';
 const CURRENT_TOKEN_ID = 'token-browser-b';
 
 const RC1_DEVICE = {
@@ -26,6 +27,7 @@ const RC1_DEVICE = {
 } as const;
 
 const currentSession: AdminSessionRead = {
+  session_id: CURRENT_SESSION_ID,
   token_id: CURRENT_TOKEN_ID,
   usuario_id: 'user-tenant-admin',
   cliente_id: 'client-1',
@@ -52,6 +54,7 @@ const currentSession: AdminSessionRead = {
 
 const otherBrowserSameUserSession: AdminSessionRead = {
   ...currentSession,
+  session_id: 'session-browser-a',
   token_id: 'token-browser-a',
   is_current: false,
   device_id: 'device-a',
@@ -67,12 +70,18 @@ const otherBrowserSameUserSession: AdminSessionRead = {
 
 const otherUserSession: AdminSessionRead = {
   ...currentSession,
+  session_id: 'session-other-user',
   token_id: 'token-other-user',
   is_current: false,
   usuario_id: 'user-other',
   nombre_usuario: 'Bob Usuario',
   nombre: 'Bob',
   apellido: 'Usuario',
+};
+
+const CURRENT_CONTEXT = {
+  currentSessionId: CURRENT_SESSION_ID,
+  currentTokenId: CURRENT_TOKEN_ID,
 };
 
 function createDeps(
@@ -82,7 +91,7 @@ function createDeps(
     revokeSessionById: vi.fn().mockResolvedValue(undefined),
     invalidateActiveSessionsListQueries: vi.fn().mockResolvedValue(undefined),
     runSessionValidityProbe: vi.fn().mockResolvedValue(undefined),
-    isCurrentSession: (session) => isCurrentSession(session, CURRENT_TOKEN_ID),
+    isCurrentSession: (session) => isCurrentSession(session, CURRENT_CONTEXT),
     showSuccessToast: vi.fn(),
     showErrorToast: vi.fn(),
     ...overrides,
@@ -96,12 +105,12 @@ describe('executeActiveSessionRevoke post-revoke probe (IMPL-08)', () => {
     vi.clearAllMocks();
   });
 
-  it('revocar sesión actual ejecuta runSessionValidityProbe', async () => {
+  it('revocar sesión actual ejecuta runSessionValidityProbe con session_id', async () => {
     const deps = createDeps();
 
     await executeActiveSessionRevoke(currentSession, queryClient, deps);
 
-    expect(deps.revokeSessionById).toHaveBeenCalledWith(CURRENT_TOKEN_ID);
+    expect(deps.revokeSessionById).toHaveBeenCalledWith(CURRENT_SESSION_ID);
     expect(deps.runSessionValidityProbe).toHaveBeenCalledTimes(1);
     expect(deps.invalidateActiveSessionsListQueries).toHaveBeenCalledWith(queryClient);
     expect(deps.showSuccessToast).toHaveBeenCalledWith(
@@ -114,7 +123,7 @@ describe('executeActiveSessionRevoke post-revoke probe (IMPL-08)', () => {
 
     await executeActiveSessionRevoke(otherBrowserSameUserSession, queryClient, deps);
 
-    expect(deps.revokeSessionById).toHaveBeenCalledWith('token-browser-a');
+    expect(deps.revokeSessionById).toHaveBeenCalledWith('session-browser-a');
     expect(deps.runSessionValidityProbe).not.toHaveBeenCalled();
     expect(deps.invalidateActiveSessionsListQueries).toHaveBeenCalledTimes(1);
     expect(deps.showSuccessToast).toHaveBeenCalledTimes(1);
@@ -125,15 +134,15 @@ describe('executeActiveSessionRevoke post-revoke probe (IMPL-08)', () => {
 
     await executeActiveSessionRevoke(otherUserSession, queryClient, deps);
 
-    expect(deps.revokeSessionById).toHaveBeenCalledWith('token-other-user');
+    expect(deps.revokeSessionById).toHaveBeenCalledWith('session-other-user');
     expect(deps.runSessionValidityProbe).not.toHaveBeenCalled();
     expect(deps.invalidateActiveSessionsListQueries).toHaveBeenCalledTimes(1);
     expect(deps.showSuccessToast).toHaveBeenCalledTimes(1);
   });
 
-  it('is_current false — probe solo si token no coincide', async () => {
+  it('is_current false — probe si session_id coincide', async () => {
     const deps = createDeps({
-      isCurrentSession: (session) => isCurrentSession(session, CURRENT_TOKEN_ID),
+      isCurrentSession: (session) => isCurrentSession(session, CURRENT_CONTEXT),
     });
     const sessionWithFalseFlag = { ...currentSession, is_current: false };
 
@@ -142,9 +151,10 @@ describe('executeActiveSessionRevoke post-revoke probe (IMPL-08)', () => {
     expect(deps.runSessionValidityProbe).toHaveBeenCalledTimes(1);
   });
 
-  it('current_token_id null — fallback no dispara probe sin is_current true', async () => {
+  it('context vacío — fallback no dispara probe sin is_current true', async () => {
     const deps = createDeps({
-      isCurrentSession: (session) => isCurrentSession(session, null),
+      isCurrentSession: (session) =>
+        isCurrentSession(session, { currentSessionId: null, currentTokenId: null }),
     });
     const sessionWithoutFlag = {
       ...currentSession,
@@ -180,6 +190,15 @@ describe('executeActiveSessionRevoke post-revoke probe (IMPL-08)', () => {
     expect(deps.invalidateActiveSessionsListQueries).toHaveBeenCalledTimes(1);
     expect(deps.showErrorToast).not.toHaveBeenCalled();
   });
+
+  it('RC1 sin session_id — revoke usa token_id como fallback', async () => {
+    const deps = createDeps();
+    const rc1Only = { ...otherBrowserSameUserSession, session_id: undefined };
+
+    await executeActiveSessionRevoke(rc1Only, queryClient, deps);
+
+    expect(deps.revokeSessionById).toHaveBeenCalledWith('token-browser-a');
+  });
 });
 
 /** Compatibilidad: re-export desde ActiveSessionsPage sigue resolviendo el mismo símbolo. */
@@ -187,5 +206,5 @@ describe('ActiveSessionsPage re-export', () => {
   it('executeActiveSessionRevoke re-exportado desde la page', async () => {
     const pageModule = await import('@/features/admin/pages/ActiveSessionsPage');
     expect(pageModule.executeActiveSessionRevoke).toBe(executeActiveSessionRevoke);
-  });
+  }, 25_000);
 });

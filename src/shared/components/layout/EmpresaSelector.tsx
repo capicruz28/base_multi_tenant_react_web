@@ -21,6 +21,7 @@ const EmpresaSelector = () => {
     cambiarEmpresaActiva,
     showEmpresaActiva,
     canSwitchEmpresa,
+    cambiarEmpresaBlockedByImpersonation,
     userType,
   } = useEmpresaActiva();
   const selectionEmpresas = useEmpresaSelectionStore((s) => s.empresasDisponibles);
@@ -141,7 +142,7 @@ const EmpresaSelector = () => {
   ].join(' ');
 
   const handleSelect = async (nextId: string) => {
-    if (!nextId || nextId === empresaActivaId || changing) return;
+    if (!canSwitchEmpresa || !nextId || nextId === empresaActivaId || changing) return;
     setChanging(true);
     setOpen(false);
     try {
@@ -166,6 +167,9 @@ const EmpresaSelector = () => {
   const labelText = displayName ?? LOADING_LABEL;
   const isPendingLabel = !displayName;
   const titleText = displayName ?? empresaActivaId;
+  const readonlyTitle = cambiarEmpresaBlockedByImpersonation
+    ? 'Empresa fija en modo impersonación'
+    : titleText;
 
   const content = (
     <>
@@ -188,7 +192,7 @@ const EmpresaSelector = () => {
     return (
       <div
         className={`${containerClass} mr-1`}
-        title={titleText}
+        title={readonlyTitle}
         aria-busy={loadingName || changing}
         aria-live="polite"
       >

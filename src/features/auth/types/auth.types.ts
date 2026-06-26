@@ -26,6 +26,7 @@ export interface AuthLoginSession {
 }
 
 export interface UserData {
+  /** Perfil IAM — el normalizador tolera superset JSON V2 (campos adicionales vía spread). */
   usuario_id: string; // UUID format
   cliente_id: string; // UUID format - REQUERIDO
   nombre_usuario: string;
@@ -45,7 +46,9 @@ export interface UserData {
   es_admin_cliente?: boolean;
   /** Obligatorio cambiar contraseña antes de ERP (usuario local). */
   requires_password_change?: boolean;
-  /** UUID refresh_tokens de la sesión autenticada actual (GET /auth/me). */
+  /** UUID canónico user_session de la sesión autenticada actual (GET /auth/me, IAM V2). */
+  current_session_id?: string | null;
+  /** UUID refresh_tokens vigente — fallback compat RC1 (GET /auth/me). */
   current_token_id?: string | null;
 }
 

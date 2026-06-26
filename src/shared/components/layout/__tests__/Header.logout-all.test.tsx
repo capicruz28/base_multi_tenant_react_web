@@ -9,6 +9,7 @@ const logoutAllSessionsMock = vi.fn();
 const logoutMock = vi.fn();
 
 let sessionLogoutV3Enabled = true;
+let requiresPasswordChange = false;
 
 vi.mock('@/core/auth/session/session-logout-v3.flags', () => ({
   get SESSION_LOGOUT_V3_ENABLED() {
@@ -32,6 +33,9 @@ vi.mock('@/shared/context/AuthContext', () => ({
     isAuthenticated: true,
     isImpersonation: false,
     requiereSeleccionEmpresa: false,
+    get requiresPasswordChange() {
+      return requiresPasswordChange;
+    },
   }),
 }));
 
@@ -109,6 +113,7 @@ describe('Header logout all UI (IMPL-07)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionLogoutV3Enabled = true;
+    requiresPasswordChange = false;
     logoutAllSessionsMock.mockResolvedValue(undefined);
   });
 
@@ -197,6 +202,17 @@ describe('Header logout all UI (IMPL-07)', () => {
     await waitFor(() => {
       expect(logoutAllSessionsMock).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('no renderiza la opción cuando requiresPasswordChange está activo', () => {
+    requiresPasswordChange = true;
+
+    renderHeader();
+    openUserMenu();
+
+    expect(
+      screen.queryByRole('button', { name: 'Cerrar sesión en todos los dispositivos' }),
+    ).toBeNull();
   });
 
   it('expone aria-label accesible en la acción del menú', () => {

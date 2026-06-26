@@ -84,10 +84,11 @@ describe('IAM-FE-PHASE-06 regression (IMPL-13)', () => {
     expect(interceptorBlock).not.toContain('executeRefreshWithResilience');
   });
 
-  it('IMPL-07 — cambiarEmpresaActiva guard impersonación + handler 403', () => {
+  it('IMPL-07 — cambiarEmpresaActiva usa guard in-place impersonación (POST-CERT P0)', () => {
     const source = readPublicActionsSource();
-    expect(source).toContain("context: 'cambiar_empresa_precheck'");
-    expect(source).toContain("context: 'cambiar_empresa_forbidden'");
+    expect(source).toContain('evaluateCambiarEmpresaImpersonationGuard');
+    expect(source).not.toContain("context: 'cambiar_empresa_precheck'");
+    expect(source).not.toContain("context: 'cambiar_empresa_forbidden'");
   });
 
   it('IMPL-08 — bootstrap soporte delega controlled exit F6', () => {

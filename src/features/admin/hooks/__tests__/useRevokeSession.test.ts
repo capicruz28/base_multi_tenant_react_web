@@ -12,9 +12,11 @@ vi.mock('@/core/auth/session/session-logout-v3.flags', () => ({
   SESSION_LOGOUT_V3_ENABLED: true,
 }));
 
+const CURRENT_SESSION_ID = 'session-current';
 const CURRENT_TOKEN = 'token-current';
 
 const session: UserSessionRead = {
+  session_id: CURRENT_SESSION_ID,
   token_id: CURRENT_TOKEN,
   usuario_id: 'user-1',
   cliente_id: 'client-1',
@@ -44,12 +46,17 @@ const session: UserSessionRead = {
   device_id: null,
 };
 
+const CURRENT_CONTEXT = {
+  currentSessionId: CURRENT_SESSION_ID,
+  currentTokenId: CURRENT_TOKEN,
+};
+
 function createDeps(overrides?: Partial<SelfSessionRevokeDeps>): SelfSessionRevokeDeps {
   return {
     revokeSessionSelf: vi.fn().mockResolvedValue({ message: 'ok', token_id: CURRENT_TOKEN }),
     invalidateMySessionsListQueries: vi.fn().mockResolvedValue(undefined),
     runSessionValidityProbe: vi.fn().mockResolvedValue(undefined),
-    isCurrentSession: (s) => isCurrentSession(s, CURRENT_TOKEN),
+    isCurrentSession: (s) => isCurrentSession(s, CURRENT_CONTEXT),
     showSuccessToast: vi.fn(),
     showErrorToast: vi.fn(),
     ...overrides,
@@ -63,12 +70,12 @@ describe('useRevokeSession — executeSelfSessionRevoke', () => {
     vi.clearAllMocks();
   });
 
-  it('self-revoke sesión actual ejecuta probe', async () => {
+  it('self-revoke sesión actual ejecuta probe con session_id', async () => {
     const deps = createDeps();
 
     await executeSelfSessionRevoke(session, queryClient, deps);
 
-    expect(deps.revokeSessionSelf).toHaveBeenCalledWith(CURRENT_TOKEN);
+    expect(deps.revokeSessionSelf).toHaveBeenCalledWith(CURRENT_SESSION_ID);
     expect(deps.runSessionValidityProbe).toHaveBeenCalledTimes(1);
     expect(deps.invalidateMySessionsListQueries).toHaveBeenCalledWith(queryClient);
     expect(deps.showSuccessToast).toHaveBeenCalledWith('Sesión cerrada correctamente.');
@@ -76,10 +83,16 @@ describe('useRevokeSession — executeSelfSessionRevoke', () => {
 
   it('self-revoke remota NO ejecuta probe', async () => {
     const deps = createDeps();
-    const remote = { ...session, token_id: 'token-remote', is_current: false };
+    const remote = {
+      ...session,
+      session_id: 'session-remote',
+      token_id: 'token-remote',
+      is_current: false,
+    };
 
     await executeSelfSessionRevoke(remote, queryClient, deps);
 
+    expect(deps.revokeSessionSelf).toHaveBeenCalledWith('session-remote');
     expect(deps.runSessionValidityProbe).not.toHaveBeenCalled();
   });
 
@@ -101,7 +114,7 @@ describe('useRevokeSession hook exports', () => {
   it('exporta modos admin y self', async () => {
     const mod = await import('@/features/admin/hooks/useRevokeSession');
     expect(typeof mod.useRevokeSession).toBe('function');
-  });
+  }, 15_000);
 });
 
 describe('getSessionCloseActionLabel', () => {

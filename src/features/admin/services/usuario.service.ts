@@ -1,5 +1,6 @@
 import api from '@/core/api/api';
 import {
+    AdminPasswordResetResponse,
     PaginatedUsersResponse,
     UserFormData,
     UserWithRoles,
@@ -107,6 +108,16 @@ export const reactivateUser = async (userId: string): Promise<UserWithRoles> => 
         console.error(`Error reactivating user ${userId}:`, error);
         throw error;
     }
+};
+
+/** Reset administrativo de contraseña — POST sin body; BE genera temporal. */
+export const resetUserPassword = async (
+    usuarioId: string,
+): Promise<AdminPasswordResetResponse> => {
+    const response = await api.post<AdminPasswordResetResponse>(
+        `${BASE_URL}/${usuarioId}/reset-password/`,
+    );
+    return response.data;
 };
 
 export const assignRoleToUser = async (userId: string, roleId: string): Promise<any> => {

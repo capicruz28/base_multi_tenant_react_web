@@ -13,7 +13,7 @@ import {
   type ActiveSessionRevokeDeps,
   type SelfSessionRevokeDeps,
 } from '@/features/admin/utils/iam-session-revoke.utils';
-import { invalidateActiveSessionsListQueries } from '@/features/admin/hooks/useActiveSessionsList';
+import { invalidateActiveSessionsAdminQueries } from '@/features/admin/hooks/useActiveSessionsKpiSummary';
 import { invalidateMySessionsListQueries } from '@/features/admin/hooks/useMySessionsList';
 import { useAuth } from '@/shared/context/AuthContext';
 
@@ -26,16 +26,19 @@ export interface UseRevokeSessionOptions {
 export function useRevokeSession({ mode }: UseRevokeSessionOptions) {
   const queryClient = useQueryClient();
   const { auth, runSessionValidityProbe } = useAuth();
+  const currentSessionId = auth.user?.current_session_id ?? null;
   const currentTokenId = auth.user?.current_token_id ?? null;
 
   const matchCurrentAdmin = useCallback(
-    (session: AdminSessionRead) => isCurrentSession(session, currentTokenId),
-    [currentTokenId],
+    (session: AdminSessionRead) =>
+      isCurrentSession(session, { currentSessionId, currentTokenId }),
+    [currentSessionId, currentTokenId],
   );
 
   const matchCurrentSelf = useCallback(
-    (session: UserSessionRead) => isCurrentSession(session, currentTokenId),
-    [currentTokenId],
+    (session: UserSessionRead) =>
+      isCurrentSession(session, { currentSessionId, currentTokenId }),
+    [currentSessionId, currentTokenId],
   );
 
   const mutation = useMutation({
@@ -43,7 +46,7 @@ export function useRevokeSession({ mode }: UseRevokeSessionOptions) {
       if (mode === 'admin') {
         const deps: ActiveSessionRevokeDeps = {
           revokeSessionById,
-          invalidateActiveSessionsListQueries,
+          invalidateActiveSessionsListQueries: invalidateActiveSessionsAdminQueries,
           runSessionValidityProbe,
           isCurrentSession: matchCurrentAdmin,
           showSuccessToast: (message) => toast.success(message),

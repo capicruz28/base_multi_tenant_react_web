@@ -1,9 +1,10 @@
 // src/features/admin/pages/UserManagementPage.tsx
 
 import React, { useState, useEffect, useCallback, useMemo, ChangeEvent, FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { Edit3, Trash2, RotateCcw, UserPlus, Users } from 'lucide-react';
+import { Edit3, Trash2, RotateCcw, UserPlus, Users, KeyRound } from 'lucide-react';
 
 import {
   createUser,
@@ -15,10 +16,11 @@ import {
 } from '../services/usuario.service';
 import { getAllActiveRoles } from '../services/rol.service';
 
-import { UserWithRoles, UserFormData, UserUpdateData } from '../types/usuario.types';
+import { UserWithRoles, UserFormData, UserUpdateData, AdminPasswordResetResponse } from '../types/usuario.types';
 import { Rol } from '../types/rol.types';
 
 import { getErrorMessage } from '@/core/services/error.service';
+import { usePermission } from '@/core/auth/PermissionContext';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useDebouncedSearch } from '@/core/list';
 import { ErpPagination } from '@/shared/components/erp-list';
@@ -32,7 +34,15 @@ import {
   IamTableEmptyState,
   UserCreateDialog,
   UserEditDialog,
+  UserPasswordResetRevealDialog,
 } from '../components/iam';
+import { ADMIN_USUARIO_PERMISSIONS } from '../constants/admin-usuario.permissions';
+import {
+  buildResetConfirmMessage,
+  canShowAdminPasswordReset,
+  redactPasswordResetResponseForLog,
+} from '../utils/iam-user-password-reset.utils';
+import { useResetUserPassword } from '../hooks/useResetUserPassword';
 import {
   buildEditUserFormSnapshot,
   isCreateUserFormDirty,
@@ -68,6 +78,12 @@ const initialEditFormData: UserUpdateData = {
 
 type FormErrors = Record<string, string | undefined>;
 
+interface ResetRevealState {
+  result: AdminPasswordResetResponse;
+  targetDisplayName: string;
+  isInactiveUser: boolean;
+}
+
 function formatUserDisplayName(user: UserWithRoles): string {
   const full = `${user.nombre || ''} ${user.apellido || ''}`.trim();
   return full || user.nombre_usuario;
@@ -85,7 +101,20 @@ function resolveSessionClienteId(
 
 const UserManagementPage: React.FC = () => {
   const { isAuthenticated, loading: authLoading, clienteInfo, auth } = useAuth();
+  const { hasPermission } = usePermission();
   const queryClient = useQueryClient();
+
+  const [selfResetHintVisible, setSelfResetHintVisible] = useState(false);
+
+  const { resetPassword, isResetPending } = useResetUserPassword({
+    onSelfResetBlocked: () => setSelfResetHintVisible(true),
+  });
+
+  useEffect(() => {
+    if (!selfResetHintVisible) return;
+    const timer = window.setTimeout(() => setSelfResetHintVisible(false), 8000);
+    return () => window.clearTimeout(timer);
+  }, [selfResetHintVisible]);
 
   const search = useDebouncedSearch();
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
@@ -132,7 +161,22 @@ const UserManagementPage: React.FC = () => {
   const [reactivarTarget, setReactivarTarget] = useState<UserWithRoles | null>(null);
   const [isReactivating, setIsReactivating] = useState(false);
 
-  const pageActionsLocked = discardPending !== null;
+  const [resetTarget, setResetTarget] = useState<UserWithRoles | null>(null);
+  const [resetReveal, setResetReveal] = useState<ResetRevealState | null>(null);
+
+  const pageActionsLocked = discardPending !== null || isResetPending;
+
+  const hasResetPermission = hasPermission(ADMIN_USUARIO_PERMISSIONS.RESET_PASSWORD);
+  const currentUsuarioId = auth.user?.usuario_id ?? null;
+
+  const resetVisibilityCtx = useMemo(
+    () => ({
+      currentUsuarioId,
+      hasResetPermission,
+      pageActionsLocked,
+    }),
+    [currentUsuarioId, hasResetPermission, pageActionsLocked],
+  );
 
   const fetchAvailableRoles = useCallback(async () => {
     setIsLoadingRoles(true);
@@ -553,6 +597,67 @@ const UserManagementPage: React.FC = () => {
     }
   };
 
+  const handleOpenResetConfirm = (user: UserWithRoles) => {
+    setResetTarget(user);
+  };
+
+  const handleResetRevealComplete = () => {
+    setResetReveal(null);
+  };
+
+  const ejecutarReset = async () => {
+    if (!resetTarget) return;
+    const displayName = formatUserDisplayName(resetTarget);
+    const isInactive = !resetTarget.es_activo;
+    const usuarioId = resetTarget.usuario_id;
+
+    try {
+      const result = await resetPassword(usuarioId);
+      logIamUserOperation({
+        operation: 'RESET_PASSWORD',
+        usuario_id: usuarioId,
+        requestBody: null,
+        statusCode: 200,
+        responseBody: redactPasswordResetResponseForLog(result),
+      });
+      setResetTarget(null);
+      setResetReveal({
+        result,
+        targetDisplayName: displayName,
+        isInactiveUser: isInactive,
+      });
+    } catch (err) {
+      const evidence = extractAxiosOperationEvidence(err);
+      logIamUserOperation({
+        operation: 'RESET_PASSWORD',
+        usuario_id: usuarioId,
+        requestBody: null,
+        statusCode: evidence.statusCode,
+        responseBody: { redacted: true },
+      });
+      setResetTarget(null);
+    }
+  };
+
+  const renderResetPasswordButton = (user: UserWithRoles) => {
+    if (!canShowAdminPasswordReset(user, resetVisibilityCtx)) {
+      return null;
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={() => handleOpenResetConfirm(user)}
+        className="text-warning hover:text-warning/80 p-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+        title="Restablecer contraseña"
+        disabled={authLoading || !isAuthenticated || pageActionsLocked || isResetPending}
+      >
+        <KeyRound className="h-4 w-4" />
+        <span className="sr-only">Restablecer contraseña</span>
+      </button>
+    );
+  };
+
   const hasSearch = search.hasSearch;
 
   const emptyTitle = hasSearch
@@ -604,6 +709,16 @@ const UserManagementPage: React.FC = () => {
           Ver inactivos
         </label>
       </OrgCompanyToolbar>
+
+      {selfResetHintVisible ? (
+        <p className="text-sm text-info mb-4">
+          Para cambiar su propia contraseña, vaya a{' '}
+          <Link to="/app/cuenta/seguridad" className="underline hover:text-brand-primary">
+            Mi cuenta → Seguridad
+          </Link>
+          .
+        </p>
+      ) : null}
 
       {listError && !usersList.isLoading ? (
         <div className="mb-4 rounded-lg border border-border-base bg-surface p-6">
@@ -710,6 +825,7 @@ const UserManagementPage: React.FC = () => {
                                       <Edit3 className="h-4 w-4" />
                                       <span className="sr-only">Editar usuario</span>
                                     </button>
+                                    {renderResetPasswordButton(user)}
                                     <button
                                       type="button"
                                       onClick={() => handleOpenDeactivateConfirm(user)}
@@ -722,16 +838,19 @@ const UserManagementPage: React.FC = () => {
                                     </button>
                                   </>
                                 ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => setReactivarTarget(user)}
-                                    className="text-success hover:text-success/80 p-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Reactivar usuario"
-                                    disabled={authLoading || !isAuthenticated || pageActionsLocked}
-                                  >
-                                    <RotateCcw className="h-4 w-4" />
-                                    <span className="sr-only">Reactivar usuario</span>
-                                  </button>
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => setReactivarTarget(user)}
+                                      className="text-success hover:text-success/80 p-1 rounded hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title="Reactivar usuario"
+                                      disabled={authLoading || !isAuthenticated || pageActionsLocked}
+                                    >
+                                      <RotateCcw className="h-4 w-4" />
+                                      <span className="sr-only">Reactivar usuario</span>
+                                    </button>
+                                    {renderResetPasswordButton(user)}
+                                  </>
                                 )}
                               </div>
                             </td>
@@ -857,6 +976,36 @@ const UserManagementPage: React.FC = () => {
         variant="info"
         loading={isReactivating}
       />
+
+      <ConfirmDialog
+        isOpen={!!resetTarget && discardPending === null}
+        onClose={() => !isResetPending && setResetTarget(null)}
+        onConfirm={() => void ejecutarReset()}
+        title="Restablecer contraseña"
+        message={
+          resetTarget
+            ? buildResetConfirmMessage(
+                formatUserDisplayName(resetTarget),
+                !resetTarget.es_activo,
+              )
+            : ''
+        }
+        confirmText="Restablecer contraseña"
+        cancelText="Cancelar"
+        variant="warning"
+        loading={isResetPending}
+        panelClassName="max-w-lg"
+      />
+
+      {resetReveal ? (
+        <UserPasswordResetRevealDialog
+          isOpen
+          result={resetReveal.result}
+          targetDisplayName={resetReveal.targetDisplayName}
+          isInactiveUser={resetReveal.isInactiveUser}
+          onComplete={handleResetRevealComplete}
+        />
+      ) : null}
     </InvPageLayout>
   );
 };

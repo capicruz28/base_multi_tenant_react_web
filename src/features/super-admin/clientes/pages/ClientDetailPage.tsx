@@ -487,7 +487,10 @@ const ClientDetailPage: React.FC = () => {
         {/* Conexiones */}
         {activeTab === 'conexiones' && cliente && (
           <div className="p-6">
-            <ClientConnectionsTab clienteId={cliente.cliente_id} />
+            <ClientConnectionsTab
+              clienteId={cliente.cliente_id}
+              tipoInstalacion={cliente.tipo_instalacion}
+            />
           </div>
         )}
 

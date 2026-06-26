@@ -32,22 +32,7 @@ import {
   LoginPoweredBy,
   resolveClientDisplayName,
 } from './LoginBrandingHeader';
-
-function validateNewPassword(password: string): string | null {
-  if (password.length < 8) {
-    return 'La contraseña debe tener al menos 8 caracteres.';
-  }
-  if (!/[A-Z]/.test(password)) {
-    return 'Debe incluir al menos una letra mayúscula.';
-  }
-  if (!/[a-z]/.test(password)) {
-    return 'Debe incluir al menos una letra minúscula.';
-  }
-  if (!/[0-9]/.test(password)) {
-    return 'Debe incluir al menos un número.';
-  }
-  return null;
-}
+import { validatePasswordChangeForm } from '@/features/auth/utils/password-validation.utils';
 
 export default function ChangePasswordPage() {
   const navigate = useNavigate();
@@ -175,19 +160,13 @@ export default function ChangePasswordPage() {
       return;
     }
 
-    const passwordRuleError = validateNewPassword(newPassword);
-    if (passwordRuleError) {
-      setFieldError(passwordRuleError);
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setFieldError('La confirmación no coincide con la nueva contraseña.');
-      return;
-    }
-
-    if (currentPassword === newPassword) {
-      setFieldError('La nueva contraseña debe ser diferente a la actual.');
+    const validationError = validatePasswordChangeForm({
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    });
+    if (validationError) {
+      setFieldError(validationError);
       return;
     }
 

@@ -1,10 +1,10 @@
-# Estándares frontend ERP — v2.4
+# Estándares frontend ERP — v2.5
 
 **Sistema:** CAXIS ERP (SaaS multi-tenant)  
 **Stack:** React · TypeScript · Vite · Tailwind · React Query · Axios · Zustand  
-**Versión:** 2.4  
-**Fecha:** 19 junio 2026  
-**Estado:** **Normativo** — ORG e INV **referencia oficial** (jun 2026) · §5.11 listados PERF (F0–F7) · IAM · Baseline V1 post Phase-09  
+**Versión:** 2.5  
+**Fecha:** 24 junio 2026  
+**Estado:** **Normativo** — ORG e INV **referencia oficial** (jun 2026) · §5.11 listados PERF (F0–F7) · §4.8.4 IAM Session V2 · Baseline V1 post Phase-09  
 **Principio:** *Write once* — reglas con ID único; sin duplicar en `.cursorrules` ni PROMPT  
 **Precedencia:** OpenAPI > **este documento** > `ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` > `.cursorrules` > `PROMPT_FRONTEND_MAESTRO.md`
 
@@ -82,7 +82,9 @@ PROMPT_FRONTEND_MAESTRO.md (proceso; Fase 0 OpenAPI obligatoria)
 | `.cursorrules` | Recordatorios MUST diarios | Debe apuntar a §4, §7, §8, §11 — **no copiar tablas completas** |
 | `PROMPT_FRONTEND_MAESTRO.md` | Bootstrap módulo nuevo | Fase 0.4/0.5 → clasificación §2; Gates → §11 |
 | `AUDITORIA_FRONTEND_[CODIGO].md` | Inventario + contrato por módulo | Obligatorio pre-implementación (PROMPT Fase 1) |
-| Cierres IAM/ORG/INV | Evidencia QA | §9 referencias; no reabrir salvo excepción documentada |
+| `IAM_SESSION_MANAGEMENT_V2_BACKEND_SPECIFICATION.md` | Contrato sesión IAM V2 (Backend) | §4.8.4 AUTH-V2-* |
+| `FRONTEND_IAM_V2_COMPLIANCE_CERTIFICATE.md` | Cierre FE sesión IAM V2 | §4.8.4 AUTH-V2-06 |
+| Cierres IAM/ORG/INV | Evidencia QA | §9 referencias; paneles admin especializados → docs de módulo |
 
 **V1:** Archivado. Ante conflicto V1 vs V2, prevalece V2.
 
@@ -108,6 +110,9 @@ PROMPT_FRONTEND_MAESTRO.md (proceso; Fase 0 OpenAPI obligatoria)
 | Término | Definición | Capítulo |
 |---------|------------|----------|
 | **JWT / sesión** | Token de acceso; tenant, empresa activa, flags impersonation | §4 |
+| **`session_id`** | UUID canónico de sesión lógica (JWT `sid`); estable durante vida de sesión | §4.8.4 |
+| **`current_session_id`** | Sesión asociada al access token actual (`GET /auth/me/`) | §4.8.4 |
+| **`token_id`** | Refresh token vigente (RTR); **no** es ID de sesión | §4.8.4 |
 | **Company-scoped** | Datos de **una empresa activa** en sesión | §4.2 |
 | **Tenant-scoped** | Datos del tenant sin empresa obligatoria en sesión | §4.2 |
 | **Hybrid-scoped** | Recursos GLOBAL u OVERRIDE por empresa | §4.2 |
@@ -372,6 +377,8 @@ Detalle flujos: **§4.8**.
 | **IMP-02** | MUST | Tras impersonate con selección pendiente: mismo flujo AUTH-01 que login multiempresa |
 | **IMP-03** | MUST | Salir impersonación: restaurar sesión platform parent; invalidar queries tenant/empresa |
 | **IMP-04** | SHOULD | UI visible “modo soporte” sin exponer tokens ni UUID cliente |
+| **IMP-05** | MUST | En impersonación: MUST NOT `POST /auth/empresa/cambiar/`; selector empresa readonly; sesión impersonada permanece |
+| **IMP-06** | SHOULD | Bloqueo in-place con guard en provider; UI refleja `canSwitchEmpresa`; MUST NOT terminar impersonación por intento de cambio empresa |
 
 **Separación:** AUTH = selección normal; IMP = impersonation platform.
 
@@ -383,6 +390,21 @@ La **implementación interna** post IAM-FE-PHASE-09 SIGNOFF-02:
 - **Entrada pública app:** `@/shared/context/AuthContext` + `useAuth()` — **sin cambio** de contrato (§10).
 - **Capa L9 interna:** `src/core/auth/provider/` — ensamblador `useAuthProvider`; **MUST NOT** importar compositors desde features/UI.
 - **Refactor estructural core:** proceso y reglas → `docs/arquitectura/ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` §14.
+
+#### §4.8.4 Identidad de sesión IAM V2
+
+> Alcance: aplica a código que consume API `/auth/sessions*` o identidad en `/auth/me/`. **No** aplica a módulos operativos (PUR, SLS, CRM, …) sin superficie de sesión.
+
+| ID | Nivel | Regla |
+|----|-------|-------|
+| **AUTH-V2-01** | MUST | Identificador canónico de sesión = `session_id` (claim JWT `sid`, listados, revoke path param) |
+| **AUTH-V2-02** | MUST NOT | Usar `token_id` como ID de sesión en UI, keys de dominio ni revoke — `token_id` es refresh vigente (RTR) |
+| **AUTH-V2-03** | MUST | `current_session_id` desde `GET /auth/me/` en contexto auth; fallback temporal `current_token_id` solo RC1 |
+| **AUTH-V2-04** | SHOULD | Prioridad `is_current`: flag backend → `session_id === current_session_id` → fallback `token_id` RC1; **MUST** si el módulo lista sesiones |
+| **AUTH-V2-05** | MUST | Revoke self/admin: path param = `resolveSessionId(target)` (`session_id` con fallback `token_id` RC1) — cuando exista API revoke de sesión |
+| **AUTH-V2-06** | SHOULD | Pointer normativo: `IAM_SESSION_MANAGEMENT_V2_BACKEND_SPECIFICATION.md` + `FRONTEND_IAM_V2_COMPLIANCE_CERTIFICATE.md` |
+
+**Referencias código:** §10 — `resolveSessionId`, `isCurrentSession`.
 
 ---
 
@@ -964,6 +986,12 @@ Referencia paginación Tier B/C: §5.11, `ProductosPage`, `MovimientosPage`. Tie
 
 Implementación validada jun 2026. Tokens runtime: `branding.utils.ts` (`--color-primary-hsl`, `--ring`). Diseño 2 capas: `.cursorrules`.
 
+### §8.10 Timestamps operativos en listados
+
+| ID | Nivel | Regla |
+|----|-------|-------|
+| **RT-01** | SHOULD | Timestamps operativos en listados: formato relativo en celda + tooltip o fecha absoluta; util por módulo |
+
 ---
 
 ## §9 — Módulos de referencia cerrados
@@ -972,7 +1000,7 @@ Implementación validada jun 2026. Tokens runtime: `branding.utils.ts` (`--color
 
 ### §9.1 IAM — administración identidad
 
-**Estado:** Cerrado Sprints A–D + B.1.1 overlay. QA RBAC V1 validado.
+**Estado:** Cerrado Sprints A–D + B.1.1. Transporte sesión IAM V2: §4.8.4 (certificado FE jun 2026). Catálogo Admin: componentes §10. Paneles admin especializados: documentación de módulo (no §9.5).
 
 | Aspecto | Patrón | Uso en módulos ERP |
 |---------|--------|-------------------|
@@ -982,7 +1010,7 @@ Implementación validada jun 2026. Tokens runtime: `branding.utils.ts` (`--color
 | Componentes | `IamSearchInput`, `IamTableEmptyState` | §10 — Plantilla A |
 | Multiempresa UI usuarios | Pendiente contrato BE | No MUST V2 |
 
-**IAM-REF-01:** No reabrir IAM salvo multiempresa FE/BE o LBAC ampliado.
+**IAM-REF-01:** §9.1 cubre catálogo IAM Admin (componentes tabla, B.1.1 origen). Reglas transporte sesión: §4.8.4. MUST NOT replicar reglas IAM/LBAC en módulos ERP operativos (§8.3.2). UX de paneles admin especializados: docs de módulo.
 
 | ID | Nivel | Regla |
 |----|-------|-------|
@@ -1090,6 +1118,8 @@ Componentes hybrid: `OrgParametroHybridTabs`, `OrgParametroAlcanceField`, `OrgHy
 
 **Única tabla maestra de rutas** — otros capítulos nombran componente, no ruta.
 
+**FF-01 (SHOULD):** primitivos de dominio reutilizables bajo `features/{mod}/components/.../shared/`; plataforma transversal en `@/shared`.
+
 | Estándar | Componente / utilidad | Ruta | Plantilla |
 |----------|----------------------|------|-----------|
 | Búsqueda input | `IamSearchInput` | `@/features/admin/components/iam` | A, Admin |
@@ -1124,6 +1154,8 @@ Componentes hybrid: `OrgParametroHybridTabs`, `OrgParametroAlcanceField`, `OrgHy
 | Auth ensamblador L9 (interno) | `useAuthProvider` | `@/core/auth/provider/useAuthProvider` | §4.8.3 — **MUST NOT** importar desde features |
 | Empresa activa | `useEmpresaActiva` | `@/features/auth/hooks/useEmpresaActiva` | §4 |
 | Impersonation | `useImpersonation` | `@/features/auth/hooks/useImpersonation` | §4.8 |
+| ID sesión (revoke/keys) | `resolveSessionId` | `@/features/admin/utils/iam-session-id.utils.ts` | §4.8.4 |
+| Match sesión actual | `isCurrentSession` | `@/features/admin/utils/iam-current-session.ts` | §4.8.4 |
 | Post-login | `resolvePostLoginPath` | `@/core/routing/post-login-path.ts` | AUTH-02 |
 | Selección empresa | `SeleccionarEmpresaPage` | `@/features/auth/pages` | AUTH-04 |
 | Onboarding | `OnboardingEmpresaPage` | `@/features/auth/pages` | AUTH-03 |
@@ -1171,7 +1203,8 @@ Componentes hybrid: `OrgParametroHybridTabs`, `OrgParametroAlcanceField`, `OrgHy
 - [ ] **ME-01** … **ME-06**, **E-ME4**
 - [ ] Guards + invalidate (§4.5, §10)
 - [ ] **AUTH-01** … **AUTH-04** si flujos auth aplican
-- [ ] **IMP-01** … **IMP-03** si ruta accesible en impersonation
+- [ ] **IMP-01** … **IMP-05** si ruta accesible en impersonation
+- [ ] **AUTH-V2-01** … **AUTH-V2-05** si el módulo consume API de sesión o revoke
 
 ### §11.3 Gate 2 — Plantilla A / A+
 
@@ -1246,12 +1279,13 @@ Resolución de los 12 GAP identificados en [`AUDITORIA_FINAL_V2_GAPS.md`](./AUDI
 | **2.2** | **2026-06-13** | Congelamiento ORG/INV referencia oficial; MD-05…08; SEC-14; RB-N01…04; BR-01…05; §8.3.1; ampliaciones §4.5, §9, §10 |
 | **2.3** | **2026-06-13** | §5.11 listados PERF F0–F7; LR-N; PR-xx |
 | **2.4** | **2026-06-19** | Integración Baseline V1 post IAM-FE-PHASE-09 SIGNOFF-02: precedencia §0.3/§3.1, §4.8.3, glosario, §9.1/§9.5/§10 pointers |
+| **2.5** | **2026-06-24** | §4.8.4 AUTH-V2-01…06; IMP-05/IMP-06; glosario session_id; §8.10 RT-01; §10 FF-01 + utils sesión; §9.1 IAM-REF-01; Gate 1 condicional auth V2 |
 
 ### §13.1 Relación documentos derivados
 
 | Documento | Acción pendiente (fuera de este entregable) |
 |-----------|-----------------------------------------------|
-| `.cursorrules` | v2.2: pointers §4, §7, §8, §11 + diseño 2 capas + §7.1.2, §8.3.1, §8.9 BRANDING |
+| `.cursorrules` | Sync v2.5: pointers §4.8.4 AUTH-V2-*, IMP-05 + diseño 2 capas |
 | `PROMPT_FRONTEND_MAESTRO.md` | v4: Fase 0.4/0.5 → §2; Gates → §11; patrones ORG/INV referencia |
 | `ERP_FRONTEND_STANDARDS_V1.md` | Banner “superseded by V2” |
 

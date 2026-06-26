@@ -3,6 +3,7 @@ import type { AuthMenuModulo } from '@/core/auth/types/auth-menu.types';
 import type { SidebarMenuItem } from '@/features/admin/types/menu.types';
 import type { LayoutShellVariant } from './layout-shell.types';
 import { SHELL_ADMIN_SECTION_TITLE } from './layout-shell.types';
+import { resolveAccountCenterBreadcrumbs } from '@/features/account/utils/account-center-breadcrumbs.utils';
 import {
   filterModulosForShell,
   isMenuVisibleForShell,
@@ -108,6 +109,11 @@ export function resolveShellBreadcrumbs(
   pathname: string,
   adminMenuItems: SidebarMenuItem[] = [],
 ): ShellBreadcrumbItem[] {
+  if (shell === 'app') {
+    const accountCrumbs = resolveAccountCenterBreadcrumbs(pathname);
+    if (accountCrumbs) return accountCrumbs;
+  }
+
   if (!menuModulos || menuModulos.length === 0) {
     return resolveFromAdminFlatItems(adminMenuItems, pathname, shell) ?? [];
   }

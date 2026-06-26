@@ -6,7 +6,11 @@ import { useAuth } from '../../context/AuthContext';
 import { useBreadcrumb } from '../../context/BreadcrumbContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useNavMode } from '../../context/NavModeContext';
-import { User, Mail, Settings, LogOut, MonitorSmartphone, ChevronDown, ChevronRight, Home, Shield, Building2, Crown, Sun, Moon, PanelLeft, PanelTop } from 'lucide-react';
+import { User, LogOut, MonitorSmartphone, ChevronDown, ChevronRight, Home, Shield, Building2, Crown, Sun, Moon, PanelLeft, PanelTop } from 'lucide-react';
+import {
+  ACCOUNT_CENTER_BASE_PATH,
+  ACCOUNT_CENTER_SESSIONS_PATH,
+} from '@/features/account/account.routes';
 import { SESSION_LOGOUT_V3_ENABLED } from '@/core/auth/session/session-logout-v3.flags';
 import { LogoutAllConfirmDialog } from '@/features/auth/components/LogoutAllConfirmDialog';
 import useUserType from '../../../core/hooks/useUserType';
@@ -27,6 +31,7 @@ const Header = () => {
     isAuthenticated,
     isImpersonation,
     requiereSeleccionEmpresa,
+    requiresPasswordChange,
   } = useAuth();
   const { breadcrumbs, setBreadcrumbs } = useBreadcrumb();
   const { items: adminMenuItems } = useAdminMenuItems();
@@ -49,7 +54,8 @@ const Header = () => {
     SESSION_LOGOUT_V3_ENABLED &&
     isAuthenticated &&
     !isImpersonation &&
-    !requiereSeleccionEmpresa;
+    !requiereSeleccionEmpresa &&
+    !requiresPasswordChange;
 
   const isLogoutActionDisabled = logoutAllPending;
 
@@ -258,7 +264,7 @@ const Header = () => {
           </button>
           
           {isMenuOpen && (
-            <div className="absolute right-0 mt-2 w-64 origin-top-right bg-brand-surface border border-brand-border rounded-md shadow-lg py-1 z-50">
+            <div className="absolute right-0 z-50 mt-2 w-64 origin-top-right rounded-md border border-border-base bg-surface py-1 shadow-lg">
               
               {/* ✅ NUEVO: Información de usuario y tipo */}
               <div className="px-4 py-3 border-b border-brand-border">
@@ -303,37 +309,29 @@ const Header = () => {
                 </div>
               )}
 
-              {/* Menú de opciones */}
+              {/* Menú de opciones — Mi Cuenta (ACCOUNT_CENTER_V1) */}
               <button
-                className="w-full px-4 py-2 text-sm text-left text-brand-text-primary hover:bg-overlay flex items-center"
+                type="button"
+                className="flex w-full items-center px-4 py-2 text-left text-sm text-text-base hover:bg-overlay"
                 onClick={() => {
-                  navigate('/app/cuenta/sesiones');
+                  navigate(ACCOUNT_CENTER_BASE_PATH);
                   setIsMenuOpen(false);
                 }}
               >
-                <MonitorSmartphone className="w-4 h-4 mr-3" />
+                <User className="mr-3 h-4 w-4" />
+                Mi cuenta
+              </button>
+
+              <button
+                type="button"
+                className="flex w-full items-center px-4 py-2 text-left text-sm text-text-base hover:bg-overlay"
+                onClick={() => {
+                  navigate(ACCOUNT_CENTER_SESSIONS_PATH);
+                  setIsMenuOpen(false);
+                }}
+              >
+                <MonitorSmartphone className="mr-3 h-4 w-4" />
                 Mis sesiones
-              </button>
-
-              <button
-                className="w-full px-4 py-2 text-sm text-left text-brand-text-primary hover:bg-overlay flex items-center"
-              >
-                <User className="w-4 h-4 mr-3" />
-                Mi perfil
-              </button>
-
-              <button
-                className="w-full px-4 py-2 text-sm text-left text-brand-text-primary hover:bg-overlay flex items-center"
-              >
-                <Mail className="w-4 h-4 mr-3" />
-                Bandeja de entrada
-              </button>
-
-              <button
-                className="w-full px-4 py-2 text-sm text-left text-brand-text-primary hover:bg-overlay flex items-center"
-              >
-                <Settings className="w-4 h-4 mr-3" />
-                Configuraciones de la cuenta
               </button>
 
               {/* ✅ NUEVO: Enlace rápido a administración según tipo de usuario */}
@@ -361,9 +359,9 @@ const Header = () => {
                   aria-label="Cerrar sesión en todos los dispositivos"
                   disabled={isLogoutActionDisabled}
                   onClick={handleOpenLogoutAllDialog}
-                  className="w-full px-4 py-2 text-sm text-left text-brand-text-primary hover:bg-overlay flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex w-full items-center px-4 py-2 text-left text-sm text-text-base hover:bg-overlay disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <MonitorSmartphone className="w-4 h-4 mr-3" />
+                  <MonitorSmartphone className="mr-3 h-4 w-4" />
                   Cerrar sesión en todos los dispositivos
                 </button>
               )}
@@ -372,9 +370,9 @@ const Header = () => {
                 type="button"
                 onClick={logout}
                 disabled={isLogoutActionDisabled}
-                className="w-full px-4 py-2 text-sm text-left text-error hover:bg-error/10 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full items-center px-4 py-2 text-left text-sm text-error hover:bg-error/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <LogOut className="w-4 h-4 mr-3" />
+                <LogOut className="mr-3 h-4 w-4" />
                 Cerrar Sesión
               </button>
             </div>

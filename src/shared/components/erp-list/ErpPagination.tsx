@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { derivePaginationMeta } from '@/core/list/erp-list-normalize';
@@ -14,6 +15,8 @@ export interface ErpPaginationProps {
   limitOptions?: readonly number[];
   disabled?: boolean;
   className?: string;
+  /** Reemplaza el resumen por defecto (consolidación copy dual). */
+  summarySlot?: ReactNode;
 }
 
 const DEFAULT_LIMIT_OPTIONS = [25, 50, 100] as const;
@@ -28,6 +31,7 @@ export function ErpPagination({
   limitOptions = DEFAULT_LIMIT_OPTIONS,
   disabled = false,
   className = '',
+  summarySlot,
 }: ErpPaginationProps) {
   const meta = derivePaginationMeta({
     items: [],
@@ -45,17 +49,21 @@ export function ErpPagination({
     <div
       className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-border-base bg-subtle ${className}`.trim()}
     >
-      <p className="text-sm text-text-soft">
-        {meta.total === 0 ? (
-          'Sin registros'
-        ) : (
+      <div className="text-sm text-text-soft">
+        {summarySlot ?? (
           <>
-            Mostrando <span className="font-medium text-text-base">{rangeStart}</span> a{' '}
-            <span className="font-medium text-text-base">{rangeEnd}</span> de{' '}
-            <span className="font-medium text-text-base">{meta.total}</span>
+            {meta.total === 0 ? (
+              'Sin registros'
+            ) : (
+              <>
+                Mostrando <span className="font-medium text-text-base">{rangeStart}</span> a{' '}
+                <span className="font-medium text-text-base">{rangeEnd}</span> de{' '}
+                <span className="font-medium text-text-base">{meta.total}</span>
+              </>
+            )}
           </>
         )}
-      </p>
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         {onLimitChange ? (

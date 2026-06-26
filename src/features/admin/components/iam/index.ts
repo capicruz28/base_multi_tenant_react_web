@@ -19,6 +19,9 @@ export type { UserCreateDialogProps } from './UserCreateDialog';
 export { UserEditDialog } from './UserEditDialog';
 export type { UserEditDialogProps } from './UserEditDialog';
 
+export { UserPasswordResetRevealDialog } from './UserPasswordResetRevealDialog';
+export type { UserPasswordResetRevealDialogProps } from './UserPasswordResetRevealDialog';
+
 export { RoleCreateDialog } from './RoleCreateDialog';
 export type { RoleCreateDialogProps } from './RoleCreateDialog';
 

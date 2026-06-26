@@ -2,17 +2,83 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { X, Database, Loader, TestTube, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { conexionService } from '../services/conexion.service';
-import { moduloService } from '@/features/super-admin/modulos/services/modulo.service';
 import { ConexionCreate } from '../types/conexion.types';
-import { Modulo } from '@/features/super-admin/modulos/types/modulo.types';
-import { getErrorMessage } from '@/core/services/error.service';
+import type { Cliente } from '../types/cliente.types';
+import {
+  FORM_VALIDATION_TOAST_MESSAGE,
+  getApiErrorCode,
+  getErrorMessage,
+  getValidationErrors,
+} from '@/core/services/error.service';
 import { TooltipLabel, Tooltip } from '@/shared/components/ui/Tooltip';
+
+const SERVIDOR_MAX_LENGTH = 255;
+const NOMBRE_BD_MAX_LENGTH = 100;
+const NOMBRE_BD_PATTERN = /^[a-zA-Z0-9_][a-zA-Z0-9_\-.]*$/;
+const IPV4_PATTERN = /^(\d{1,3}\.){3}\d{1,3}$/;
+const HOSTNAME_PATTERN =
+  /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+const IPV6_PATTERN =
+  /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(([0-9a-fA-F]{1,4}:){1,7}:)|(([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4})|(([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2})|(([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3})|(([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4})|(([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5})|([0-9a-fA-F]{1,4}:)(:[0-9a-fA-F]{1,4}){1,6}|:(:[0-9a-fA-F]{1,4}){1,7}|::)$/;
+
+function isValidServidor(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    return IPV6_PATTERN.test(trimmed.slice(1, -1));
+  }
+  return (
+    IPV4_PATTERN.test(trimmed) ||
+    IPV6_PATTERN.test(trimmed) ||
+    HOSTNAME_PATTERN.test(trimmed)
+  );
+}
+
+function createInitialFormState(
+  clienteId: string,
+  tipoInstalacion: Cliente['tipo_instalacion'],
+): ConexionCreate {
+  return {
+    cliente_id: clienteId,
+    servidor: '',
+    puerto: 1433,
+    nombre_bd: '',
+    usuario: '',
+    password: '',
+    tipo_bd: 'sqlserver',
+    usa_ssl: false,
+    timeout_segundos: 30,
+    max_pool_size: 100,
+    es_solo_lectura: false,
+    es_conexion_principal: tipoInstalacion === 'dedicated',
+  };
+}
+
+function buildConexionCreatePayload(
+  formData: ConexionCreate,
+  clienteId: string,
+): ConexionCreate {
+  return {
+    cliente_id: clienteId,
+    servidor: formData.servidor.trim(),
+    puerto: formData.puerto,
+    nombre_bd: formData.nombre_bd.trim(),
+    usuario: formData.usuario,
+    password: formData.password,
+    tipo_bd: formData.tipo_bd,
+    usa_ssl: formData.usa_ssl,
+    timeout_segundos: formData.timeout_segundos,
+    max_pool_size: formData.max_pool_size,
+    es_solo_lectura: formData.es_solo_lectura,
+    es_conexion_principal: formData.es_conexion_principal,
+  };
+}
 
 interface CreateConnectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   clienteId: string;
+  tipoInstalacion: Cliente['tipo_instalacion'];
 }
 
 /**
@@ -28,81 +94,29 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  clienteId
+  clienteId,
+  tipoInstalacion,
 }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [testing, setTesting] = useState<boolean>(false);
-  const [modulos, setModulos] = useState<Modulo[]>([]);
-  const [loadingModulos, setLoadingModulos] = useState<boolean>(true);
   const [isAdvancedMode, setIsAdvancedMode] = useState<boolean>(false);
 
-  const [formData, setFormData] = useState<ConexionCreate>({
-    cliente_id: clienteId,
-    modulo_id: '',
-    servidor: '',
-    puerto: 1433,
-    nombre_bd: '',
-    usuario: '',
-    password: '',
-    tipo_bd: 'sqlserver',
-    usa_ssl: false,
-    timeout_segundos: 30,
-    max_pool_size: 100,
-    es_solo_lectura: false,
-    es_conexion_principal: false
-  });
+  const [formData, setFormData] = useState<ConexionCreate>(() =>
+    createInitialFormState(clienteId, tipoInstalacion),
+  );
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  /**
-   * Carga los módulos disponibles cuando se abre el modal
-   */
-  useEffect(() => {
-    const fetchModulos = async () => {
-      if (!isOpen) return;
-
-      setLoadingModulos(true);
-      try {
-        console.log('🔄 Cargando módulos disponibles...');
-        const data = await moduloService.getModulos(1, 100, true);
-        const modulosActivos = data.data.filter((m: Modulo) => m.es_activo);
-        setModulos(modulosActivos);
-        console.log(`✅ ${modulosActivos.length} módulos cargados`);
-      } catch (error) {
-        console.error('❌ Error cargando módulos:', error);
-        toast.error('Error al cargar los módulos disponibles');
-      } finally {
-        setLoadingModulos(false);
-      }
-    };
-
-    fetchModulos();
-  }, [isOpen]);
 
   /**
    * Resetea el formulario cuando se abre/cierra el modal
    */
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        cliente_id: clienteId,
-        modulo_id: '',
-        servidor: '',
-        puerto: 1433,
-        nombre_bd: '',
-        usuario: '',
-        password: '',
-        tipo_bd: 'sqlserver',
-        usa_ssl: false,
-        timeout_segundos: 30,
-        max_pool_size: 100,
-        es_solo_lectura: false,
-        es_conexion_principal: false
-      });
+      setFormData(createInitialFormState(clienteId, tipoInstalacion));
       setErrors({});
       console.log('🔄 Formulario de creación reseteado');
     }
-  }, [isOpen, clienteId]);
+  }, [isOpen, clienteId, tipoInstalacion]);
 
   /**
    * Maneja cambios en los campos del formulario
@@ -131,20 +145,41 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.modulo_id) {
-      newErrors.modulo_id = 'Debe seleccionar un módulo';
-    }
-
-    if (!formData.servidor.trim()) {
+    const servidorTrimmed = formData.servidor.trim();
+    if (!servidorTrimmed) {
       newErrors.servidor = 'El servidor es requerido';
+    } else if (servidorTrimmed.length > SERVIDOR_MAX_LENGTH) {
+      newErrors.servidor = `El servidor no puede superar ${SERVIDOR_MAX_LENGTH} caracteres`;
+    } else if (!isValidServidor(servidorTrimmed)) {
+      newErrors.servidor = 'Ingresa un hostname, IPv4 o IPv6 válido';
     }
 
     if (!formData.puerto || formData.puerto < 1 || formData.puerto > 65535) {
       newErrors.puerto = 'El puerto debe estar entre 1 y 65535';
     }
 
-    if (!formData.nombre_bd.trim()) {
+    const nombreBdTrimmed = formData.nombre_bd.trim();
+    if (!nombreBdTrimmed) {
       newErrors.nombre_bd = 'El nombre de la base de datos es requerido';
+    } else if (nombreBdTrimmed.length > NOMBRE_BD_MAX_LENGTH) {
+      newErrors.nombre_bd = `El nombre no puede superar ${NOMBRE_BD_MAX_LENGTH} caracteres`;
+    } else if (!NOMBRE_BD_PATTERN.test(nombreBdTrimmed)) {
+      newErrors.nombre_bd =
+        'Use solo letras, números, guiones, puntos o guiones bajos; debe comenzar con letra, número o _';
+    }
+
+    if (
+      formData.timeout_segundos !== undefined &&
+      (formData.timeout_segundos < 5 || formData.timeout_segundos > 300)
+    ) {
+      newErrors.timeout_segundos = 'El timeout debe estar entre 5 y 300 segundos';
+    }
+
+    if (
+      formData.max_pool_size !== undefined &&
+      (formData.max_pool_size < 1 || formData.max_pool_size > 1000)
+    ) {
+      newErrors.max_pool_size = 'Max pool size debe estar entre 1 y 1000';
     }
 
     if (!formData.usuario.trim()) {
@@ -153,6 +188,11 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
 
     if (!formData.password.trim()) {
       newErrors.password = 'La contraseña es requerida';
+    }
+
+    if (tipoInstalacion === 'dedicated' && !formData.es_conexion_principal) {
+      newErrors.es_conexion_principal =
+        'Para clientes dedicated, la conexión debe marcarse como principal';
     }
 
     setErrors(newErrors);
@@ -173,7 +213,6 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
       console.log('🧪 Probando conexión con datos:', {
         servidor: formData.servidor,
         nombre_bd: formData.nombre_bd,
-        modulo_id: formData.modulo_id
       });
 
       // Preparar datos para test
@@ -244,15 +283,16 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
 
     setLoading(true);
     try {
+      const payload = buildConexionCreatePayload(formData, clienteId);
+
       console.log('🔄 Creando conexión con datos:', {
-        cliente_id: formData.cliente_id,
-        modulo_id: formData.modulo_id,
-        servidor: formData.servidor,
-        nombre_bd: formData.nombre_bd
+        cliente_id: payload.cliente_id,
+        servidor: payload.servidor,
+        nombre_bd: payload.nombre_bd,
+        es_conexion_principal: payload.es_conexion_principal,
       });
 
-      // ✅ CORREGIDO: Servicio actualizado
-      await conexionService.createConexion(clienteId, formData);
+      await conexionService.createConexion(clienteId, payload);
 
       console.log('✅ Conexión creada exitosamente');
       toast.success('Conexión creada exitosamente');
@@ -260,6 +300,22 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
       onClose();
     } catch (error) {
       console.error('❌ Error creando conexión:', error);
+
+      if (getApiErrorCode(error) === 'PRIMARY_CONNECTION_CONFLICT') {
+        toast.error(
+          getErrorMessage(error).message ||
+            'Ya existe una conexión principal activa para este cliente.',
+        );
+        return;
+      }
+
+      const validation = getValidationErrors(error);
+      if (Object.keys(validation.fieldErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...validation.fieldErrors }));
+        toast.error(FORM_VALIDATION_TOAST_MESSAGE);
+        return;
+      }
+
       const errorData = getErrorMessage(error);
       toast.error(errorData.message || 'Error al crear la conexión');
     } finally {
@@ -292,35 +348,6 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Selección de Módulo */}
-            <div className="md:col-span-2">
-              <label htmlFor="modulo_id" className="block text-sm font-medium text-text-soft mb-1">
-                Módulo *
-              </label>
-              <select
-                id="modulo_id"
-                name="modulo_id"
-                value={formData.modulo_id}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base ${errors.modulo_id ? 'border-error' : 'border-border-base'
-                  }`}
-                disabled={loading || testing || loadingModulos}
-              >
-                <option value={0}>Seleccionar módulo...</option>
-                {modulos.map(modulo => (
-                  <option key={modulo.modulo_id} value={modulo.modulo_id}>
-                    {modulo.nombre} ({modulo.codigo_modulo})
-                  </option>
-                ))}
-              </select>
-              {errors.modulo_id && (
-                <p className="mt-1 text-sm text-error">{errors.modulo_id}</p>
-              )}
-              {loadingModulos && (
-                <p className="mt-1 text-sm text-text-soft">Cargando módulos...</p>
-              )}
-            </div>
-
             {/* Información del Servidor */}
             <div>
               <label htmlFor="servidor" className="block text-sm font-medium text-text-soft mb-1">
@@ -491,11 +518,14 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                     name="timeout_segundos"
                     value={formData.timeout_segundos}
                     onChange={handleInputChange}
-                    min="1"
+                    min="5"
                     max="300"
                     className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                     disabled={loading || testing}
                   />
+                  {errors.timeout_segundos && (
+                    <p className="mt-1 text-sm text-error">{errors.timeout_segundos}</p>
+                  )}
                 </div>
 
                 <div>
@@ -515,6 +545,9 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                     className="w-full px-3 py-2 border border-border-base rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-surface dark:bg-subtle dark:text-text-base"
                     disabled={loading || testing}
                   />
+                  {errors.max_pool_size && (
+                    <p className="mt-1 text-sm text-error">{errors.max_pool_size}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -572,6 +605,9 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
               <p className="text-xs text-text-soft ml-6">
                 Solo puede haber una conexión principal por módulo.
               </p>
+              {errors.es_conexion_principal && (
+                <p className="text-sm text-error ml-6">{errors.es_conexion_principal}</p>
+              )}
             </div>
             )}
           </div>

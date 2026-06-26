@@ -10,7 +10,8 @@ import { useAuth } from '@/shared/context/AuthContext';
 export const MY_SESSIONS_LIST_QUERY_KEY = ['auth', 'sessions', 'my'] as const;
 
 /** Columnas tabla self-service (sin usuario/empresa admin). */
-export const MY_SESSIONS_TABLE_COLSPAN = 8;
+/** Columnas tabla self — alineado layout enterprise Fase 1A. */
+export const MY_SESSIONS_TABLE_COLSPAN = 4;
 
 export function invalidateMySessionsListQueries(queryClient: QueryClient): Promise<void> {
   return queryClient.invalidateQueries({ queryKey: MY_SESSIONS_LIST_QUERY_KEY });
@@ -23,6 +24,7 @@ export interface UseMySessionsListOptions {
 export function useMySessionsList(options: UseMySessionsListOptions = {}) {
   const { enabled = true } = options;
   const { auth, loading: authLoading, isAuthenticated } = useAuth();
+  const currentSessionId = auth.user?.current_session_id ?? null;
   const currentTokenId = auth.user?.current_token_id ?? null;
 
   const query = useTenantQuery<UserSessionRead[]>({
@@ -32,8 +34,9 @@ export function useMySessionsList(options: UseMySessionsListOptions = {}) {
   });
 
   const matchCurrentSession = useCallback(
-    (session: UserSessionRead) => isCurrentSession(session, currentTokenId),
-    [currentTokenId],
+    (session: UserSessionRead) =>
+      isCurrentSession(session, { currentSessionId, currentTokenId }),
+    [currentSessionId, currentTokenId],
   );
 
   const items = useMemo(

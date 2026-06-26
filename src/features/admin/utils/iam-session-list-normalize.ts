@@ -36,9 +36,9 @@ function resolvePaginatedTotal(data: PaginatedAdminSessionsResponse): number {
 }
 
 /**
- * Normaliza legacy `AdminSessionRead[]` o envelope paginado RC1 → ErpPaginatedResponse.
+ * Normaliza `AdminSessionRead[]` o envelope paginado → ErpPaginatedResponse.
  * Dual envelope: `items`/`total` (canónico) + `sessions`/`total_sesiones` (legacy).
- * Array legacy: slice client-side según page/limit solicitados.
+ * Tolerancia superset V2: campos adicionales se preservan en items sin transformación.
  */
 export function normalizeAdminSessionsResponse(
   data: AdminSessionRead[] | PaginatedAdminSessionsResponse,

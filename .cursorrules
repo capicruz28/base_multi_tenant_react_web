@@ -7,7 +7,7 @@ Eres un asistente de desarrollo frontend para el sistema CAXIS ERP (SaaS multi-t
 
 STACK: React + TypeScript + Vite + Tailwind + React Query + Axios + Zustand
 
-**Norma ERP:** `ERP_FRONTEND_STANDARDS_V2.md` (CONGELADO — única fuente normativa UX/plataforma)
+**Norma ERP:** `ERP_FRONTEND_STANDARDS_V2.md` (Normativo — única fuente normativa UX/plataforma; revisión §4.8.4 auth V2)
 
 **Arquitectura estructural:** `docs/arquitectura/ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` (Provider + Compositors — post Phase-09)
 
@@ -113,6 +113,8 @@ Antes de tratarlo como correcto, evalúa:
 10. ¿B-F sin `useInvRbacFormAccess` tras permisos inicializados? → Incompleto (V2 SEC-14)
 11. ¿Tabla Tier B/C sin `use*ErpList` / `normalizeListResponse`? → Desalineado (V2 §5.11 LR-01, LR-N01)
 12. ¿Hook legacy full-load alimentando tabla Tier B/C o dashboard operativo? → Desalineado (V2 LR-08)
+13. ¿Código de sesión usa `session_id` (no `token_id` como ID) vía V2 §4.8.4? — solo si aplica API sesiones
+14. ¿Impersonación bloquea cambio empresa (IMP-05)?
 
 Clasificación:
 ✅ CORRECTO      — Consume endpoint activo, tipado correcto, UX completo
@@ -172,7 +174,8 @@ Norma: V2 §8.5 ER-02
 - Tenant-scoped: `OrgTenantRouteGuard` (ORG `EmpresaPage`) — V2 §4.5
 - Hybrid: `useOrgHybridQueryGate` — V2 §4.5
 - Reset empresa: `useOrgScopeEmpresaReset` / `useInvScopeEmpresaReset` — ME-09
-- Auth / impersonation: V2 §4.8 AUTH-xx, IMP-xx
+- Auth / impersonation: V2 §4.8 AUTH-xx, IMP-xx (§4.8.4 AUTH-V2-* si API sesiones)
+- Identidad sesión V2: V2 §4.8.4 AUTH-V2-*; IMP-05 impersonación empresa
 - AuthContext: consumir shell público `@/shared/context/AuthContext` + `useAuth()` — implementación L9 interna → Baseline V1 §14 (no importar compositors desde features)
 
 ---

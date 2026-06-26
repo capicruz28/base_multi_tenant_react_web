@@ -11,7 +11,7 @@ import type {
 
 /**
  * Listado admin — siempre envía `page` (modo paginado opt-in).
- * El normalizador tolera respuesta legacy array y dual envelope RC1.
+ * El normalizador tolera respuesta legacy array, dual envelope y superset V2.
  */
 export const getAdminSessions = async (
   params: GetAdminSessionsParams,
@@ -51,7 +51,7 @@ export const getAdminSessions = async (
   }
 };
 
-/** Sesiones del usuario autenticado — RC1 PATH A. */
+/** Sesiones del usuario autenticado — GET /auth/sessions/. */
 export const getMySessions = async (): Promise<UserSessionRead[]> => {
   try {
     const { data } = await api.get<UserSessionRead[]>('/auth/sessions/');
@@ -81,9 +81,9 @@ export const getCurrentUserSessions = async (): Promise<AdminSessionRead[]> => {
   }
 };
 
-export const revokeSessionById = async (tokenId: string): Promise<void> => {
+export const revokeSessionById = async (sessionId: string): Promise<void> => {
   try {
-    await api.post(`/auth/sessions/${tokenId}/revoke_admin/`);
+    await api.post(`/auth/sessions/${sessionId}/revoke_admin/`);
   } catch (error) {
     const axiosError = error as AxiosError<{ detail?: string }>;
     console.error(
@@ -94,11 +94,11 @@ export const revokeSessionById = async (tokenId: string): Promise<void> => {
   }
 };
 
-/** Self-revoke idempotente — RC1 POST /sessions/{token_id}/revoke/ */
-export const revokeSessionSelf = async (tokenId: string): Promise<RevokeSessionResponse> => {
+/** Self-revoke idempotente — IAM V2 POST /sessions/{session_id}/revoke/ */
+export const revokeSessionSelf = async (sessionId: string): Promise<RevokeSessionResponse> => {
   try {
     const { data } = await api.post<RevokeSessionResponse>(
-      `/auth/sessions/${tokenId}/revoke/`,
+      `/auth/sessions/${sessionId}/revoke/`,
     );
     return data;
   } catch (error) {

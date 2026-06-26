@@ -19,10 +19,26 @@ export interface Role {
     apellido?: string | null;
     es_activo: boolean;
     correo_confirmado: boolean;
+    proveedor_autenticacion?: string | null;
     fecha_creacion: string; // O Date
     fecha_ultimo_acceso?: string | null; // O Date
     fecha_actualizacion?: string | null; // O Date
     roles: Role[]; // Lista de roles asociados
+  }
+
+  /** POST /usuarios/{id}/reset-password/ — credenciales de entrega única. */
+  export interface CredencialesTemporalesRead {
+    nombre_usuario: string;
+    contrasena: string;
+    requiere_cambio: boolean;
+  }
+
+  export interface AdminPasswordResetResponse {
+    success: boolean;
+    message: string;
+    usuario_id: string;
+    credenciales_temporales: CredencialesTemporalesRead;
+    sesiones_revocadas: number;
   }
   
   // Corresponde a schemas.usuario.PaginatedUsuarioResponse en el backend

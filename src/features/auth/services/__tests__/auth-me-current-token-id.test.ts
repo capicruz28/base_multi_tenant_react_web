@@ -76,7 +76,28 @@ describe('authService.me — IAM-FE-AUTH-ME-401-CONTRACT-01', () => {
     });
   });
 
-  describe('normalización current_token_id', () => {
+  describe('normalización current_session_id y current_token_id', () => {
+    it('normaliza current_session_id desde GET /auth/me', async () => {
+      mockedGet.mockResolvedValue({
+        data: buildRawUser({ current_session_id: '  session-current-uuid  ' }),
+      });
+
+      const profile = await authService.me();
+
+      expect(mockedGet).toHaveBeenCalledWith('/auth/me/');
+      expect(profile?.current_session_id).toBe('session-current-uuid');
+    });
+
+    it('current_session_id ausente o vacío → null', async () => {
+      mockedGet.mockResolvedValue({
+        data: buildRawUser({ current_session_id: '   ' }),
+      });
+
+      const profile = await authService.me();
+
+      expect(profile?.current_session_id).toBeNull();
+    });
+
     it('normaliza current_token_id desde GET /auth/me', async () => {
       mockedGet.mockResolvedValue({
         data: buildRawUser({ current_token_id: '  token-current-uuid  ' }),

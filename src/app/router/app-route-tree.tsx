@@ -6,8 +6,7 @@ import OnboardingEmpresaPage from '@/features/auth/pages/OnboardingEmpresaPage';
 import LoadingSpinner from '@/shared/components/LoadingSpinner';
 import { PermissionGuard } from '@/app/router/guards/PermissionGuard';
 import { homeRoutes } from '@/features/home/routes';
-
-const MySessionsPage = lazy(() => import('@/features/auth/pages/MySessionsPage'));
+import { accountRoutes } from '@/features/account/routes';
 
 const AutorizacionRouter = lazy(() => import('@/features/hcm/asistencia/autorizacion/routes'));
 const ReportesHCMRouter = lazy(() => import('@/features/hcm/reportes/routes'));
@@ -44,14 +43,7 @@ export const appRouteChildren: RouteObject[] = [
   { index: true, element: <Navigate to="/app/home" replace /> },
   { path: 'seleccionar-empresa', element: <SeleccionarEmpresaPage /> },
   { path: 'onboarding', element: <OnboardingEmpresaPage /> },
-  {
-    path: 'cuenta/sesiones',
-    element: (
-      <Suspense fallback={<LoadingSpinner message="Cargando sesiones..." />}>
-        <MySessionsPage />
-      </Suspense>
-    ),
-  },
+  ...accountRoutes,
   ...homeRoutes,
   {
     path: 'autorizacion/*',

@@ -1,6 +1,11 @@
 import axios from 'axios';
 
-export type IamUserOperation = 'CREATE_USER' | 'UPDATE_USER' | 'ASSIGN_ROLE' | 'REVOKE_ROLE';
+export type IamUserOperation =
+  | 'CREATE_USER'
+  | 'UPDATE_USER'
+  | 'ASSIGN_ROLE'
+  | 'REVOKE_ROLE'
+  | 'RESET_PASSWORD';
 
 export interface IamUserOperationEvidence {
   operation: IamUserOperation;

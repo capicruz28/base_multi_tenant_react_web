@@ -50,10 +50,14 @@ function normalizeEmpresaActiva(value: unknown): string | null {
   return s.length > 0 ? s : null;
 }
 
-function normalizeCurrentTokenId(value: unknown): string | null {
+function normalizeSessionId(value: unknown): string | null {
   if (value === null || value === undefined) return null;
   const s = String(value).trim();
   return s.length > 0 ? s : null;
+}
+
+function normalizeCurrentTokenId(value: unknown): string | null {
+  return normalizeSessionId(value);
 }
 
 function normalizeUserData(raw: UserData & Record<string, unknown>): UserData {
@@ -78,6 +82,9 @@ function normalizeUserData(raw: UserData & Record<string, unknown>): UserData {
     es_admin_cliente: toApiBoolean(raw.es_admin_cliente ?? record.es_admin_cliente),
     requires_password_change: toApiBoolean(
       raw.requires_password_change ?? record.requires_password_change,
+    ),
+    current_session_id: normalizeSessionId(
+      raw.current_session_id ?? record.current_session_id,
     ),
     current_token_id: normalizeCurrentTokenId(
       raw.current_token_id ?? record.current_token_id,

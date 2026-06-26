@@ -10,7 +10,7 @@ export interface SessionStatusBadgeProps {
   status: UserSessionStatus | undefined;
 }
 
-/** Badge de estado — consume únicamente `status` del Backend RC1. */
+/** Badge de estado — consume únicamente `status` del Backend (IAM V2). */
 export function SessionStatusBadge({ status }: SessionStatusBadgeProps) {
   const label = getSessionStatusBadgeLabel(status);
   const className = getSessionStatusBadgeClass(status);

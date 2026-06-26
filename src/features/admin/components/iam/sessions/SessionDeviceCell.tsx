@@ -9,6 +9,8 @@ export type SessionDeviceCellDisplay = 'label' | 'browser' | 'ip';
 export interface SessionDeviceCellProps {
   device: SessionDeviceRead | undefined;
   display?: SessionDeviceCellDisplay;
+  /** Última IP conocida (V2). Si se omite, usa `device.ip_address`. */
+  lastSeenIp?: string | null;
 }
 
 function PlatformIcon({ platform, clientType }: { platform: string; clientType: string }) {
@@ -43,10 +45,14 @@ function formatBrowserLine(device: SessionDeviceRead): string {
 }
 
 /**
- * Celda dispositivo RC1 — consume exclusivamente campos `device.*` del Backend.
+ * Celda dispositivo IAM V2 — consume campos `device.*` del Backend.
  * Prohibido parsear `user_agent`.
  */
-export function SessionDeviceCell({ device, display = 'label' }: SessionDeviceCellProps) {
+export function SessionDeviceCell({
+  device,
+  display = 'label',
+  lastSeenIp,
+}: SessionDeviceCellProps) {
   if (!device) {
     return <span className="text-text-soft">{PLACEHOLDER}</span>;
   }
@@ -56,7 +62,8 @@ export function SessionDeviceCell({ device, display = 'label' }: SessionDeviceCe
   }
 
   if (display === 'ip') {
-    return <span className="text-text-soft">{device.ip_address ?? PLACEHOLDER}</span>;
+    const ip = lastSeenIp !== undefined ? lastSeenIp : device.ip_address;
+    return <span className="text-text-soft">{ip ?? PLACEHOLDER}</span>;
   }
 
   const label = device.device_label.trim() || PLACEHOLDER;

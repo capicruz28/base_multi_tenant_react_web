@@ -1,4 +1,4 @@
-CAXIS ERP — PROMPT MAESTRO FRONTEND v4.2
+CAXIS ERP — PROMPT MAESTRO FRONTEND v4.3
 =======================================
 
 # CONTEXTO
@@ -10,13 +10,15 @@ Autenticación JWT, RBAC, arquitectura modular.
 Módulo objetivo: [MODULO]
 Código: [CODIGO]
 
-**Norma ERP:** `ERP_FRONTEND_STANDARDS_V2.md` (CONGELADO — única fuente normativa UX/plataforma)
+**Norma ERP:** `ERP_FRONTEND_STANDARDS_V2.md` v2.5 (Normativo — única fuente normativa UX/plataforma; detalle en V2, no duplicar aquí)
 
 **Arquitectura estructural:** `docs/arquitectura/ERP_FRONTEND_ARCHITECTURE_BASELINE_V1.md` (Provider + Compositors)
 
 **Precedencia:** OpenAPI > **V2** > **Baseline V1** > `.cursorrules` > **este prompt**
 
 **Alcance:** este prompt cubre **módulos ERP operativos** (Fase 0–3.5). Refactors estructurales core → **Fase E** + Baseline V1 §11.3–§11.4.
+
+**Auth / sesión IAM V2:** cambios transversales → V2 §4.8.4 + epic dedicado; **no** parte del bootstrap Fase 0–3.5 de módulos operativos PUR/SLS/…
 
 **Diseño visual 2 capas (tokens + brand):** ver `.cursorrules` — no repetir aquí.
 
@@ -373,6 +375,7 @@ Copiar patrón INV M0-b antes de migrar pantallas:
 20. Tier B/C: `use*ErpList` + `normalizeListResponse` + `ErpPagination` presentes — §5.11
 21. Sin hook legacy full-load en tablas Tier B/C — LR-08
 22. Sin adaptadores de respuesta list[]/envelope por pantalla — LR-N03
+23. Epic multi-fase (opcional): tabla «fases congeladas intactas» antes de sign-off — AUD-PH-01 (ver V2 §11 / Baseline Fase E)
 
 ---
 
@@ -382,7 +385,7 @@ Verificar checklist **`ERP_FRONTEND_STANDARDS_V2.md` §11** según sprint:
 
 ### M0 — Multiempresa
 - [ ] §11.1 Gate 0 (CL-01, API-01, patrón §9.5)
-- [ ] §11.2 Gate 1 (ME-01…ME-06, E-ME4, guards, invalidate)
+- [ ] §11.2 Gate 1 (ME-01…ME-06, E-ME4, guards, invalidate; **AUTH-V2/IMP-05** si aplica — leer V2 §11.2)
 - [ ] §11.5 Gate 4 (RB-01, ER-02, tsc/eslint)
 
 ### M1 — Catálogos Plantilla A (por pantalla)

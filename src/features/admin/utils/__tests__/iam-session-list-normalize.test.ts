@@ -116,4 +116,32 @@ describe('iam-session-list-normalize', () => {
     expect(page2.total_paginas).toBe(2);
     expect(page2.limit).toBe(2);
   });
+
+  it('preserva campos superset V2 sin transformación (FE-21)', () => {
+    const v2Session: AdminSessionRead & Record<string, unknown> = {
+      ...createSession('token-v2'),
+      session_id: 'session-v2-uuid',
+      login_ip: '10.0.0.1',
+      login_method: 'password',
+      last_business_activity_at: '2026-06-21T09:00:00Z',
+      future_v2_field: 'ignored-but-preserved',
+    };
+
+    const envelope: PaginatedAdminSessionsResponse = {
+      items: [v2Session],
+      total: 1,
+      pagina_actual: 1,
+      total_paginas: 1,
+      limit: 25,
+    };
+
+    const result = normalizeAdminSessionsResponse(envelope, 1, 25);
+    const item = result.items[0] as AdminSessionRead & Record<string, unknown>;
+
+    expect(item.session_id).toBe('session-v2-uuid');
+    expect(item.login_ip).toBe('10.0.0.1');
+    expect(item.login_method).toBe('password');
+    expect(item.last_business_activity_at).toBe('2026-06-21T09:00:00Z');
+    expect(item.future_v2_field).toBe('ignored-but-preserved');
+  });
 });

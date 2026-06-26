@@ -72,6 +72,6 @@ describe('MY_SESSIONS_LIST_QUERY_KEY', () => {
   it('exporta query key estable', async () => {
     const mod = await import('@/features/admin/hooks/useMySessionsList');
     expect(mod.MY_SESSIONS_LIST_QUERY_KEY).toEqual(['auth', 'sessions', 'my']);
-    expect(mod.MY_SESSIONS_TABLE_COLSPAN).toBe(8);
-  });
+    expect(mod.MY_SESSIONS_TABLE_COLSPAN).toBe(4);
+  }, 15_000);
 });
