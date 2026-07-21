@@ -93,9 +93,9 @@ export function useCreateTipoMovimiento() {
 
   return useMutation<TipoMovimiento, Error, TipoMovimientoCreate>({
     mutationFn: (payload) => tipoMovimientoService.create(payload),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['inv', 'tipo-movimiento', 'list'] });
-      toast.success('Tipo de movimiento creado.');
+      toast.success(`Tipo de movimiento creado con código ${data.codigo}`);
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });

@@ -8,6 +8,7 @@ import {
   Trash2,
   RefreshCw,
   Building,
+  Server,
 } from 'lucide-react';
 
 import { Cliente, ClienteActiveFilter, ClienteFilters } from '../types/cliente.types';
@@ -20,6 +21,12 @@ import {
 } from '@/core/hooks/useClienteMutations';
 import CreateClientModal from '../components/CreateClientModal';
 import EditClientModal from '../components/EditClientModal';
+import { ProvisioningStatusBadge } from '../components/provisioning/ProvisioningStatusBadge';
+import {
+  getDedicatedProvisioningStateForDisplay,
+  navigateToClientProvisioning,
+  shouldShowDedicatedProvisioningSurfaces,
+} from '../utils/cliente-provisioning-display.utils';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
 import { getErrorMessage } from '@/core/services/error.service';
@@ -297,7 +304,13 @@ const ClientManagementPage: React.FC = () => {
                     </thead>
                     <tbody className="bg-surface divide-y divide-border-base">
                       {clientes.length > 0 ? (
-                        clientes.map((cliente) => (
+                        clientes.map((cliente) => {
+                          const provisioningStateDisplay =
+                            getDedicatedProvisioningStateForDisplay(cliente);
+                          const showProvisioningAction =
+                            shouldShowDedicatedProvisioningSurfaces(cliente);
+
+                          return (
                           <tr key={cliente.cliente_id} className="hover:bg-overlay/80 dark:hover:bg-overlay/50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
@@ -343,20 +356,25 @@ const ClientManagementPage: React.FC = () => {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  cliente.es_activo
-                                    ? 'bg-success/10 text-success'
-                                    : 'bg-error/10 text-error'
-                                }`}
-                              >
-                                {cliente.es_activo ? 'Activo' : 'Inactivo'}
-                              </span>
-                              {cliente.es_demo && (
-                                <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
-                                  Demo
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    cliente.es_activo
+                                      ? 'bg-success/10 text-success'
+                                      : 'bg-error/10 text-error'
+                                  }`}
+                                >
+                                  {cliente.es_activo ? 'Activo' : 'Inactivo'}
                                 </span>
-                              )}
+                                {cliente.es_demo && (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
+                                    Demo
+                                  </span>
+                                )}
+                                {provisioningStateDisplay ? (
+                                  <ProvisioningStatusBadge state={provisioningStateDisplay} />
+                                ) : null}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex justify-end items-center gap-2">
@@ -383,6 +401,21 @@ const ClientManagementPage: React.FC = () => {
                                   <Eye className="h-4 w-4" />
                                 </button>
 
+                                {showProvisioningAction ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      !pageActionsLocked &&
+                                      navigateToClientProvisioning(cliente, navigate)
+                                    }
+                                    disabled={pageActionsLocked}
+                                    className="text-info hover:text-info/80 p-1 rounded hover:bg-overlay dark:hover:bg-overlay disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Ver provisioning"
+                                  >
+                                    <Server className="h-4 w-4" />
+                                  </button>
+                                ) : null}
+
                                 {cliente.es_activo ? (
                                   <button
                                     type="button"
@@ -407,7 +440,8 @@ const ClientManagementPage: React.FC = () => {
                               </div>
                             </td>
                           </tr>
-                        ))
+                          );
+                        })
                       ) : (
                         <IamTableEmptyState
                           colSpan={TABLE_COLSPAN}

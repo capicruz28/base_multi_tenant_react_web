@@ -5,6 +5,7 @@ import LoadingSpinner from '@/shared/components/LoadingSpinner';
 const SuperAdminDashboard = lazy(() => import('./dashboard/pages/SuperAdminDashboard'));
 const ClientManagementPage = lazy(() => import('./clientes/pages/ClientManagementPage'));
 const ClientDetailPage = lazy(() => import('./clientes/pages/ClientDetailPage'));
+const ClientProvisioningPage = lazy(() => import('./clientes/pages/ClientProvisioningPage'));
 const ModuleManagementPage = lazy(() => import('./modulos/pages/ModuleManagementPage'));
 const SectionManagementPage = lazy(() => import('./modulos/pages/SectionManagementPage'));
 const MenuManagementPageSuperAdmin = lazy(() => import('./modulos/pages/MenuManagementPageSuperAdmin'));
@@ -34,6 +35,14 @@ export const superAdminRoutes: RouteObject = {
       element: (
         <Suspense fallback={<LoadingSpinner message="Cargando gestión de clientes..." />}>
           <ClientManagementPage />
+        </Suspense>
+      ),
+    },
+    {
+      path: 'clientes/:id/provisioning',
+      element: (
+        <Suspense fallback={<LoadingSpinner message="Cargando provisioning..." />}>
+          <ClientProvisioningPage />
         </Suspense>
       ),
     },

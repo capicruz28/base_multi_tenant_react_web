@@ -45,6 +45,7 @@ import {
 import { canInitializeFullSession } from '@/core/auth/utils/session-token';
 import { invalidateOrgQueries } from '@/features/org/utils/invalidate-org-queries';
 import { invalidateInvQueries } from '@/features/inv/utils/invalidate-inv-queries';
+import { invalidateCfgQueries } from '@/features/cfg/utils/invalidate-cfg-queries';
 import { logAuthSessionSnapshot } from '@/core/auth/utils/auth-session-snapshot';
 import {
 	logAuthSessionDiag,
@@ -173,6 +174,7 @@ export function useAuthProviderPublicActions(
 			queryClient.clear();
 			invalidateOrgQueries(queryClient);
 			invalidateInvQueries(queryClient);
+			invalidateCfgQueries(queryClient);
 			const newAuth = { token: response.access_token, user: response.user_data ?? null };
 			setAuth(newAuth);
 			authRef.current = newAuth;

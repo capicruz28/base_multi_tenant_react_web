@@ -6,6 +6,8 @@ import { toast } from 'react-hot-toast';
 import { DollarSign, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
 import { useDebouncedSearch } from '@/core/list';
+import { useCodigoFieldController } from '@/core/codigo';
+import { CodigoField } from '@/shared/components/codigo';
 import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 import { OrgToolbarSearch } from '../components/OrgToolbarSearch';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
@@ -41,6 +43,7 @@ import {
   isEditCentroCostoDirty,
   type EditCentroCostoFormSnapshot,
 } from '../utils/form-dirty/centro-costo-form-dirty';
+import { mutateOrgCreateWithCodigo, ORG_CODIGO_SEQUENCE_KEYS } from '../codigo';
 
 const inputClass = 'mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm';
 const DEFAULT: CentroCostoCreate = {
@@ -120,10 +123,18 @@ export default function CentrosCostoPage() {
 
   const submitting = createCentroCosto.isPending || updateCentroCosto.isPending;
   const deleting = deleteCentroCosto.isPending;
+  const codigo = useCodigoFieldController({
+    sequenceKey: ORG_CODIGO_SEQUENCE_KEYS.centroCosto,
+    mode: 'create',
+    disabled: submitting,
+  });
   const hasSearch = search.hasSearch;
   const TABLE_COLSPAN = 6;
 
-  const isCreateDialogDirty = useMemo(() => isCreateCentroCostoDirty(form), [form]);
+  const isCreateDialogDirty = useMemo(
+    () => isCreateCentroCostoDirty(form) || codigo.isDirty,
+    [form, codigo.isDirty],
+  );
   const isEditDialogDirty = useMemo(
     () => isEditCentroCostoDirty(editForm, editFormSnapshot),
     [editForm, editFormSnapshot],
@@ -131,11 +142,12 @@ export default function CentrosCostoPage() {
 
   const closeCreate = useCallback(() => {
     if (!submitting) {
+      codigo.actions.reset();
       setCreateOpen(false);
       setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
       setDiscardPending((pending) => (pending === 'create' ? null : pending));
     }
-  }, [scopeEmpresaId, submitting]);
+  }, [scopeEmpresaId, submitting, codigo.actions]);
 
   const closeEdit = useCallback(() => {
     if (!submitting) {
@@ -184,6 +196,7 @@ export default function CentrosCostoPage() {
   );
   const openCreate = () => {
     setDiscardPending(null);
+    codigo.actions.reset();
     setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
     setCreateOpen(true);
   };
@@ -212,15 +225,15 @@ export default function CentrosCostoPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!scopeEmpresaId || !form.codigo.trim() || !form.nombre.trim() || !form.tipo_centro_costo) {
-      toast.error('Código, nombre y tipo son requeridos.');
+    if (!scopeEmpresaId || !form.nombre.trim() || !form.tipo_centro_costo) {
+      toast.error('Nombre y tipo son requeridos.');
       return;
     }
     try {
-      const payload = assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId);
-      if (payload.fecha_inicio_vigencia === '') delete payload.fecha_inicio_vigencia;
-      if (payload.fecha_fin_vigencia === '') delete payload.fecha_fin_vigencia;
-      await createCentroCosto.mutateAsync(payload);
+      const basePayload = assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId);
+      if (basePayload.fecha_inicio_vigencia === '') delete basePayload.fecha_inicio_vigencia;
+      if (basePayload.fecha_fin_vigencia === '') delete basePayload.fecha_fin_vigencia;
+      await mutateOrgCreateWithCodigo(codigo, basePayload, createCentroCosto.mutateAsync);
       closeCreate();
     } catch {
       /* toast de error: onError en useCreateCentroCosto */
@@ -452,7 +465,11 @@ export default function CentrosCostoPage() {
               <FormSection title="Información general">
                 <div className="space-y-3">
                   <OrgSessionEmpresaField />
-                  <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className={`${inputClass} uppercase`} required /></div>
+                  <CodigoField
+                    sequenceKey={ORG_CODIGO_SEQUENCE_KEYS.centroCosto}
+                    mode="create"
+                    controller={codigo}
+                  />
                   <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass} required /></div>
                   <div><Label>Tipo *</Label><select value={form.tipo_centro_costo} onChange={(e) => setForm((p) => ({ ...p, tipo_centro_costo: e.target.value }))} className={inputClass}><option value="operativo">Operativo</option><option value="administrativo">Administrativo</option><option value="proyecto">Proyecto</option></select></div>
                   <div><Label>Descripción</Label><input type="text" value={form.descripcion ?? ''} onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value || undefined }))} className={inputClass} /></div>

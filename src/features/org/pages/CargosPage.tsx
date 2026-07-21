@@ -6,6 +6,8 @@ import { toast } from 'react-hot-toast';
 import { Briefcase, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
 import { useDebouncedSearch } from '@/core/list';
+import { useCodigoFieldController } from '@/core/codigo';
+import { CodigoField } from '@/shared/components/codigo';
 import { OrgToolbarSearch } from '../components/OrgToolbarSearch';
 import { catalogosService } from '@/core/services/catalogos.service';
 import type { Cargo, CargoCreate, CargoUpdate } from '../types/org.types';
@@ -41,6 +43,7 @@ import {
   isEditCargoDirty,
   type EditCargoFormSnapshot,
 } from '../utils/form-dirty/cargo-form-dirty';
+import { mutateOrgCreateWithCodigo, ORG_CODIGO_SEQUENCE_KEYS } from '../codigo';
 
 const inputClass = 'mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm';
 const DEFAULT: CargoCreate = {
@@ -119,6 +122,11 @@ export default function CargosPage() {
 
   const submitting = createCargo.isPending || updateCargo.isPending;
   const deleting = deleteCargo.isPending;
+  const codigo = useCodigoFieldController({
+    sequenceKey: ORG_CODIGO_SEQUENCE_KEYS.cargo,
+    mode: 'create',
+    disabled: submitting,
+  });
   const hasSearch = search.hasSearch;
   const TABLE_COLSPAN = 6;
 
@@ -129,7 +137,10 @@ export default function CargosPage() {
       .catch(() => setMonedas([]));
   }, []);
 
-  const isCreateDialogDirty = useMemo(() => isCreateCargoDirty(form), [form]);
+  const isCreateDialogDirty = useMemo(
+    () => isCreateCargoDirty(form) || codigo.isDirty,
+    [form, codigo.isDirty],
+  );
   const isEditDialogDirty = useMemo(
     () => isEditCargoDirty(editForm, editFormSnapshot),
     [editForm, editFormSnapshot],
@@ -137,12 +148,13 @@ export default function CargosPage() {
 
   const closeCreate = useCallback(() => {
     if (!submitting) {
+      codigo.actions.reset();
       setCreateOpen(false);
       const defaultMonedaId = monedas[0]?.moneda_id ?? '';
       setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '', moneda_salarial: defaultMonedaId });
       setDiscardPending((pending) => (pending === 'create' ? null : pending));
     }
-  }, [monedas, scopeEmpresaId, submitting]);
+  }, [monedas, scopeEmpresaId, submitting, codigo.actions]);
 
   const closeEdit = useCallback(() => {
     if (!submitting) {
@@ -180,6 +192,7 @@ export default function CargosPage() {
 
   const openCreate = () => {
     setDiscardPending(null);
+    codigo.actions.reset();
     const empId = scopeEmpresaId ?? '';
     const defaultMonedaId = monedas[0]?.moneda_id ?? '';
     setForm({ ...DEFAULT, empresa_id: empId, moneda_salarial: defaultMonedaId });
@@ -232,12 +245,13 @@ export default function CargosPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!scopeEmpresaId || !form.codigo.trim() || !form.nombre.trim()) {
-      toast.error('Código y nombre son requeridos.');
+    if (!scopeEmpresaId || !form.nombre.trim()) {
+      toast.error('El nombre es requerido.');
       return;
     }
     try {
-      await createCargo.mutateAsync(assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId));
+      const basePayload = assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId);
+      await mutateOrgCreateWithCodigo(codigo, basePayload, createCargo.mutateAsync);
       closeCreate();
     } catch {
       /* toast de error: onError en useCreateCargo */
@@ -399,7 +413,11 @@ export default function CargosPage() {
               <FormSection title="Información general">
                 <div className="space-y-3">
                   <OrgSessionEmpresaField />
-                  <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className={`${inputClass} uppercase`} required /></div>
+                  <CodigoField
+                    sequenceKey={ORG_CODIGO_SEQUENCE_KEYS.cargo}
+                    mode="create"
+                    controller={codigo}
+                  />
                   <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass} required /></div>
                   <div><Label>Descripción</Label><input type="text" value={form.descripcion ?? ''} onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value || undefined }))} className={inputClass} /></div>
                   <div><Label>Departamento</Label><select value={form.departamento_id ?? ''} onChange={(e) => setForm((p) => ({ ...p, departamento_id: e.target.value || undefined }))} className={inputClass}><option value="">— Ninguno —</option>{departamentos.map((d) => <option key={d.departamento_id} value={d.departamento_id}>{d.codigo} — {d.nombre}</option>)}</select></div>

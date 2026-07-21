@@ -29,12 +29,16 @@ import {
 import { PlatformCatalogTable } from '../components/PlatformCatalogTable';
 import { PlatformCatalogErrorState } from '../components/PlatformCatalogErrorState';
 import { useStablePlatformCatalogListView } from '../utils/useStablePlatformCatalogListView';
+import { CatalogSyncDialog } from '../components/CatalogSyncDialog';
+import { CatalogSyncResultDialog } from '../components/CatalogSyncResultDialog';
+import { usePlatformCatalogSyncFlow } from '../hooks/usePlatformCatalogSyncFlow';
 
 const ENTITY_ID = 'pais' as const;
 
 const PaisesPage: React.FC = () => {
   const { isSuperAdmin } = useAuth();
   const config = getPlatformCatalogEntityConfig(ENTITY_ID);
+  const syncFlow = usePlatformCatalogSyncFlow(ENTITY_ID);
 
   const {
     items,
@@ -202,9 +206,11 @@ const PaisesPage: React.FC = () => {
         ubigeo={fkState.ubigeo}
         onUbigeoChange={setUbigeo}
         onRefresh={() => void refetch()}
+        onSyncDedicated={syncFlow.openSyncDialog}
         onCreate={openCreate}
         isFetching={isFetching}
         disabled={uiDisabled}
+        syncDisabled={syncFlow.isSyncing}
       />
 
       {errorMessage && !isLoading ? (
@@ -431,6 +437,9 @@ const PaisesPage: React.FC = () => {
         variant="info"
         loading={reactivateMutation.isPending}
       />
+
+      <CatalogSyncDialog {...syncFlow.syncDialogProps} />
+      <CatalogSyncResultDialog {...syncFlow.resultDialogProps} />
     </div>
   );
 };

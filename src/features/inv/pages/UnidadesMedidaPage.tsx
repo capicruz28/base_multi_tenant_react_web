@@ -1,11 +1,14 @@
 /**
  * Unidades de Medida — Listado y gestión. GET/POST /api/v1/inv/unidades-medida
+ * Consumidor Engine INV Wave 1 (patrón Golden Reference Categoría).
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { Ruler, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
 import { useDebouncedSearch } from '@/core/list';
+import { useCodigoFieldController } from '@/core/codigo';
+import { CodigoField, CodigoFieldReadOnly } from '@/shared/components/codigo';
 import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
 import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
@@ -34,7 +37,6 @@ import {
 } from '../hooks/unidades-medida.hooks';
 import { useInvSessionScope, useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
 import { OrgSessionEmpresaField } from '@/features/org/components/OrgSessionEmpresaField';
-import { assertBodyEmpresaMatchesSession } from '@/features/org/utils/org-body-scope';
 import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
 import { createOrgDiscardHandlers } from '@/features/org/utils/org-discard-handlers';
@@ -45,10 +47,24 @@ import {
   isEditUnidadMedidaDirty,
   type EditUnidadMedidaFormSnapshot,
 } from '../utils/form-dirty/unidad-medida-form-dirty';
+import {
+  buildUnidadMedidaCreateBasePayload,
+  buildUnidadMedidaUpdatePayload,
+  INV_CODIGO_SEQUENCE_KEYS,
+  mutateInvCreateWithCodigo,
+} from '../codigo';
 
 const TIPOS_UNIDAD = ['cantidad', 'peso', 'volumen', 'longitud', 'area', 'tiempo'] as const;
 
-const DEFAULT: UnidadMedidaCreate = { empresa_id: '', codigo: '', nombre: '', tipo_unidad: 'cantidad', es_unidad_base: false, decimales_permitidos: 2, es_activo: true };
+/** CREATE sin `codigo` — el Motor lo aporta el Engine. */
+const DEFAULT: UnidadMedidaCreate = {
+  empresa_id: '',
+  nombre: '',
+  tipo_unidad: 'cantidad',
+  es_unidad_base: false,
+  decimales_permitidos: 2,
+  es_activo: true,
+};
 
 export default function UnidadesMedidaPage() {
   const { can } = usePermissions();
@@ -95,7 +111,16 @@ export default function UnidadesMedidaPage() {
     createMutation.isPending || updateMutation.isPending || deleteMutation.isPending || reactivarMutation.isPending;
   const formSubmitting = createMutation.isPending || updateMutation.isPending;
 
-  const isCreateDialogDirty = useMemo(() => isCreateUnidadMedidaDirty(form), [form]);
+  const codigo = useCodigoFieldController({
+    sequenceKey: INV_CODIGO_SEQUENCE_KEYS.unidadMedida,
+    mode: 'create',
+    disabled: formSubmitting,
+  });
+
+  const isCreateDialogDirty = useMemo(
+    () => isCreateUnidadMedidaDirty(form) || codigo.isDirty,
+    [form, codigo.isDirty],
+  );
   const isEditDialogDirty = useMemo(
     () => isEditUnidadMedidaDirty(editForm, editFormSnapshot),
     [editForm, editFormSnapshot],
@@ -103,11 +128,12 @@ export default function UnidadesMedidaPage() {
 
   const closeCreate = useCallback(() => {
     if (!formSubmitting) {
+      codigo.actions.reset();
       setCreateOpen(false);
       setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
       setDiscardPending((pending) => (pending === 'create' ? null : pending));
     }
-  }, [formSubmitting, scopeEmpresaId]);
+  }, [formSubmitting, scopeEmpresaId, codigo.actions]);
 
   const closeEdit = useCallback(() => {
     if (!formSubmitting) {
@@ -152,6 +178,7 @@ export default function UnidadesMedidaPage() {
 
   const openCreate = () => {
     setDiscardPending(null);
+    codigo.actions.reset();
     setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
     setCreateOpen(true);
   };
@@ -159,7 +186,6 @@ export default function UnidadesMedidaPage() {
     setDiscardPending(null);
     setEditing(row);
     const nextEditForm: UnidadMedidaUpdate = {
-      codigo: row.codigo,
       nombre: row.nombre,
       simbolo: row.simbolo ?? undefined,
       tipo_unidad: row.tipo_unidad,
@@ -175,17 +201,20 @@ export default function UnidadesMedidaPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!scopeEmpresaId || !form.codigo.trim() || !form.nombre.trim() || !form.tipo_unidad) {
-      toast.error('Empresa activa, código, nombre y tipo son requeridos.');
+    if (!scopeEmpresaId || !form.nombre.trim() || !form.tipo_unidad) {
+      toast.error('El nombre y el tipo son requeridos.');
       return;
     }
     try {
-      await createMutation.mutateAsync(
-        assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId),
+      const basePayload = buildUnidadMedidaCreateBasePayload(form, scopeEmpresaId);
+      await mutateInvCreateWithCodigo(
+        codigo,
+        basePayload as UnidadMedidaCreate & Record<string, unknown>,
+        createMutation.mutateAsync,
       );
       closeCreate();
     } catch {
-      /* error vía useCreateUnidadMedida.onError */
+      /* error vía useCreateUnidadMedida.onError / Engine applyApiError */
     }
   };
 
@@ -193,7 +222,8 @@ export default function UnidadesMedidaPage() {
     e.preventDefault();
     if (!editing) return;
     try {
-      await updateMutation.mutateAsync({ unidadMedidaId: editing.unidad_medida_id, payload: editForm });
+      const payload = buildUnidadMedidaUpdatePayload(editForm);
+      await updateMutation.mutateAsync({ unidadMedidaId: editing.unidad_medida_id, payload });
       closeEdit();
     } catch {
       /* error vía useUpdateUnidadMedida.onError */
@@ -417,7 +447,11 @@ export default function UnidadesMedidaPage() {
           <DialogHeader><DialogTitle>Crear unidad de medida</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <OrgSessionEmpresaField />
-            <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase" required /></div>
+            <CodigoField
+              sequenceKey={INV_CODIGO_SEQUENCE_KEYS.unidadMedida}
+              mode="create"
+              controller={codigo}
+            />
             <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm" required /></div>
             <div><Label>Símbolo</Label><input type="text" value={form.simbolo ?? ''} onChange={(e) => setForm((p) => ({ ...p, simbolo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm" /></div>
             <div><Label>Tipo *</Label><select value={form.tipo_unidad} onChange={(e) => setForm((p) => ({ ...p, tipo_unidad: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm">{TIPOS_UNIDAD.map((t) => <option key={t} value={t}>{t}</option>)}</select></div>
@@ -430,7 +464,11 @@ export default function UnidadesMedidaPage() {
         <DialogContent className="max-w-lg" {...orgDialogGuardProps}>
           <DialogHeader><DialogTitle>Editar unidad de medida</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-4">
-            <div><Label>Código *</Label><input type="text" value={editForm.codigo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase" required /></div>
+            <CodigoFieldReadOnly
+              label="Código"
+              value={editing?.codigo ?? ''}
+              inputId="edit-unidad-medida-codigo"
+            />
             <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm" required /></div>
             <div><Label>Símbolo</Label><input type="text" value={editForm.simbolo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, simbolo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm" /></div>
             <div><Label>Tipo *</Label><select value={editForm.tipo_unidad ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, tipo_unidad: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm">{TIPOS_UNIDAD.map((t) => <option key={t} value={t}>{t}</option>)}</select></div>

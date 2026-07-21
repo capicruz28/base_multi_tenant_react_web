@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query';
 
 import { invalidateInvQueries } from '@/features/inv/utils/invalidate-inv-queries';
 import { invalidateOrgQueries } from '@/features/org/utils/invalidate-org-queries';
+import { invalidateCfgQueries } from '@/features/cfg/utils/invalidate-cfg-queries';
 
 import { normalizeSessionId, type SessionClaimsSnapshot } from './session-claims-snapshot';
 import type { HydrationLevel } from './session-refresh-diff';
@@ -19,7 +20,7 @@ export interface PostRefreshSessionState {
 
 /**
  * Resuelve la política RQ a partir del diff ya calculado (hydrationLevel + ids de sesión).
- * Prioridad: cambio tenant (clear) > cambio empresa (ORG+INV).
+ * Prioridad: cambio tenant (clear) > cambio empresa (ORG+INV+CFG).
  */
 export function resolvePostRefreshRqAction(
   priorSnapshot: SessionClaimsSnapshot,
@@ -56,6 +57,7 @@ export function applyPostRefreshRqInvalidation(
     case 'org-inv':
       invalidateOrgQueries(queryClient);
       invalidateInvQueries(queryClient);
+      invalidateCfgQueries(queryClient);
       return;
     case 'clear-all':
       queryClient.clear();

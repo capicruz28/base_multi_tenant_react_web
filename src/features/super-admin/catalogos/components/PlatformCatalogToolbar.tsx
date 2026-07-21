@@ -1,4 +1,4 @@
-import { Plus, RefreshCw } from 'lucide-react';
+import { CloudUpload, Plus, RefreshCw } from 'lucide-react';
 import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
 import type { PlatformCatalogListFkState } from '../hooks/usePlatformGlobalCatalogList';
 import type {
@@ -32,9 +32,11 @@ export interface PlatformCatalogToolbarProps<
   ubigeo: string | null;
   onUbigeoChange: (value: string | null) => void;
   onRefresh: () => void;
+  onSyncDedicated?: () => void;
   onCreate: () => void;
   isFetching?: boolean;
   disabled?: boolean;
+  syncDisabled?: boolean;
 }
 
 const FK_FILTER_LABELS: Record<
@@ -85,14 +87,17 @@ export function PlatformCatalogToolbar<E extends PlatformCatalogEntityId>({
   ubigeo,
   onUbigeoChange,
   onRefresh,
+  onSyncDedicated,
   onCreate,
   isFetching = false,
   disabled = false,
+  syncDisabled = false,
 }: PlatformCatalogToolbarProps<E>) {
   /** Mutaciones / flujo bloqueado — no incluir isFetching (paridad INV Productos). */
   const mutationDisabled = disabled;
   /** Refresh: evitar doble disparo durante fetch activo. */
   const refreshDisabled = disabled || isFetching;
+  const dedicatedSyncDisabled = mutationDisabled || syncDisabled;
   const createLabel = `Nuevo ${capitalizeLabel(config.singularLabel)}`;
 
   return (
@@ -170,6 +175,19 @@ export function PlatformCatalogToolbar<E extends PlatformCatalogEntityId>({
           >
             <RefreshCw className={`h-5 w-5 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
+          {onSyncDedicated ? (
+            <button
+              type="button"
+              onClick={onSyncDedicated}
+              disabled={dedicatedSyncDisabled}
+              className="flex items-center gap-2 px-4 py-2 border border-border-base text-text-base rounded-lg hover:bg-overlay focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-surface transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Sincronizar Dedicated"
+              aria-label="Sincronizar catálogo hacia tenants Dedicated"
+            >
+              <CloudUpload className="h-4 w-4 shrink-0" aria-hidden />
+              <span className="hidden sm:inline">Sincronizar Dedicated</span>
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onCreate}

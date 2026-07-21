@@ -6,6 +6,8 @@ import { toast } from 'react-hot-toast';
 import { Layers, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
 import { useDebouncedSearch } from '@/core/list';
+import { useCodigoFieldController } from '@/core/codigo';
+import { CodigoField } from '@/shared/components/codigo';
 import { OrgToolbarSearch } from '../components/OrgToolbarSearch';
 import type { Departamento, DepartamentoCreate, DepartamentoUpdate } from '../types/org.types';
 import { OrgPageLayout } from '../components/OrgPageLayout';
@@ -40,6 +42,7 @@ import {
   isEditDepartamentoDirty,
   type EditDepartamentoFormSnapshot,
 } from '../utils/form-dirty/departamento-form-dirty';
+import { mutateOrgCreateWithCodigo, ORG_CODIGO_SEQUENCE_KEYS } from '../codigo';
 
 const inputClass = 'mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm';
 const DEFAULT: DepartamentoCreate = {
@@ -108,10 +111,18 @@ export default function DepartamentosPage() {
 
   const submitting = createDepartamento.isPending || updateDepartamento.isPending;
   const deleting = deleteDepartamento.isPending;
+  const codigo = useCodigoFieldController({
+    sequenceKey: ORG_CODIGO_SEQUENCE_KEYS.departamento,
+    mode: 'create',
+    disabled: submitting,
+  });
   const hasSearch = search.hasSearch;
   const TABLE_COLSPAN = 6;
 
-  const isCreateDialogDirty = useMemo(() => isCreateDepartamentoDirty(form), [form]);
+  const isCreateDialogDirty = useMemo(
+    () => isCreateDepartamentoDirty(form) || codigo.isDirty,
+    [form, codigo.isDirty],
+  );
   const isEditDialogDirty = useMemo(
     () => isEditDepartamentoDirty(editForm, editFormSnapshot),
     [editForm, editFormSnapshot],
@@ -119,11 +130,12 @@ export default function DepartamentosPage() {
 
   const closeCreate = useCallback(() => {
     if (!submitting) {
+      codigo.actions.reset();
       setCreateOpen(false);
       setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
       setDiscardPending((pending) => (pending === 'create' ? null : pending));
     }
-  }, [scopeEmpresaId, submitting]);
+  }, [scopeEmpresaId, submitting, codigo.actions]);
 
   const closeEdit = useCallback(() => {
     if (!submitting) {
@@ -161,6 +173,7 @@ export default function DepartamentosPage() {
 
   const openCreate = () => {
     setDiscardPending(null);
+    codigo.actions.reset();
     const empId = scopeEmpresaId ?? '';
     setForm({ ...DEFAULT, empresa_id: empId });
     setCreateOpen(true);
@@ -203,14 +216,13 @@ export default function DepartamentosPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!scopeEmpresaId || !form.codigo.trim() || !form.nombre.trim()) {
-      toast.error('Código y nombre son requeridos.');
+    if (!scopeEmpresaId || !form.nombre.trim()) {
+      toast.error('El nombre es requerido.');
       return;
     }
     try {
-      await createDepartamento.mutateAsync(
-        assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId),
-      );
+      const basePayload = assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId);
+      await mutateOrgCreateWithCodigo(codigo, basePayload, createDepartamento.mutateAsync);
       closeCreate();
     } catch {
       /* toast de error: onError en useCreateDepartamento */
@@ -377,7 +389,11 @@ export default function DepartamentosPage() {
               <FormSection title="Información general">
                 <div className="space-y-3">
                   <OrgSessionEmpresaField />
-                  <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className={`${inputClass} uppercase`} required /></div>
+                  <CodigoField
+                    sequenceKey={ORG_CODIGO_SEQUENCE_KEYS.departamento}
+                    mode="create"
+                    controller={codigo}
+                  />
                   <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass} required /></div>
                   <div><Label>Descripción</Label><input type="text" value={form.descripcion ?? ''} onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value || undefined }))} className={inputClass} /></div>
                 </div>

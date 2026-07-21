@@ -2,7 +2,6 @@ import type { AlmacenCreate, AlmacenUpdate } from '../../types/inv.types';
 import { bool, optId, str } from './inv-form-dirty.helpers';
 
 export interface EditAlmacenFormSnapshot {
-  codigo: string;
   nombre: string;
   tipo_almacen: string;
   es_almacen_principal: boolean;
@@ -10,10 +9,10 @@ export interface EditAlmacenFormSnapshot {
   permite_compras: boolean;
 }
 
+/** Create dirty — sin `codigo` (lo posee el Engine / CodigoField). */
 function normalizeCreateFields(form: AlmacenCreate) {
   return {
     sucursal_id: optId(form.sucursal_id ?? undefined),
-    codigo: str(form.codigo),
     nombre: str(form.nombre),
     tipo_almacen: str(form.tipo_almacen) || 'general',
     es_almacen_principal: bool(form.es_almacen_principal, false),
@@ -24,7 +23,6 @@ function normalizeCreateFields(form: AlmacenCreate) {
 
 function normalizeEditFields(form: AlmacenUpdate) {
   return {
-    codigo: str(form.codigo),
     nombre: str(form.nombre),
     tipo_almacen: str(form.tipo_almacen) || 'general',
     es_almacen_principal: bool(form.es_almacen_principal, false),
@@ -35,7 +33,6 @@ function normalizeEditFields(form: AlmacenUpdate) {
 
 const CREATE_BASELINE = normalizeCreateFields({
   empresa_id: '',
-  codigo: '',
   nombre: '',
   tipo_almacen: 'general',
   permite_compras: true,

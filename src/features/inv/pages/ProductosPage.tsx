@@ -1,6 +1,7 @@
 /**
  * Productos — Listado y gestión completa. GET/POST /api/v1/inv/productos
- * Implementación centrada en los campos más importantes del catálogo.
+ * Consumidor Engine INV Wave 1 — solo `codigo_sku` (Motor).
+ * `codigo_barra` / `codigo_interno` / `codigo_fabricante` / `codigo_sunat` = negocio.
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
@@ -8,6 +9,8 @@ import { Link } from 'react-router-dom';
 import { Package, Plus, Pencil, Trash2, RotateCcw, Ruler } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
 import { useDebouncedSearch } from '@/core/list';
+import { useCodigoFieldController } from '@/core/codigo';
+import { CodigoField, CodigoFieldReadOnly } from '@/shared/components/codigo';
 import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
 import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
@@ -35,7 +38,6 @@ import { useUnidadesMedida } from '../hooks/unidades-medida.hooks';
 import { useCreateProducto, useDeleteProducto, useProductosErpList, useReactivarProducto, useUpdateProducto, PRODUCTOS_LIST_CONFIG } from '../hooks/productos.hooks';
 import { useInvSessionScope, useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
 import { OrgSessionEmpresaField } from '@/features/org/components/OrgSessionEmpresaField';
-import { assertBodyEmpresaMatchesSession } from '@/features/org/utils/org-body-scope';
 import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
 import { createOrgDiscardHandlers } from '@/features/org/utils/org-discard-handlers';
@@ -48,6 +50,12 @@ import {
   type EditProductoFormSnapshot,
   type ProductoCreateFormSnapshot,
 } from '../utils/form-dirty/producto-form-dirty';
+import {
+  buildProductoCreateBasePayload,
+  buildProductoUpdatePayload,
+  INV_CODIGO_SEQUENCE_KEYS,
+  mutateInvCreateWithCodigo,
+} from '../codigo';
 
 const TIPOS_PRODUCTO = ['bien', 'servicio', 'materia_prima', 'producto_terminado', 'semi_elaborado', 'insumo'] as const;
 const METODOS_COSTEO = ['promedio', 'fifo', 'lifo', 'estandar'] as const;
@@ -58,9 +66,9 @@ const TOOLTIP_CREAR_SIN_UM =
   'Debe crear al menos una Unidad de Medida activa para registrar productos.';
 const RUTA_UNIDADES_MEDIDA = '/inv/unidades-medida';
 
+/** CREATE sin `codigo_sku` — el Motor lo aporta el Engine. */
 const DEFAULT: ProductoCreate = {
   empresa_id: '',
-  codigo_sku: '',
   nombre: '',
   tipo_producto: 'bien',
   unidad_medida_base_id: '',
@@ -132,6 +140,13 @@ export default function ProductosPage() {
     createMutation.isPending || updateMutation.isPending || deleteMutation.isPending || reactivarMutation.isPending;
   const formSubmitting = createMutation.isPending || updateMutation.isPending;
 
+  const codigo = useCodigoFieldController({
+    sequenceKey: INV_CODIGO_SEQUENCE_KEYS.producto,
+    mode: 'create',
+    disabled: formSubmitting,
+    label: 'SKU',
+  });
+
   const buildDefaultCreateForm = useCallback((): ProductoCreate => {
     const defaultMonedaId = monedas[0]?.moneda_id ?? '';
     return {
@@ -150,7 +165,10 @@ export default function ProductosPage() {
     getInitialForm: () => DEFAULT,
   });
 
-  const isCreateDialogDirty = useMemo(() => isCreateDirty(form), [form, isCreateDirty]);
+  const isCreateDialogDirty = useMemo(
+    () => isCreateDirty(form) || codigo.isDirty,
+    [form, isCreateDirty, codigo.isDirty],
+  );
   const isEditDialogDirty = useMemo(
     () => isEditProductoDirty(editForm, editFormSnapshot),
     [editForm, editFormSnapshot],
@@ -158,13 +176,14 @@ export default function ProductosPage() {
 
   const closeCreate = useCallback(() => {
     if (!formSubmitting) {
+      codigo.actions.reset();
       setCreateOpen(false);
       const nextForm = buildDefaultCreateForm();
       setForm(nextForm);
       syncCreateBaseline(nextForm);
       setDiscardPending((pending) => (pending === 'create' ? null : pending));
     }
-  }, [formSubmitting, buildDefaultCreateForm, syncCreateBaseline]);
+  }, [formSubmitting, buildDefaultCreateForm, syncCreateBaseline, codigo.actions]);
 
   const closeEdit = useCallback(() => {
     if (!formSubmitting) {
@@ -216,6 +235,7 @@ export default function ProductosPage() {
 
   const openCreate = () => {
     setDiscardPending(null);
+    codigo.actions.reset();
     const nextForm = buildDefaultCreateForm();
     setForm(nextForm);
     syncCreateBaseline(nextForm);
@@ -225,7 +245,6 @@ export default function ProductosPage() {
     setDiscardPending(null);
     setEditing(row);
     const nextEditForm: ProductoUpdate = {
-      codigo_sku: row.codigo_sku,
       nombre: row.nombre,
       codigo_barra: row.codigo_barra ?? undefined,
       codigo_interno: row.codigo_interno ?? undefined,
@@ -284,17 +303,20 @@ export default function ProductosPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!scopeEmpresaId || !form.codigo_sku.trim() || !form.nombre.trim() || !form.tipo_producto || !form.unidad_medida_base_id) {
-      toast.error('Empresa activa, SKU, nombre, tipo y unidad de medida son requeridos.');
+    if (!scopeEmpresaId || !form.nombre.trim() || !form.tipo_producto || !form.unidad_medida_base_id) {
+      toast.error('Nombre, tipo y unidad de medida son requeridos.');
       return;
     }
     try {
-      await createMutation.mutateAsync(
-        assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId),
+      const basePayload = buildProductoCreateBasePayload(form, scopeEmpresaId);
+      await mutateInvCreateWithCodigo(
+        codigo,
+        basePayload as ProductoCreate & Record<string, unknown>,
+        createMutation.mutateAsync,
       );
       closeCreate();
     } catch {
-      /* error vía useCreateProducto.onError */
+      /* error vía useCreateProducto.onError / Engine applyApiError */
     }
   };
 
@@ -302,7 +324,8 @@ export default function ProductosPage() {
     e.preventDefault();
     if (!editing) return;
     try {
-      await updateMutation.mutateAsync({ productoId: editing.producto_id, payload: editForm });
+      const payload = buildProductoUpdatePayload(editForm);
+      await updateMutation.mutateAsync({ productoId: editing.producto_id, payload });
       closeEdit();
     } catch {
       /* error vía useUpdateProducto.onError */
@@ -560,14 +583,11 @@ export default function ProductosPage() {
               <h3 className="text-sm font-semibold">Información General</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <OrgSessionEmpresaField />
-                <div>
-                  <Label>SKU *</Label>
-                  <input
-                    type="text"
-                    value={form.codigo_sku}
-                    onChange={(e) => setForm((p) => ({ ...p, codigo_sku: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
-                    required
+                <div className="md:col-span-2">
+                  <CodigoField
+                    sequenceKey={INV_CODIGO_SEQUENCE_KEYS.producto}
+                    mode="create"
+                    controller={codigo}
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -1126,16 +1146,11 @@ export default function ProductosPage() {
             <div className="space-y-4">
               <h3 className="text-sm font-semibold">Información General</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>SKU *</Label>
-                  <input
-                    type="text"
-                    value={editForm.codigo_sku ?? ''}
-                    onChange={(e) => setEditForm((p) => ({ ...p, codigo_sku: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
-                    required
-                  />
-                </div>
+                <CodigoFieldReadOnly
+                  label="SKU"
+                  value={editing?.codigo_sku ?? ''}
+                  inputId="edit-producto-codigo-sku"
+                />
                 <div>
                   <Label>Código de barras</Label>
                   <input

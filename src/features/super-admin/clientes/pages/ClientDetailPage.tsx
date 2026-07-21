@@ -17,6 +17,7 @@ import {
   Phone,
   Globe,
   LogIn,
+  Server,
 } from 'lucide-react';
 
 import { clienteService } from '../services/cliente.service';
@@ -26,6 +27,14 @@ import ClientConnectionsTab from '../components/ClientConnectionsTab';
 import ClientUsersTab from '../components/ClientUsersTab';
 import ClientAuditTab from '../components/ClientAuditTab';
 import EditClientModal from '../components/EditClientModal';
+import { ProvisioningStatusBadge } from '../components/provisioning/ProvisioningStatusBadge';
+import {
+  canEnterClientErp,
+  getClientErpEntryDisabledReason,
+  getDedicatedProvisioningStateForDisplay,
+  navigateToClientProvisioning,
+  shouldShowDedicatedProvisioningSurfaces,
+} from '../utils/cliente-provisioning-display.utils';
 import { useAuth } from '@/shared/context/AuthContext';
 import { useImpersonation } from '@/features/auth/hooks/useImpersonation';
 import { getErrorMessage } from '@/core/services/error.service';
@@ -93,13 +102,18 @@ const ClientDetailPage: React.FC = () => {
   };
 
   const handleEnterErp = async () => {
-    if (!cliente?.cliente_id) return;
+    if (!cliente?.cliente_id || !canEnterClientErp(cliente)) return;
     const label = cliente.nombre_comercial || cliente.razon_social;
     try {
       await enterClientErp(cliente.cliente_id, label);
     } catch {
       /* toast en hook */
     }
+  };
+
+  const handleViewProvisioning = () => {
+    if (!cliente) return;
+    navigateToClientProvisioning(cliente, navigate);
   };
 
   // Si no es super admin
@@ -144,6 +158,13 @@ const ClientDetailPage: React.FC = () => {
     );
   }
 
+  const provisioningStateDisplay = getDedicatedProvisioningStateForDisplay(cliente);
+  const showProvisioningSurfaces = shouldShowDedicatedProvisioningSurfaces(cliente);
+  const erpEntryAllowed = canEnterClientErp(cliente);
+  const erpEntryDisabledReason = getClientErpEntryDisabledReason(cliente, {
+    isImpersonation,
+  });
+
   return (
     <div className="w-full">
       {/* Header */}
@@ -157,9 +178,14 @@ const ClientDetailPage: React.FC = () => {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-text-base">
-                {cliente.nombre_comercial || cliente.razon_social}
-              </h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-bold text-text-base">
+                  {cliente.nombre_comercial || cliente.razon_social}
+                </h1>
+                {provisioningStateDisplay ? (
+                  <ProvisioningStatusBadge state={provisioningStateDisplay} />
+                ) : null}
+              </div>
               <p className="text-sm text-text-soft">
                 {cliente.codigo_cliente} • {cliente.subdominio}
               </p>
@@ -167,14 +193,22 @@ const ClientDetailPage: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2">
+            {showProvisioningSurfaces ? (
+              <button
+                type="button"
+                onClick={handleViewProvisioning}
+                className="flex items-center gap-2 px-4 py-2 border border-border-base text-text-base rounded-lg hover:bg-overlay transition-colors"
+              >
+                <Server className="h-4 w-4" />
+                Ver provisioning
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={handleEnterErp}
-              disabled={enteringErp || isImpersonation}
+              disabled={enteringErp || !erpEntryAllowed || isImpersonation}
               title={
-                isImpersonation
-                  ? 'Salga del modo soporte actual antes de entrar a otro cliente'
-                  : 'Abrir el ERP de este cliente en modo soporte'
+                erpEntryDisabledReason ?? 'Abrir el ERP de este cliente en modo soporte'
               }
               className="flex items-center gap-2 px-4 py-2 border border-brand-primary text-brand-primary rounded-lg hover:bg-brand-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >

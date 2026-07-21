@@ -93,9 +93,9 @@ export function useCreateUnidadMedida() {
 
   return useMutation<UnidadMedida, Error, UnidadMedidaCreate>({
     mutationFn: (payload) => unidadMedidaService.create(payload),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['inv', 'unidad-medida', 'list'] });
-      toast.success('Unidad de medida creada.');
+      toast.success(`Unidad de medida creada con código ${data.codigo}`);
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });

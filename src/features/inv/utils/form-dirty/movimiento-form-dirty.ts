@@ -9,7 +9,6 @@ export interface MovimientoLineaDirtyInput {
 }
 
 export interface MovimientoFormDirtyInput {
-  numeroMovimiento: string;
   tipoMovimientoId: string;
   fechaMovimiento: string;
   fechaContable: string;
@@ -44,7 +43,6 @@ export function isEmptyMovimientoLinea(line: MovimientoLineaDirtyInput): boolean
 
 function normalizeMovimientoForm(state: MovimientoFormDirtyInput) {
   return {
-    numeroMovimiento: str(state.numeroMovimiento),
     tipoMovimientoId: optId(state.tipoMovimientoId),
     fechaMovimiento: str(state.fechaMovimiento),
     fechaContable: str(state.fechaContable),
@@ -67,7 +65,6 @@ export function buildMovimientoCreateBaseline(
 ): MovimientoFormDirtyInput {
   const today = new Date().toISOString().slice(0, 10);
   return {
-    numeroMovimiento: '',
     tipoMovimientoId: '',
     fechaMovimiento: partial?.fechaMovimiento ?? today,
     fechaContable: partial?.fechaContable ?? today,

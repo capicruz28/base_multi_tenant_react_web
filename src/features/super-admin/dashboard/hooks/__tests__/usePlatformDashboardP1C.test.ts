@@ -5,6 +5,7 @@ import React from 'react';
 import { usePlatformDashboardP1C } from '../usePlatformDashboardP1C';
 import { superadminAuditoriaService } from '@/services/superadmin-auditoria.service';
 import { superadminUsuarioService } from '@/services/superadmin-usuario.service';
+import { superadminUsuarioStatsService } from '@/services/superadmin-usuario-stats.service';
 import { fetchClientesSnapshot } from '../../utils/clientes-snapshot.utils';
 
 vi.mock('@/services/superadmin-auditoria.service', () => ({
@@ -16,6 +17,12 @@ vi.mock('@/services/superadmin-auditoria.service', () => ({
 vi.mock('@/services/superadmin-usuario.service', () => ({
   superadminUsuarioService: {
     getUsuariosGlobales: vi.fn(),
+  },
+}));
+
+vi.mock('@/services/superadmin-usuario-stats.service', () => ({
+  superadminUsuarioStatsService: {
+    getUsuariosStats: vi.fn(),
   },
 }));
 
@@ -53,6 +60,12 @@ describe('usePlatformDashboardP1C', () => {
       pagina_actual: 1,
       total_paginas: 1,
     });
+    vi.mocked(superadminUsuarioStatsService.getUsuariosStats).mockResolvedValue({
+      total_usuarios: 1,
+      usuarios_activos: 1,
+      usuarios_inactivos: 0,
+      usuarios_bloqueados: 1,
+    });
     vi.mocked(superadminUsuarioService.getUsuariosGlobales).mockImplementation(async (params) => {
       if (params?.cliente_id) {
         return {
@@ -70,12 +83,7 @@ describe('usePlatformDashboardP1C', () => {
           total_paginas: 1,
         } as never;
       }
-      return {
-        usuarios: [{ usuario_id: 'u-1', fecha_bloqueo: '2026-06-01' }],
-        total_usuarios: 1,
-        pagina_actual: 1,
-        total_paginas: 1,
-      } as never;
+      throw new Error('getUsuariosGlobales should not be called without cliente_id');
     });
     vi.mocked(fetchClientesSnapshot).mockResolvedValue({
       clientes: [
@@ -107,10 +115,11 @@ describe('usePlatformDashboardP1C', () => {
     expect(result.current.recentClientes[0].clienteId).toBe('c-1');
     expect(result.current.platformOperators).toHaveLength(1);
     expect(superadminAuditoriaService.getSyncLogs).toHaveBeenCalledTimes(1);
-    expect(superadminUsuarioService.getUsuariosGlobales).toHaveBeenCalledTimes(2);
+    expect(superadminUsuarioService.getUsuariosGlobales).toHaveBeenCalledTimes(1);
+    expect(superadminUsuarioStatsService.getUsuariosStats).toHaveBeenCalledTimes(1);
   });
 
-  it('builds operator alerts from blocked users scan', async () => {
+  it('builds operator alerts from usuarios_bloqueados stats', async () => {
     const { result } = renderHook(() => usePlatformDashboardP1C(true), {
       wrapper: createWrapper(),
     });

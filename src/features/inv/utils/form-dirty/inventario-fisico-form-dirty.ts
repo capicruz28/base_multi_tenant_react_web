@@ -7,7 +7,6 @@ export interface InventarioFisicoLineaDirtyInput {
 }
 
 export interface InventarioFisicoFormDirtyInput {
-  numeroInventario: string;
   fechaInventario: string;
   almacenId: string;
   tipoInventario: string;
@@ -31,7 +30,6 @@ export function isEmptyInventarioFisicoLinea(line: InventarioFisicoLineaDirtyInp
 
 function normalizeInventarioFisicoForm(state: InventarioFisicoFormDirtyInput) {
   return {
-    numeroInventario: str(state.numeroInventario),
     fechaInventario: str(state.fechaInventario),
     almacenId: optId(state.almacenId),
     tipoInventario: str(state.tipoInventario) || 'total',
@@ -53,7 +51,6 @@ export function buildInventarioFisicoCreateBaseline(
 ): InventarioFisicoFormDirtyInput {
   const today = new Date().toISOString().slice(0, 10);
   return {
-    numeroInventario: '',
     fechaInventario: partial?.fechaInventario ?? today,
     almacenId: '',
     tipoInventario: 'total',

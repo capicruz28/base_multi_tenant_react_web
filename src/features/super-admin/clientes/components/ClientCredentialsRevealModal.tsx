@@ -12,12 +12,14 @@ import {
   X,
 } from 'lucide-react';
 import type { Cliente, ClienteCreateResult } from '../types/cliente.types';
+import type { ClientCredentialsRevealVariant } from '../utils/cliente-create-provisioning-flow.utils';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
 import { copyTextToClipboard } from '@/shared/utils/copy-to-clipboard';
 
 interface ClientCredentialsRevealModalProps {
   isOpen: boolean;
   result: ClienteCreateResult;
+  variant?: ClientCredentialsRevealVariant;
   onComplete: () => void;
 }
 
@@ -37,9 +39,11 @@ function formatCredentialsBlock(cliente: Cliente, credenciales: ClienteCreateRes
 const ClientCredentialsRevealModal: React.FC<ClientCredentialsRevealModalProps> = ({
   isOpen,
   result,
+  variant = 'shared',
   onComplete,
 }) => {
   const { cliente, credenciales } = result;
+  const isDedicatedProvisioning = variant === 'dedicated-provisioning';
   const [showPassword, setShowPassword] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
@@ -167,6 +171,17 @@ const ClientCredentialsRevealModal: React.FC<ClientCredentialsRevealModalProps> 
               </p>
             </div>
 
+            {isDedicatedProvisioning ? (
+              <div className="rounded-lg border border-info/30 bg-info/10 p-4 flex gap-3">
+                <ShieldAlert className="h-5 w-5 text-info shrink-0 mt-0.5" aria-hidden />
+                <p className="text-sm text-text-base">
+                  El tenant dedicated iniciará provisioning automático. Guarde las credenciales
+                  ahora; el acceso al ERP permanecerá bloqueado hasta que el provisioning finalice
+                  en estado operativo.
+                </p>
+              </div>
+            ) : null}
+
             <div className="rounded-lg border border-border-base bg-subtle p-4 space-y-3">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-text-soft">Cliente</p>
@@ -287,7 +302,7 @@ const ClientCredentialsRevealModal: React.FC<ClientCredentialsRevealModalProps> 
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary rounded-lg hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <CheckCircle className="h-4 w-4" />
-              Finalizar
+              {isDedicatedProvisioning ? 'Continuar al provisioning' : 'Finalizar'}
             </button>
           </div>
         </div>

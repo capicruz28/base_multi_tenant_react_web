@@ -61,7 +61,7 @@ export interface Empresa {
 }
 
 export interface EmpresaCreate {
-  codigo_empresa: string;
+  codigo_empresa?: string | null;
   razon_social: string;
   ruc: string;
   nombre_comercial?: string | null;
@@ -149,7 +149,7 @@ export interface Sucursal {
 
 export interface SucursalCreate {
   empresa_id: string;
-  codigo: string;
+  codigo?: string | null;
   nombre: string;
   descripcion?: string | null;
   tipo_sucursal?: string | null;
@@ -212,7 +212,7 @@ export interface CentroCosto {
 
 export interface CentroCostoCreate {
   empresa_id: string;
-  codigo: string;
+  codigo?: string | null;
   nombre: string;
   tipo_centro_costo: string;
   descripcion?: string | null;
@@ -251,7 +251,7 @@ export interface Departamento {
 
 export interface DepartamentoCreate {
   empresa_id: string;
-  codigo: string;
+  codigo?: string | null;
   nombre: string;
   descripcion?: string | null;
   departamento_padre_id?: string | null;
@@ -293,7 +293,7 @@ export interface Cargo {
 
 export interface CargoCreate {
   empresa_id: string;
-  codigo: string;
+  codigo?: string | null;
   nombre: string;
   descripcion?: string | null;
   nivel_jerarquico?: number | null;

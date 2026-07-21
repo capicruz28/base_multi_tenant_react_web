@@ -2,7 +2,6 @@ import type { TipoMovimientoCreate, TipoMovimientoUpdate } from '../../types/inv
 import { bool, str } from './inv-form-dirty.helpers';
 
 export interface EditTipoMovimientoFormSnapshot {
-  codigo: string;
   nombre: string;
   clase_movimiento: string;
   afecta_costo: boolean;
@@ -14,9 +13,9 @@ export interface EditTipoMovimientoFormSnapshot {
   tipo_documento_referencia: string;
 }
 
+/** Dirty — sin `codigo` (lo posee el Engine / CodigoField). */
 function normalizeDialogFields(form: TipoMovimientoCreate | TipoMovimientoUpdate) {
   return {
-    codigo: str(form.codigo),
     nombre: str(form.nombre),
     clase_movimiento: str(form.clase_movimiento) || 'entrada',
     afecta_costo: bool(form.afecta_costo, true),
@@ -31,7 +30,6 @@ function normalizeDialogFields(form: TipoMovimientoCreate | TipoMovimientoUpdate
 
 const CREATE_BASELINE = normalizeDialogFields({
   empresa_id: '',
-  codigo: '',
   nombre: '',
   clase_movimiento: 'ENTRADA',
   afecta_costo: true,

@@ -3,6 +3,7 @@
  * Base path: /org (definido en app router).
  * Rutas SPA según MENU_NAVEGACION.md y documentación backend.
  */
+import './codigo/register-org-codigo-manifest';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import LoadingSpinner from '@/shared/components/LoadingSpinner';

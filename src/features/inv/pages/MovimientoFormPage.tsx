@@ -15,6 +15,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Loader, Plus, Trash2 } from 'lucide-react';
 
 import { catalogosService } from '@/core/services/catalogos.service';
+import { useCodigoFieldController } from '@/core/codigo';
 
 import type { CatMoneda } from '@/types/catalogos.types';
 
@@ -39,6 +40,7 @@ import { getErrorMessage } from '@/core/services/error.service';
 import { Button } from '@/shared/components/ui/button';
 
 import { Label } from '@/shared/components/ui/label';
+import { CodigoField, CodigoFieldReadOnly } from '@/shared/components/codigo';
 
 import { usePermission } from '@/core/auth/PermissionContext';
 import { INV_PERMISSIONS } from '../constants/inv-permissions';
@@ -71,6 +73,7 @@ import { OrgSessionEmpresaField } from '@/features/org/components/OrgSessionEmpr
 import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
 
 import { assertBodyEmpresaMatchesSession } from '@/features/org/utils/org-body-scope';
+import { INV_CODIGO_SEQUENCE_KEYS } from '../codigo';
 
 import {
 
@@ -210,8 +213,6 @@ export default function MovimientoFormPage() {
 
   const today = todayIsoDate();
 
-  const [numeroMovimiento, setNumeroMovimiento] = useState('');
-
   const [tipoMovimientoId, setTipoMovimientoId] = useState('');
 
   const [fechaMovimiento, setFechaMovimiento] = useState(today);
@@ -243,8 +244,6 @@ export default function MovimientoFormPage() {
   const resetFormToCreateInitial = useCallback((monedaDefault?: string) => {
 
     const nextToday = todayIsoDate();
-
-    setNumeroMovimiento('');
 
     setTipoMovimientoId('');
 
@@ -382,6 +381,13 @@ export default function MovimientoFormPage() {
 
   const updateMutation = useUpdateMovimientoConDetalle();
 
+  const codigo = useCodigoFieldController({
+    sequenceKey: INV_CODIGO_SEQUENCE_KEYS.movimiento,
+    mode: 'create',
+    disabled: createMutation.isPending,
+    label: 'Número de movimiento',
+  });
+
 
 
   const [formHydrated, setFormHydrated] = useState(false);
@@ -401,8 +407,6 @@ export default function MovimientoFormPage() {
     if (!isEdit || !conDetalleQuery.data || formHydrated) return;
 
     const d = conDetalleQuery.data;
-
-    setNumeroMovimiento(d.numero_movimiento);
 
     setTipoMovimientoId(d.tipo_movimiento_id);
 
@@ -431,8 +435,6 @@ export default function MovimientoFormPage() {
         toDirtyInput(
 
           {
-
-            numeroMovimiento: d.numero_movimiento,
 
             tipoMovimientoId: d.tipo_movimiento_id,
 
@@ -522,8 +524,6 @@ export default function MovimientoFormPage() {
 
         {
 
-          numeroMovimiento,
-
           tipoMovimientoId,
 
           fechaMovimiento,
@@ -545,8 +545,6 @@ export default function MovimientoFormPage() {
       ),
 
     [
-
-      numeroMovimiento,
 
       tipoMovimientoId,
 
@@ -710,7 +708,7 @@ export default function MovimientoFormPage() {
 
   const guardar = async () => {
 
-    if (!scopeEmpresaId || !numeroMovimiento.trim() || !tipoMovimientoId || !fechaContable) return;
+    if (!scopeEmpresaId || !tipoMovimientoId || !fechaContable) return;
 
     const detalles = lineasToPayload(lineas);
 
@@ -721,9 +719,6 @@ export default function MovimientoFormPage() {
     if (isEdit && movimientoId) {
 
       const payload: MovimientoConDetalleUpdate = {
-
-        numero_movimiento: numeroMovimiento,
-
         tipo_movimiento_id: tipoMovimientoId,
 
         fecha_movimiento: fechaMovimiento || null,
@@ -765,9 +760,6 @@ export default function MovimientoFormPage() {
       {
 
         empresa_id: scopeEmpresaId,
-
-        numero_movimiento: numeroMovimiento.trim(),
-
         tipo_movimiento_id: tipoMovimientoId,
 
         fecha_movimiento: fechaMovimiento || null,
@@ -854,6 +846,7 @@ export default function MovimientoFormPage() {
 
 
 
+  const numeroMovimiento = conDetalleQuery.data?.numero_movimiento;
   const cabeceraTitulo = isEdit ? numeroMovimiento || 'Movimiento' : 'Nuevo movimiento';
 
 
@@ -922,21 +915,19 @@ export default function MovimientoFormPage() {
 
           <OrgSessionEmpresaField />
 
-          <div>
-
-            <Label>Número movimiento *</Label>
-
-            <input
-
-              value={numeroMovimiento}
-
-              onChange={(e) => setNumeroMovimiento(e.target.value)}
-
-              className="mt-1 w-full px-3 py-2 border border-border-base rounded-md dark:bg-subtle dark:text-text-base text-sm uppercase"
-
+          {isEdit ? (
+            <CodigoFieldReadOnly
+              label="Número de movimiento"
+              value={numeroMovimiento ?? ''}
+              inputId="movimiento-numero-readonly"
             />
-
-          </div>
+          ) : (
+            <CodigoField
+              sequenceKey={INV_CODIGO_SEQUENCE_KEYS.movimiento}
+              mode="create"
+              controller={codigo}
+            />
+          )}
 
           <div>
 

@@ -7,7 +7,6 @@ export type EditProductoFormSnapshot = ReturnType<typeof normalizeEditFields>;
 
 function normalizeCreateFields(form: ProductoCreate) {
   return {
-    codigo_sku: str(form.codigo_sku),
     nombre: str(form.nombre),
     codigo_barra: str(form.codigo_barra),
     codigo_interno: str(form.codigo_interno),
@@ -51,8 +50,10 @@ function normalizeCreateFields(form: ProductoCreate) {
 
 function normalizeEditFields(form: ProductoUpdate) {
   return {
-    codigo_sku: str(form.codigo_sku),
     codigo_barra: str(form.codigo_barra),
+    codigo_interno: str(form.codigo_interno),
+    codigo_fabricante: str(form.codigo_fabricante),
+    codigo_sunat: str(form.codigo_sunat),
     nombre: str(form.nombre),
     categoria_id: optId(form.categoria_id ?? undefined),
     tipo_producto: str(form.tipo_producto) || 'bien',

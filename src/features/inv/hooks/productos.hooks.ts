@@ -121,9 +121,9 @@ export function useCreateProducto() {
 
   return useMutation<Producto, Error, ProductoCreate>({
     mutationFn: (payload) => productoService.create(payload),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['inv', 'producto', 'list'] });
-      toast.success('Producto creado.');
+      toast.success(`Producto creado con SKU ${data.codigo_sku}`);
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });

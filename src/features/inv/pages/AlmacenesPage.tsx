@@ -1,11 +1,14 @@
 /**
  * Almacenes — Listado y gestión. GET/POST /api/v1/inv/almacenes
+ * Consumidor Engine INV Wave 1 (patrón Golden Reference Categoría).
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { Warehouse, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
 import { useDebouncedSearch } from '@/core/list';
+import { useCodigoFieldController } from '@/core/codigo';
+import { CodigoField, CodigoFieldReadOnly } from '@/shared/components/codigo';
 import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
 import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
@@ -36,7 +39,6 @@ import {
 } from '../hooks/almacenes.hooks';
 import { useInvSessionScope, useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
 import { OrgSessionEmpresaField } from '@/features/org/components/OrgSessionEmpresaField';
-import { assertBodyEmpresaMatchesSession } from '@/features/org/utils/org-body-scope';
 import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
 import { createOrgDiscardHandlers } from '@/features/org/utils/org-discard-handlers';
@@ -47,12 +49,18 @@ import {
   isEditAlmacenDirty,
   type EditAlmacenFormSnapshot,
 } from '../utils/form-dirty/almacen-form-dirty';
+import {
+  buildAlmacenCreateBasePayload,
+  buildAlmacenUpdatePayload,
+  INV_CODIGO_SEQUENCE_KEYS,
+  mutateInvCreateWithCodigo,
+} from '../codigo';
 
 const TIPOS_ALMACEN = ['general', 'materia_prima', 'producto_terminado', 'transito', 'consignacion', 'cuarentena'] as const;
 
+/** CREATE sin `codigo` — el Motor lo aporta el Engine. */
 const DEFAULT: AlmacenCreate = {
   empresa_id: '',
-  codigo: '',
   nombre: '',
   tipo_almacen: 'general',
   permite_compras: true,
@@ -125,7 +133,16 @@ export default function AlmacenesPage() {
     createMutation.isPending || updateMutation.isPending || deleteMutation.isPending || reactivarMutation.isPending;
   const formSubmitting = createMutation.isPending || updateMutation.isPending;
 
-  const isCreateDialogDirty = useMemo(() => isCreateAlmacenDirty(form), [form]);
+  const codigo = useCodigoFieldController({
+    sequenceKey: INV_CODIGO_SEQUENCE_KEYS.almacen,
+    mode: 'create',
+    disabled: formSubmitting,
+  });
+
+  const isCreateDialogDirty = useMemo(
+    () => isCreateAlmacenDirty(form) || codigo.isDirty,
+    [form, codigo.isDirty],
+  );
   const isEditDialogDirty = useMemo(
     () => isEditAlmacenDirty(editForm, editFormSnapshot),
     [editForm, editFormSnapshot],
@@ -133,11 +150,12 @@ export default function AlmacenesPage() {
 
   const closeCreate = useCallback(() => {
     if (!formSubmitting) {
+      codigo.actions.reset();
       setCreateOpen(false);
       setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
       setDiscardPending((pending) => (pending === 'create' ? null : pending));
     }
-  }, [formSubmitting, scopeEmpresaId]);
+  }, [formSubmitting, scopeEmpresaId, codigo.actions]);
 
   const closeEdit = useCallback(() => {
     if (!formSubmitting) {
@@ -182,6 +200,7 @@ export default function AlmacenesPage() {
 
   const openCreate = () => {
     setDiscardPending(null);
+    codigo.actions.reset();
     setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
     setCreateOpen(true);
   };
@@ -189,7 +208,6 @@ export default function AlmacenesPage() {
     setDiscardPending(null);
     setEditing(row);
     const nextEditForm: AlmacenUpdate = {
-      codigo: row.codigo,
       nombre: row.nombre,
       descripcion: row.descripcion ?? undefined,
       tipo_almacen: row.tipo_almacen,
@@ -212,17 +230,20 @@ export default function AlmacenesPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!scopeEmpresaId || !form.codigo.trim() || !form.nombre.trim() || !form.tipo_almacen) {
-      toast.error('Empresa activa, código, nombre y tipo son requeridos.');
+    if (!scopeEmpresaId || !form.nombre.trim() || !form.tipo_almacen) {
+      toast.error('El nombre y el tipo son requeridos.');
       return;
     }
     try {
-      await createMutation.mutateAsync(
-        assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId),
+      const basePayload = buildAlmacenCreateBasePayload(form, scopeEmpresaId);
+      await mutateInvCreateWithCodigo(
+        codigo,
+        basePayload as AlmacenCreate & Record<string, unknown>,
+        createMutation.mutateAsync,
       );
       closeCreate();
     } catch {
-      /* error vía useCreateAlmacen.onError */
+      /* error vía useCreateAlmacen.onError / Engine applyApiError */
     }
   };
 
@@ -230,7 +251,8 @@ export default function AlmacenesPage() {
     e.preventDefault();
     if (!editing) return;
     try {
-      await updateMutation.mutateAsync({ almacenId: editing.almacen_id, payload: editForm });
+      const payload = buildAlmacenUpdatePayload(editForm);
+      await updateMutation.mutateAsync({ almacenId: editing.almacen_id, payload });
       closeEdit();
     } catch {
       /* error vía useUpdateAlmacen.onError */
@@ -455,7 +477,11 @@ export default function AlmacenesPage() {
           <form onSubmit={handleCreate} className="space-y-4">
             <OrgSessionEmpresaField />
             <div><Label>Sucursal</Label><select value={form.sucursal_id ?? ''} onChange={(e) => setForm((p) => ({ ...p, sucursal_id: e.target.value || undefined }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"><option value="">Ninguna</option>{sucursales.map((s) => <option key={s.sucursal_id} value={s.sucursal_id}>{s.nombre}</option>)}</select></div>
-            <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase" required /></div>
+            <CodigoField
+              sequenceKey={INV_CODIGO_SEQUENCE_KEYS.almacen}
+              mode="create"
+              controller={codigo}
+            />
             <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm" required /></div>
             <div><Label>Tipo *</Label><select value={form.tipo_almacen} onChange={(e) => setForm((p) => ({ ...p, tipo_almacen: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm">{TIPOS_ALMACEN.map((t) => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}</select></div>
             <div className="flex items-center gap-2"><input type="checkbox" checked={form.es_almacen_principal ?? false} onChange={(e) => setForm((p) => ({ ...p, es_almacen_principal: e.target.checked }))} /><Label>Almacén principal</Label></div>
@@ -469,7 +495,11 @@ export default function AlmacenesPage() {
         <DialogContent className="max-w-lg" {...orgDialogGuardProps}>
           <DialogHeader><DialogTitle>Editar almacén</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-4">
-            <div><Label>Código *</Label><input type="text" value={editForm.codigo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase" required /></div>
+            <CodigoFieldReadOnly
+              label="Código"
+              value={editing?.codigo ?? ''}
+              inputId="edit-almacen-codigo"
+            />
             <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm" required /></div>
             <div><Label>Tipo *</Label><select value={editForm.tipo_almacen ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, tipo_almacen: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm">{TIPOS_ALMACEN.map((t) => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}</select></div>
             <div className="flex items-center gap-2"><input type="checkbox" checked={editForm.es_almacen_principal ?? false} onChange={(e) => setEditForm((p) => ({ ...p, es_almacen_principal: e.target.checked }))} /><Label>Almacén principal</Label></div>

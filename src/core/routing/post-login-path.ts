@@ -18,6 +18,7 @@ export const ERP_ROUTE_SEGMENTS = [
   'autorizacion',
   'reportes',
   'org',
+  'cfg',
   'inv',
   'pur',
   'sls',

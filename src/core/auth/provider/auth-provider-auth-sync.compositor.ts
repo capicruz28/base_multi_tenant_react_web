@@ -26,6 +26,7 @@ import type { RefreshOutcome } from '@/core/auth/session/session-refresh-outcome
 import type { ImpersonationExitSource } from '@/core/auth/session/session-impersonation.types';
 import { invalidateOrgQueries } from '@/features/org/utils/invalidate-org-queries';
 import { invalidateInvQueries } from '@/features/inv/utils/invalidate-inv-queries';
+import { invalidateCfgQueries } from '@/features/cfg/utils/invalidate-cfg-queries';
 
 export interface UseAuthProviderEmitAuthSyncSessionTokenParams {
 	readonly refs: Pick<AuthProviderEarlyRefs, 'authRef' | 'empresaActivaIdRef'>;
@@ -173,6 +174,7 @@ export function useAuthProviderAuthSyncListenerDeps(
 			invalidateModulesAfterEmpresaChange: () => {
 				invalidateOrgQueries(queryClient);
 				invalidateInvQueries(queryClient);
+				invalidateCfgQueries(queryClient);
 			},
 		}),
 		[

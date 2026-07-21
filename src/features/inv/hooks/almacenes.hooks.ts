@@ -101,9 +101,9 @@ export function useCreateAlmacen() {
 
   return useMutation<Almacen, Error, AlmacenCreate>({
     mutationFn: (payload) => almacenService.create(payload),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['inv', 'almacen', 'list'] });
-      toast.success('Almacén creado.');
+      toast.success(`Almacén creado con código ${data.codigo}`);
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });

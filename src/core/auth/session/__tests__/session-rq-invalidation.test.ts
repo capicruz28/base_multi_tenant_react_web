@@ -82,11 +82,14 @@ describe('applyPostRefreshRqInvalidation', () => {
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
   });
 
-  it('org-inv invalida ORG e INV sin clear', () => {
+  it('org-inv invalida ORG, INV y CFG sin clear', () => {
     const queryClient = createMockQueryClient();
     applyPostRefreshRqInvalidation('org-inv', queryClient);
     expect(queryClient.clear).not.toHaveBeenCalled();
     expect(queryClient.invalidateQueries).toHaveBeenCalled();
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['cfg'],
+    });
   });
 
   it('clear-all ejecuta queryClient.clear() únicamente', () => {

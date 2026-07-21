@@ -1,11 +1,14 @@
 /**
  * Categorías de Producto — Listado y gestión. GET/POST /api/v1/inv/categorias
+ * Golden Reference INV — Frontend Code Generation Engine (Wave 1).
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { FolderTree, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
 import { useDebouncedSearch } from '@/core/list';
+import { useCodigoFieldController } from '@/core/codigo';
+import { CodigoField, CodigoFieldReadOnly } from '@/shared/components/codigo';
 import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
 import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
@@ -35,7 +38,6 @@ import {
 } from '../hooks/categorias.hooks';
 import { useInvSessionScope, useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
 import { OrgSessionEmpresaField } from '@/features/org/components/OrgSessionEmpresaField';
-import { assertBodyEmpresaMatchesSession } from '@/features/org/utils/org-body-scope';
 import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
 import { createOrgDiscardHandlers } from '@/features/org/utils/org-discard-handlers';
@@ -46,10 +48,19 @@ import {
   isEditCategoriaDirty,
   type EditCategoriaFormSnapshot,
 } from '../utils/form-dirty/categoria-form-dirty';
+import {
+  buildCategoriaCreateBasePayload,
+  buildCategoriaUpdatePayload,
+  INV_CODIGO_SEQUENCE_KEYS,
+  mutateInvCreateWithCodigo,
+} from '../codigo';
 
+const inputClass =
+  'mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm';
+
+/** CREATE sin `codigo` — el Motor lo aporta el Engine. */
 const DEFAULT: CategoriaCreate = {
   empresa_id: '',
-  codigo: '',
   nombre: '',
   metodo_costeo_defecto: 'promedio',
   es_activo: true,
@@ -105,7 +116,16 @@ export default function CategoriasPage() {
     createMutation.isPending || updateMutation.isPending || deleteMutation.isPending || reactivarMutation.isPending;
   const formSubmitting = createMutation.isPending || updateMutation.isPending;
 
-  const isCreateDialogDirty = useMemo(() => isCreateCategoriaDirty(form), [form]);
+  const codigo = useCodigoFieldController({
+    sequenceKey: INV_CODIGO_SEQUENCE_KEYS.categoria,
+    mode: 'create',
+    disabled: formSubmitting,
+  });
+
+  const isCreateDialogDirty = useMemo(
+    () => isCreateCategoriaDirty(form) || codigo.isDirty,
+    [form, codigo.isDirty],
+  );
   const isEditDialogDirty = useMemo(
     () => isEditCategoriaDirty(editForm, editFormSnapshot),
     [editForm, editFormSnapshot],
@@ -113,11 +133,12 @@ export default function CategoriasPage() {
 
   const closeCreate = useCallback(() => {
     if (!formSubmitting) {
+      codigo.actions.reset();
       setCreateOpen(false);
       setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
       setDiscardPending((pending) => (pending === 'create' ? null : pending));
     }
-  }, [formSubmitting, scopeEmpresaId]);
+  }, [formSubmitting, scopeEmpresaId, codigo.actions]);
 
   const closeEdit = useCallback(() => {
     if (!formSubmitting) {
@@ -162,14 +183,15 @@ export default function CategoriasPage() {
 
   const openCreate = () => {
     setDiscardPending(null);
+    codigo.actions.reset();
     setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
     setCreateOpen(true);
   };
+
   const openEdit = (row: Categoria) => {
     setDiscardPending(null);
     setEditing(row);
     const nextEditForm: CategoriaUpdate = {
-      codigo: row.codigo,
       nombre: row.nombre,
       descripcion: row.descripcion ?? undefined,
       metodo_costeo_defecto: row.metodo_costeo_defecto ?? undefined,
@@ -191,17 +213,20 @@ export default function CategoriasPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!scopeEmpresaId || !form.codigo.trim() || !form.nombre.trim()) {
-      toast.error('Empresa activa, código y nombre son requeridos.');
+    if (!scopeEmpresaId || !form.nombre.trim()) {
+      toast.error('El nombre es requerido.');
       return;
     }
     try {
-      await createMutation.mutateAsync(
-        assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId),
+      const basePayload = buildCategoriaCreateBasePayload(form, scopeEmpresaId);
+      await mutateInvCreateWithCodigo(
+        codigo,
+        basePayload as CategoriaCreate & Record<string, unknown>,
+        createMutation.mutateAsync,
       );
       closeCreate();
     } catch {
-      /* error vía useCreateCategoria.onError */
+      /* error vía useCreateCategoria.onError / Engine applyApiError */
     }
   };
 
@@ -209,7 +234,8 @@ export default function CategoriasPage() {
     e.preventDefault();
     if (!editing) return;
     try {
-      await updateMutation.mutateAsync({ categoriaId: editing.categoria_id, payload: editForm });
+      const payload = buildCategoriaUpdatePayload(editForm);
+      await updateMutation.mutateAsync({ categoriaId: editing.categoria_id, payload });
       closeEdit();
     } catch {
       /* error vía useUpdateCategoria.onError */
@@ -433,11 +459,26 @@ export default function CategoriasPage() {
       />
       <Dialog open={createOpen} onOpenChange={handleCreateDialogOpenChange}>
         <DialogContent className="max-w-lg" {...orgDialogGuardProps}>
-          <DialogHeader><DialogTitle>Crear categoría</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Crear categoría</DialogTitle>
+          </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <OrgSessionEmpresaField />
-            <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase" required /></div>
-            <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm" required /></div>
+            <CodigoField
+              sequenceKey={INV_CODIGO_SEQUENCE_KEYS.categoria}
+              mode="create"
+              controller={codigo}
+            />
+            <div>
+              <Label>Nombre *</Label>
+              <input
+                type="text"
+                value={form.nombre}
+                onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
+                className={inputClass}
+                required
+              />
+            </div>
             <div>
               <Label>Categoría padre</Label>
               <select
@@ -445,7 +486,7 @@ export default function CategoriasPage() {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, categoria_padre_id: e.target.value || undefined }))
                 }
-                className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
+                className={inputClass}
               >
                 <option value="">Ninguna</option>
                 {categoriasPadreOpciones.map((c) => (
@@ -455,7 +496,19 @@ export default function CategoriasPage() {
                 ))}
               </select>
             </div>
-            <div><Label>Método Costeo</Label><select value={form.metodo_costeo_defecto ?? 'promedio'} onChange={(e) => setForm((p) => ({ ...p, metodo_costeo_defecto: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"><option value="promedio">Promedio</option><option value="fifo">FIFO</option><option value="lifo">LIFO</option><option value="estandar">Estándar</option></select></div>
+            <div>
+              <Label>Método Costeo</Label>
+              <select
+                value={form.metodo_costeo_defecto ?? 'promedio'}
+                onChange={(e) => setForm((p) => ({ ...p, metodo_costeo_defecto: e.target.value }))}
+                className={inputClass}
+              >
+                <option value="promedio">Promedio</option>
+                <option value="fifo">FIFO</option>
+                <option value="lifo">LIFO</option>
+                <option value="estandar">Estándar</option>
+              </select>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Cuenta contable inventario</Label>
@@ -468,7 +521,7 @@ export default function CategoriasPage() {
                       cuenta_contable_inventario: e.target.value || undefined,
                     }))
                   }
-                  className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
+                  className={`${inputClass} uppercase`}
                 />
               </div>
               <div>
@@ -482,7 +535,7 @@ export default function CategoriasPage() {
                       cuenta_contable_costo_venta: e.target.value || undefined,
                     }))
                   }
-                  className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
+                  className={`${inputClass} uppercase`}
                 />
               </div>
             </div>
@@ -490,7 +543,11 @@ export default function CategoriasPage() {
               <Button type="button" variant="outline" onClick={handleRequestCloseCreate}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="bg-brand-primary hover:bg-brand-primary-hover text-white"
+              >
                 Crear
               </Button>
             </DialogFooter>
@@ -499,10 +556,25 @@ export default function CategoriasPage() {
       </Dialog>
       <Dialog open={editOpen} onOpenChange={handleEditDialogOpenChange}>
         <DialogContent className="max-w-lg" {...orgDialogGuardProps}>
-          <DialogHeader><DialogTitle>Editar categoría</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Editar categoría</DialogTitle>
+          </DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-4">
-            <div><Label>Código *</Label><input type="text" value={editForm.codigo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase" required /></div>
-            <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm" required /></div>
+            <CodigoFieldReadOnly
+              label="Código"
+              value={editing?.codigo ?? ''}
+              inputId="edit-categoria-codigo"
+            />
+            <div>
+              <Label>Nombre *</Label>
+              <input
+                type="text"
+                value={editForm.nombre ?? ''}
+                onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))}
+                className={inputClass}
+                required
+              />
+            </div>
             <div>
               <Label>Categoría padre</Label>
               <select
@@ -510,7 +582,7 @@ export default function CategoriasPage() {
                 onChange={(e) =>
                   setEditForm((p) => ({ ...p, categoria_padre_id: e.target.value || undefined }))
                 }
-                className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"
+                className={inputClass}
               >
                 <option value="">Ninguna</option>
                 {categoriasPadreOpciones.map((c) => (
@@ -520,7 +592,21 @@ export default function CategoriasPage() {
                 ))}
               </select>
             </div>
-            <div><Label>Método Costeo</Label><select value={editForm.metodo_costeo_defecto ?? 'promedio'} onChange={(e) => setEditForm((p) => ({ ...p, metodo_costeo_defecto: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm"><option value="promedio">Promedio</option><option value="fifo">FIFO</option><option value="lifo">LIFO</option><option value="estandar">Estándar</option></select></div>
+            <div>
+              <Label>Método Costeo</Label>
+              <select
+                value={editForm.metodo_costeo_defecto ?? 'promedio'}
+                onChange={(e) =>
+                  setEditForm((p) => ({ ...p, metodo_costeo_defecto: e.target.value }))
+                }
+                className={inputClass}
+              >
+                <option value="promedio">Promedio</option>
+                <option value="fifo">FIFO</option>
+                <option value="lifo">LIFO</option>
+                <option value="estandar">Estándar</option>
+              </select>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Cuenta contable inventario</Label>
@@ -533,7 +619,7 @@ export default function CategoriasPage() {
                       cuenta_contable_inventario: e.target.value || undefined,
                     }))
                   }
-                  className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
+                  className={`${inputClass} uppercase`}
                 />
               </div>
               <div>
@@ -547,7 +633,7 @@ export default function CategoriasPage() {
                       cuenta_contable_costo_venta: e.target.value || undefined,
                     }))
                   }
-                  className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase"
+                  className={`${inputClass} uppercase`}
                 />
               </div>
             </div>
@@ -555,7 +641,11 @@ export default function CategoriasPage() {
               <Button type="button" variant="outline" onClick={handleRequestCloseEdit}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={submitting} className="bg-brand-primary hover:bg-brand-primary-hover text-white">
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="bg-brand-primary hover:bg-brand-primary-hover text-white"
+              >
                 Guardar
               </Button>
             </DialogFooter>
@@ -568,7 +658,9 @@ export default function CategoriasPage() {
         onClose={() => setBajaTarget(null)}
         onConfirm={() => void confirmarBaja()}
         title="Desactivar categoría"
-        message={bajaTarget ? `¿Desactivar categoría '${bajaTarget.nombre}'? Podrá reactivarlo después.` : ''}
+        message={
+          bajaTarget ? `¿Desactivar categoría '${bajaTarget.nombre}'? Podrá reactivarlo después.` : ''
+        }
         confirmText="Desactivar"
         cancelText="Cancelar"
         variant="danger"
@@ -580,7 +672,11 @@ export default function CategoriasPage() {
         onClose={() => setReactivarTarget(null)}
         onConfirm={() => void confirmarReactivar()}
         title="Reactivar categoría"
-        message={reactivarTarget ? `¿Reactivar categoría '${reactivarTarget.nombre}'? Volverá a estar disponible.` : ''}
+        message={
+          reactivarTarget
+            ? `¿Reactivar categoría '${reactivarTarget.nombre}'? Volverá a estar disponible.`
+            : ''
+        }
         confirmText="Reactivar"
         cancelText="Cancelar"
         variant="info"

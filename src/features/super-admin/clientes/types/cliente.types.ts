@@ -3,6 +3,8 @@
  * Alineados con los schemas del backend (app.schemas.cliente)
  */
 
+import type { ProvisioningInfoRead, ProvisioningState } from './provisioning.types';
+
 export interface Cliente {
   cliente_id: string; // UUID format
   codigo_cliente: string;
@@ -34,6 +36,10 @@ export interface Cliente {
   fecha_creacion: string;
   fecha_actualizacion: string | null;
   fecha_ultimo_acceso: string | null;
+  /** Aditivo F4 — presente en Dedicated con provisioning v2. */
+  provisioning_state?: ProvisioningState | null;
+  /** Aditivo F4 — presente en Dedicated con provisioning v2. */
+  provisioning_run_id?: string | null;
 }
 
 export interface ClienteCreate {
@@ -145,6 +151,8 @@ export interface ClienteCreateResponse {
   message: string;
   data: Cliente;
   credenciales_iniciales: CredencialesInicialesRead;
+  /** Aditivo F4 — solo Dedicated provisioning v2. */
+  provisioning?: ProvisioningInfoRead;
 }
 
 /** Retorno del service de provisionamiento — consumo UI (memoria efímera). */
@@ -152,6 +160,10 @@ export interface ClienteCreateResult {
   cliente: Cliente;
   credenciales: CredencialesInicialesRead;
   message: string;
+  /** Aditivo F4 — metadata de polling (Dedicated). */
+  provisioning?: ProvisioningInfoRead;
+  provisioningState?: ProvisioningState;
+  provisioningRunId?: string;
 }
 
 export interface SubdomainValidationResponse {

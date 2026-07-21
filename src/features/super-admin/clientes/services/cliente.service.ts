@@ -14,6 +14,7 @@ import {
   CredencialesInicialesRead,
   SubdomainValidationResponse,
 } from '../types/cliente.types';
+import { parseProvisioningCreateEnvelope } from '../utils/parse-provisioning-create-envelope.utils';
 
 const BASE_URL = '/clientes';
 
@@ -99,10 +100,15 @@ export const clienteService = {
       contrasena,
       requiere_cambio: rawCreds.requiere_cambio ?? true,
     };
+    const provisioningEnvelope = parseProvisioningCreateEnvelope(
+      data.data,
+      data.provisioning,
+    );
     return {
       cliente: data.data,
       credenciales,
       message: data.message || 'Cliente creado exitosamente',
+      ...provisioningEnvelope,
     };
   },
 

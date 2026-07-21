@@ -2,7 +2,7 @@ import { useQueries } from '@tanstack/react-query';
 import { clienteService } from '@/features/super-admin/clientes/services/cliente.service';
 import { moduloV2Service } from '@/features/modulos/services/modulo-v2.service';
 import { superadminAuditoriaService } from '@/services/superadmin-auditoria.service';
-import { superadminUsuarioService } from '@/services/superadmin-usuario.service';
+import { superadminUsuarioStatsService } from '@/services/superadmin-usuario-stats.service';
 import type { AuthAuditLog } from '@/types/superadmin-auditoria.types';
 
 export type DashboardMetricState = {
@@ -61,11 +61,9 @@ export function usePlatformDashboardP0(enabled: boolean): PlatformDashboardP0Dat
         staleTime: 60_000,
       },
       {
-        queryKey: ['platform-dashboard', 'usuarios-total'],
-        queryFn: async () => {
-          const data = await superadminUsuarioService.getUsuariosGlobales({ page: 1, limit: 1 });
-          return data.total_usuarios;
-        },
+        queryKey: ['platform-dashboard', 'usuarios-stats'],
+        queryFn: () => superadminUsuarioStatsService.getUsuariosStats(),
+        select: (data) => data.total_usuarios,
         enabled,
         staleTime: 60_000,
       },

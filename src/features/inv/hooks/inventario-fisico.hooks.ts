@@ -17,6 +17,10 @@ import type {
 } from '../types/inv.types';
 import { INV_LIST_STALE_TIME_MS } from './inv-query-defaults';
 import { useInvCompanyQueryGate } from './inv-company-query-gate';
+import {
+  serializeInventarioFisicoCreatePayload,
+  serializeInventarioFisicoUpdatePayload,
+} from '../codigo';
 
 /** Whitelist sort + Tier C — FRONTEND_LISTADOS_CONTRACT_V1 §4 INV inventario-fisico. */
 export const INVENTARIO_FISICO_LIST_CONFIG: ErpListResourceConfig = {
@@ -179,10 +183,11 @@ export function useCreateInventarioFisico() {
   const qc = useQueryClient();
 
   return useMutation<InventarioFisico, Error, InventarioFisicoCreate>({
-    mutationFn: (payload) => inventarioFisicoService.create(payload),
-    onSuccess: () => {
+    mutationFn: (payload) =>
+      inventarioFisicoService.create(serializeInventarioFisicoCreatePayload(payload)),
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['inv', 'inventario-fisico', 'list'] });
-      toast.success('Inventario físico creado.');
+      toast.success(`Inventario físico creado: ${data.numero_inventario}`);
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });
@@ -197,7 +202,10 @@ export function useUpdateInventarioFisico() {
 
   return useMutation<InventarioFisico, Error, { inventarioFisicoId: string; payload: InventarioFisicoUpdate }>({
     mutationFn: ({ inventarioFisicoId, payload }) =>
-      inventarioFisicoService.update(inventarioFisicoId, payload),
+      inventarioFisicoService.update(
+        inventarioFisicoId,
+        serializeInventarioFisicoUpdatePayload(payload),
+      ),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['inv', 'inventario-fisico', 'list'] });
       qc.invalidateQueries({ queryKey: qk.detail(vars.inventarioFisicoId, scopeEmpresaId ?? '') });
@@ -213,10 +221,13 @@ export function useCreateInventarioFisicoConDetalle() {
   const qc = useQueryClient();
 
   return useMutation<InventarioFisicoConDetalle, Error, InventarioFisicoConDetalleCreate>({
-    mutationFn: (payload) => inventarioFisicoService.createConDetalle(payload),
-    onSuccess: () => {
+    mutationFn: (payload) =>
+      inventarioFisicoService.createConDetalle(
+        serializeInventarioFisicoCreatePayload(payload),
+      ),
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['inv', 'inventario-fisico', 'list'] });
-      toast.success('Inventario físico creado con líneas.');
+      toast.success(`Inventario físico creado: ${data.numero_inventario}`);
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });
@@ -233,7 +244,10 @@ export function useUpdateInventarioFisicoConDetalle() {
     { inventarioFisicoId: string; payload: InventarioFisicoConDetalleUpdate }
   >({
     mutationFn: ({ inventarioFisicoId, payload }) =>
-      inventarioFisicoService.updateConDetalle(inventarioFisicoId, payload),
+      inventarioFisicoService.updateConDetalle(
+        inventarioFisicoId,
+        serializeInventarioFisicoUpdatePayload(payload),
+      ),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['inv', 'inventario-fisico', 'list'] });
       qc.invalidateQueries({ queryKey: qk.detail(vars.inventarioFisicoId, scopeEmpresaId ?? '') });

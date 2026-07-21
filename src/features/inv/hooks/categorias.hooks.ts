@@ -97,9 +97,9 @@ export function useCreateCategoria() {
 
   return useMutation<Categoria, Error, CategoriaCreate>({
     mutationFn: (payload) => categoriaService.create(payload),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['inv', 'categoria', 'list'] });
-      toast.success('Categoría creada.');
+      toast.success(`Categoría creada con código ${data.codigo}`);
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });

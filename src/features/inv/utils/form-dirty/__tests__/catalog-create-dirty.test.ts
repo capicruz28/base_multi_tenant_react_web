@@ -8,7 +8,6 @@ import { isCreateUnidadMedidaDirty } from '../unidad-medida-form-dirty';
 const OPEN_CREATE_FORMS = {
   almacen: {
     empresa_id: 'empresa-test',
-    codigo: '',
     nombre: '',
     tipo_almacen: 'general',
     permite_compras: true,
@@ -16,14 +15,12 @@ const OPEN_CREATE_FORMS = {
   },
   categoria: {
     empresa_id: 'empresa-test',
-    codigo: '',
     nombre: '',
     metodo_costeo_defecto: 'promedio',
     es_activo: true,
   },
   tipoMovimiento: {
     empresa_id: 'empresa-test',
-    codigo: '',
     nombre: '',
     clase_movimiento: 'ENTRADA',
     afecta_costo: true,
@@ -33,7 +30,6 @@ const OPEN_CREATE_FORMS = {
   },
   unidadMedida: {
     empresa_id: 'empresa-test',
-    codigo: '',
     nombre: '',
     tipo_unidad: 'cantidad',
     es_unidad_base: false,

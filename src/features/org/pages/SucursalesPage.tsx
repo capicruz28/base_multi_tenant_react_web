@@ -6,6 +6,8 @@ import { toast } from 'react-hot-toast';
 import { MapPin, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
 import { useDebouncedSearch } from '@/core/list';
+import { useCodigoFieldController } from '@/core/codigo';
+import { CodigoField } from '@/shared/components/codigo';
 import { OrgToolbarSearch } from '../components/OrgToolbarSearch';
 import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
 import type { Sucursal, SucursalCreate, SucursalUpdate } from '../types/org.types';
@@ -49,6 +51,7 @@ import {
   isEditSucursalDirty,
   type EditSucursalFormSnapshot,
 } from '../utils/form-dirty/sucursal-form-dirty';
+import { mutateOrgCreateWithCodigo, ORG_CODIGO_SEQUENCE_KEYS } from '../codigo';
 
 const inputClass = 'mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm';
 
@@ -146,6 +149,11 @@ export default function SucursalesPage() {
 
   const submitting = createSucursal.isPending || updateSucursal.isPending;
   const deleting = deleteSucursal.isPending;
+  const codigo = useCodigoFieldController({
+    sequenceKey: ORG_CODIGO_SEQUENCE_KEYS.sucursal,
+    mode: 'create',
+    disabled: submitting,
+  });
   const hasSearch = search.hasSearch;
   const TABLE_COLSPAN = 8;
 
@@ -170,8 +178,8 @@ export default function SucursalesPage() {
   }, []);
 
   const isCreateDialogDirty = useMemo(
-    () => isCreateSucursalDirty({ form, geo: createGeo }),
-    [form, createGeo],
+    () => isCreateSucursalDirty({ form, geo: createGeo }) || codigo.isDirty,
+    [form, createGeo, codigo.isDirty],
   );
   const isEditDialogDirty = useMemo(
     () => isEditSucursalDirty({ form: editForm, geo: createGeo }, editFormSnapshot),
@@ -180,6 +188,7 @@ export default function SucursalesPage() {
 
   const closeCreate = useCallback(() => {
     if (!submitting) {
+      codigo.actions.reset();
       setCreateOpen(false);
       setForm({ ...SUCURSAL_DEFAULT, empresa_id: scopeEmpresaId ?? '' });
       setSelectedPaisId('');
@@ -188,7 +197,7 @@ export default function SucursalesPage() {
       setSelectedDistritoId('');
       setDiscardPending((pending) => (pending === 'create' ? null : pending));
     }
-  }, [scopeEmpresaId, submitting]);
+  }, [scopeEmpresaId, submitting, codigo.actions]);
 
   const closeEdit = useCallback(() => {
     if (!submitting) {
@@ -230,6 +239,7 @@ export default function SucursalesPage() {
 
   const openCreate = () => {
     setDiscardPending(null);
+    codigo.actions.reset();
     const empId = scopeEmpresaId ?? '';
     setForm({ ...SUCURSAL_DEFAULT, empresa_id: empId });
     setSelectedPaisId('');
@@ -284,18 +294,15 @@ export default function SucursalesPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!scopeEmpresaId || !form.codigo.trim() || !form.nombre.trim()) {
-      toast.error('Código y nombre son requeridos.');
+    if (!scopeEmpresaId || !form.nombre.trim()) {
+      toast.error('El nombre es requerido.');
       return;
     }
     try {
-      const payload = assertBodyEmpresaMatchesSession(
-        { ...form },
-        scopeEmpresaId,
-      );
-      if (payload.fecha_apertura === '') delete payload.fecha_apertura;
-      if (payload.fecha_cierre === '') delete payload.fecha_cierre;
-      await createSucursal.mutateAsync(payload);
+      const basePayload = assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId);
+      if (basePayload.fecha_apertura === '') delete basePayload.fecha_apertura;
+      if (basePayload.fecha_cierre === '') delete basePayload.fecha_cierre;
+      await mutateOrgCreateWithCodigo(codigo, basePayload, createSucursal.mutateAsync);
       closeCreate();
     } catch {
       /* toast de error: onError en useCreateSucursal */
@@ -525,7 +532,11 @@ export default function SucursalesPage() {
               <FormSection title="Información general">
                 <div className="space-y-3">
                   <OrgSessionEmpresaField />
-                  <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className={`${inputClass} uppercase`} required /></div>
+                  <CodigoField
+                    sequenceKey={ORG_CODIGO_SEQUENCE_KEYS.sucursal}
+                    mode="create"
+                    controller={codigo}
+                  />
                   <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className={inputClass} required /></div>
                   <div>
                     <Label>Tipo de sucursal</Label>

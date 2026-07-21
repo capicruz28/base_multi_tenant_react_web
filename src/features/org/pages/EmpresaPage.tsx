@@ -8,6 +8,8 @@ import { toast } from 'react-hot-toast';
 import { Building2, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
 import { useDebouncedSearch } from '@/core/list';
+import { useCodigoFieldController } from '@/core/codigo';
+import { CodigoField } from '@/shared/components/codigo';
 import { OrgToolbarSearch } from '../components/OrgToolbarSearch';
 import type { Empresa, EmpresaCreate, EmpresaUpdate } from '../types/org.types';
 import type { CatMoneda, CatPais, CatDepartamento, CatProvincia, CatDistrito } from '@/types/catalogos.types';
@@ -50,6 +52,7 @@ import {
   type EditEmpresaFormSnapshot,
 } from '../utils/form-dirty/empresa-form-dirty';
 import { geoFromIds } from '../utils/form-dirty/sucursal-form-dirty';
+import { mutateOrgCreateWithCodigo, ORG_CODIGO_SEQUENCE_KEYS } from '../codigo';
 
 const EMPRESA_DEFAULT = EMPRESA_CREATE_BASELINE;
 
@@ -99,6 +102,11 @@ export default function EmpresaPage() {
 
   const submitting = createEmpresa.isPending || updateEmpresa.isPending;
   const deleting = deleteEmpresa.isPending;
+  const codigo = useCodigoFieldController({
+    sequenceKey: ORG_CODIGO_SEQUENCE_KEYS.empresa,
+    mode: 'create',
+    disabled: submitting,
+  });
   const hasSearch = search.hasSearch;
   const TABLE_COLSPAN = 6;
 
@@ -108,8 +116,8 @@ export default function EmpresaPage() {
   );
 
   const isCreateDialogDirty = useMemo(
-    () => isCreateEmpresaDirty({ form, geo: empresaGeo }),
-    [form, empresaGeo],
+    () => isCreateEmpresaDirty({ form, geo: empresaGeo }) || codigo.isDirty,
+    [form, empresaGeo, codigo.isDirty],
   );
   const isEditDialogDirty = useMemo(
     () => isEditEmpresaDirty({ form: editForm, geo: empresaGeo }, editFormSnapshot),
@@ -118,6 +126,7 @@ export default function EmpresaPage() {
 
   const closeCreate = useCallback(() => {
     if (!submitting) {
+      codigo.actions.reset();
       setCreateOpen(false);
       setForm(EMPRESA_DEFAULT);
       setFieldErrors({});
@@ -127,7 +136,7 @@ export default function EmpresaPage() {
       setSelectedDistritoId('');
       setDiscardPending((pending) => (pending === 'create' ? null : pending));
     }
-  }, [submitting]);
+  }, [submitting, codigo.actions]);
 
   const closeEdit = useCallback(() => {
     if (!submitting) {
@@ -197,6 +206,7 @@ export default function EmpresaPage() {
 
   const openCreate = () => {
     setDiscardPending(null);
+    codigo.actions.reset();
     setForm(EMPRESA_DEFAULT);
     setSelectedPaisId('');
     setSelectedDepartamentoId('');
@@ -299,8 +309,8 @@ export default function EmpresaPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.codigo_empresa.trim() || !form.razon_social.trim() || !form.ruc.trim()) {
-      toast.error('Completa código, razón social y RUC.');
+    if (!form.razon_social.trim() || !form.ruc.trim()) {
+      toast.error('Completa razón social y RUC.');
       return;
     }
 
@@ -311,16 +321,20 @@ export default function EmpresaPage() {
     }
 
     try {
-      const payload: EmpresaCreate = {
+      const basePayload: EmpresaCreate = {
         ...form,
         pais_id: selectedPaisId || undefined,
         departamento_id: selectedDepartamentoId || undefined,
         provincia_id: selectedProvinciaId || undefined,
         distrito_id: selectedDistritoId || undefined,
       };
-      if (payload.fecha_constitucion === '') delete payload.fecha_constitucion;
-      if (payload.fecha_inicio_operaciones === '') delete payload.fecha_inicio_operaciones;
-      const created = await createEmpresa.mutateAsync(payload);
+      if (basePayload.fecha_constitucion === '') delete basePayload.fecha_constitucion;
+      if (basePayload.fecha_inicio_operaciones === '') delete basePayload.fecha_inicio_operaciones;
+      const created = await mutateOrgCreateWithCodigo(
+        codigo,
+        basePayload,
+        createEmpresa.mutateAsync,
+      );
       closeCreate();
 
       if (isOnboarding && created?.empresa_id) {
@@ -524,18 +538,11 @@ export default function EmpresaPage() {
             <DialogBody className="px-6 pb-2 space-y-5">
               <FormSection title="Información general">
                 <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <Label htmlFor="codigo_empresa">Código *</Label>
-                    <input
-                      id="codigo_empresa"
-                      type="text"
-                      value={form.codigo_empresa}
-                      onChange={(e) => { updateForm('codigo_empresa', e.target.value); setFieldErrors((p) => ({ ...p, codigo_empresa: '' })); }}
-                      className={`${inputClass('codigo_empresa')} uppercase`}
-                      disabled={submitting}
-                    />
-                    {fieldErrors.codigo_empresa && <p className="mt-1 text-xs text-error">{fieldErrors.codigo_empresa}</p>}
-                  </div>
+                  <CodigoField
+                    sequenceKey={ORG_CODIGO_SEQUENCE_KEYS.empresa}
+                    mode="create"
+                    controller={codigo}
+                  />
                   <div>
                     <Label htmlFor="razon_social">Razón social *</Label>
                     <input

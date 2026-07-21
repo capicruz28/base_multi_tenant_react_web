@@ -8,6 +8,10 @@ import { buildInvListQuery, invFetchList, movimientoService } from '../services/
 import type { InvListParams, Movimiento, MovimientoConDetalle, MovimientoConDetalleCreate, MovimientoConDetalleUpdate, MovimientoCreate, MovimientoUpdate, AnularMovimientoRequest, EstornarMovimientoRequest } from '../types/inv.types';
 import { INV_LIST_STALE_TIME_MS } from './inv-query-defaults';
 import { useInvCompanyQueryGate } from './inv-company-query-gate';
+import {
+  serializeMovimientoCreatePayload,
+  serializeMovimientoUpdatePayload,
+} from '../codigo';
 
 /** Whitelist sort + Tier C — FRONTEND_LISTADOS_CONTRACT_V1 §4 INV movimientos. */
 export const MOVIMIENTOS_LIST_CONFIG: ErpListResourceConfig = {
@@ -182,10 +186,10 @@ export function useCreateMovimiento() {
   const qc = useQueryClient();
 
   return useMutation<Movimiento, Error, MovimientoCreate>({
-    mutationFn: (payload) => movimientoService.create(payload),
-    onSuccess: () => {
+    mutationFn: (payload) => movimientoService.create(serializeMovimientoCreatePayload(payload)),
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['inv', 'movimiento', 'list'] });
-      toast.success('Movimiento creado.');
+      toast.success(`Movimiento creado: ${data.numero_movimiento}`);
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });
@@ -199,7 +203,8 @@ export function useUpdateMovimiento() {
   const { scopeEmpresaId } = useInvCompanyQueryGate();
 
   return useMutation<Movimiento, Error, { movimientoId: string; payload: MovimientoUpdate }>({
-    mutationFn: ({ movimientoId, payload }) => movimientoService.update(movimientoId, payload),
+    mutationFn: ({ movimientoId, payload }) =>
+      movimientoService.update(movimientoId, serializeMovimientoUpdatePayload(payload)),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['inv', 'movimiento', 'list'] });
       qc.invalidateQueries({ queryKey: qk.detail(vars.movimientoId, scopeEmpresaId ?? '') });
@@ -215,11 +220,12 @@ export function useCreateMovimientoConDetalle() {
   const qc = useQueryClient();
 
   return useMutation<MovimientoConDetalle, Error, MovimientoConDetalleCreate>({
-    mutationFn: (payload) => movimientoService.createConDetalle(payload),
-    onSuccess: () => {
+    mutationFn: (payload) =>
+      movimientoService.createConDetalle(serializeMovimientoCreatePayload(payload)),
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['inv', 'movimiento', 'list'] });
       qc.invalidateQueries({ queryKey: ['inv', 'stock', 'list'] });
-      toast.success('Movimiento creado con líneas.');
+      toast.success(`Movimiento creado: ${data.numero_movimiento}`);
     },
     onError: (err) => toast.error(getErrorMessage(err).message),
   });
@@ -231,7 +237,11 @@ export function useUpdateMovimientoConDetalle() {
   const { scopeEmpresaId } = useInvCompanyQueryGate();
 
   return useMutation<MovimientoConDetalle, Error, { movimientoId: string; payload: MovimientoConDetalleUpdate }>({
-    mutationFn: ({ movimientoId, payload }) => movimientoService.updateConDetalle(movimientoId, payload),
+    mutationFn: ({ movimientoId, payload }) =>
+      movimientoService.updateConDetalle(
+        movimientoId,
+        serializeMovimientoUpdatePayload(payload),
+      ),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['inv', 'movimiento', 'list'] });
       qc.invalidateQueries({ queryKey: qk.detail(vars.movimientoId, scopeEmpresaId ?? '') });

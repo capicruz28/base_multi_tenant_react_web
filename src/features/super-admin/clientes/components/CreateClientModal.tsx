@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { X, Building, CheckCircle, XCircle, Loader, Palette, Calendar, Server } from 'lucide-react';
 import { clienteService } from '../services/cliente.service';
@@ -14,6 +15,11 @@ import {
   isCreateClienteDirty,
 } from '../utils/form-dirty/cliente-form-dirty';
 import { useClienteModalDiscard } from '../hooks/useClienteModalDiscard';
+import {
+  buildProvisioningLocationState,
+  getCredentialsRevealVariant,
+  shouldNavigateToDedicatedProvisioning,
+} from '../utils/cliente-create-provisioning-flow.utils';
 
 interface CreateClientModalProps {
   isOpen: boolean;
@@ -28,6 +34,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
   onSuccess,
   onDiscardPendingChange,
 }) => {
+  const navigate = useNavigate();
   const provisionMutation = useProvisionCliente();
   const isSubmitting = provisionMutation.isPending;
 
@@ -54,7 +61,15 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
     }
   }, [isOpen]);
 
-  const handleRevealComplete = () => {
+  const handleRevealComplete = useCallback(() => {
+    const result = provisionResult;
+
+    if (result && shouldNavigateToDedicatedProvisioning(result)) {
+      navigate(`/super-admin/clientes/${result.cliente.cliente_id}/provisioning`, {
+        state: buildProvisioningLocationState(result),
+      });
+    }
+
     setProvisionResult(null);
     setPhase('form');
     setFormData({ ...CREATE_CLIENT_DEFAULT });
@@ -64,7 +79,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
     setActiveSection('basic');
     onSuccess();
     onClose();
-  };
+  }, [navigate, onClose, onSuccess, provisionResult]);
 
   const {
     discardPending,
@@ -294,6 +309,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
       <ClientCredentialsRevealModal
         isOpen
         result={provisionResult}
+        variant={getCredentialsRevealVariant(provisionResult)}
         onComplete={handleRevealComplete}
       />
     );

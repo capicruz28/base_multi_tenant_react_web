@@ -1,11 +1,17 @@
 /**
  * Tipos del módulo INV (Inventarios)
- * Alineados con el contrato API: /api/v1/inv/ (`docs/api/INV_API.json`).
+ * Alineados con el contrato API: /api/v1/inv/ (`docs/api/INV_API.json`)
+ * y Motor de Códigos Wave 1 (`inv-wave1-frontend-contract`).
  *
  * Bloque 1 (Fase 2): request/response separados, sin `any`; cabecera+detalle embebido
  * en `MovimientoConDetalleCreate` / `InventarioFisicoConDetalleCreate` como `detalles[]`.
  *
- * Última revisión contrato: 2026-05-14
+ * Wave 1 (tipos):
+ * - AUTO_DEFAULT CREATE: `codigo` / `codigo_sku` opcionales.
+ * - AUTO_REQUIRED CREATE: `numero_*` ausentes del contrato vigente (ver JSDoc legacy).
+ * - BR-IMM UPDATE: no enviar campo Motor — usar `stripInvMotorFieldFromUpdate`.
+ *
+ * Última revisión contrato: 2026-07-17
  */
 
 import type { ErpListQueryBase } from '@/core/list/erp-list.types';
@@ -39,7 +45,8 @@ export interface Categoria {
 
 export interface CategoriaCreate {
   empresa_id: string;
-  codigo: string;
+  /** AUTO_DEFAULT — omitir vacío/`null`; Backend genera `CATnnn`. */
+  codigo?: string | null;
   nombre: string;
   descripcion?: string | null;
   categoria_padre_id?: string | null;
@@ -51,7 +58,9 @@ export interface CategoriaCreate {
   es_activo?: boolean;
 }
 
-export interface CategoriaUpdate extends Partial<CategoriaCreate> {}
+/** BR-IMM: `codigo` ausente — no enviar en PUT. */
+export interface CategoriaUpdate extends Omit<Partial<CategoriaCreate>, 'codigo'> {}
+
 
 // ─── Unidad de Medida ──────────────────────────────────────────────────────
 
@@ -74,7 +83,8 @@ export interface UnidadMedida {
 
 export interface UnidadMedidaCreate {
   empresa_id: string;
-  codigo: string;
+  /** AUTO_DEFAULT — omitir vacío/`null`; Backend genera `UMnnn`. */
+  codigo?: string | null;
   nombre: string;
   simbolo?: string | null;
   tipo_unidad: string;
@@ -84,7 +94,9 @@ export interface UnidadMedidaCreate {
   es_activo?: boolean;
 }
 
-export interface UnidadMedidaUpdate extends Partial<UnidadMedidaCreate> {}
+/** BR-IMM: `codigo` ausente — no enviar en PUT. */
+export interface UnidadMedidaUpdate extends Omit<Partial<UnidadMedidaCreate>, 'codigo'> {}
+
 
 // ─── Producto ───────────────────────────────────────────────────────────────
 
@@ -165,7 +177,8 @@ export interface Producto {
 
 export interface ProductoCreate {
   empresa_id: string;
-  codigo_sku: string;
+  /** AUTO_DEFAULT — omitir vacío/`null`; Backend genera `P` + 5 dígitos. */
+  codigo_sku?: string | null;
   codigo_barra?: string | null;
   codigo_interno?: string | null;
   codigo_fabricante?: string | null;
@@ -232,7 +245,9 @@ export interface ProductoCreate {
   observaciones?: string | null;
 }
 
-export interface ProductoUpdate extends Partial<ProductoCreate> {}
+/** BR-IMM solo `codigo_sku` — barra/interno/fabricante/sunat siguen en Create/Update. */
+export interface ProductoUpdate extends Omit<Partial<ProductoCreate>, 'codigo_sku'> {}
+
 
 // ─── Almacén ───────────────────────────────────────────────────────────────
 
@@ -265,7 +280,8 @@ export interface Almacen {
 export interface AlmacenCreate {
   empresa_id: string;
   sucursal_id?: string | null;
-  codigo: string;
+  /** AUTO_DEFAULT — omitir vacío/`null`; Backend genera `ALMnnn`. */
+  codigo?: string | null;
   nombre: string;
   descripcion?: string | null;
   tipo_almacen: string;
@@ -283,7 +299,9 @@ export interface AlmacenCreate {
   es_activo?: boolean;
 }
 
-export interface AlmacenUpdate extends Partial<AlmacenCreate> {}
+/** BR-IMM: `codigo` ausente — no enviar en PUT. */
+export interface AlmacenUpdate extends Omit<Partial<AlmacenCreate>, 'codigo'> {}
+
 
 // ─── Stock ──────────────────────────────────────────────────────────────────
 // Stock es solo lectura desde el frontend (create/update son deprecated).
@@ -340,7 +358,8 @@ export interface TipoMovimiento {
 
 export interface TipoMovimientoCreate {
   empresa_id: string;
-  codigo: string;
+  /** AUTO_DEFAULT — omitir vacío/`null`; Backend genera `TMnnn`. */
+  codigo?: string | null;
   nombre: string;
   descripcion?: string | null;
   clase_movimiento: string;
@@ -355,7 +374,9 @@ export interface TipoMovimientoCreate {
   es_tipo_sistema?: boolean;
 }
 
-export interface TipoMovimientoUpdate extends Partial<TipoMovimientoCreate> {}
+/** BR-IMM: `codigo` ausente — no enviar en PUT. */
+export interface TipoMovimientoUpdate extends Omit<Partial<TipoMovimientoCreate>, 'codigo'> {}
+
 
 // ─── Movimiento ────────────────────────────────────────────────────────────
 // Campos numéricos (total_cantidad, total_costo) vienen como string|null
@@ -399,7 +420,6 @@ export interface Movimiento {
 
 export interface MovimientoCreate {
   empresa_id: string;
-  numero_movimiento?: string | null;
   tipo_movimiento_id: string;
   fecha_movimiento?: string | null;
   fecha_contable: string;
@@ -423,6 +443,7 @@ export interface MovimientoCreate {
   centro_costo_id?: string | null;
 }
 
+/** BR-IMM: `numero_movimiento` está ausente del contrato PUT. */
 export interface MovimientoUpdate extends Partial<MovimientoCreate> {}
 
 // ─── Movimiento Detalle (línea) ────────────────────────────────────────────
@@ -477,7 +498,6 @@ export interface MovimientoConDetalle extends Movimiento {
 /** POST /api/v1/inv/movimientos/con-detalle */
 export interface MovimientoConDetalleCreate {
   empresa_id: string;
-  numero_movimiento: string;
   tipo_movimiento_id: string;
   fecha_movimiento?: string | null;
   fecha_contable: string;
@@ -512,7 +532,6 @@ export interface MovimientoConDetalleCreate {
 
 /** PUT /api/v1/inv/movimientos/{id}/con-detalle */
 export interface MovimientoConDetalleUpdate {
-  numero_movimiento?: string | null;
   tipo_movimiento_id?: string | null;
   fecha_movimiento?: string | null;
   fecha_contable?: string | null;
@@ -575,7 +594,6 @@ export interface InventarioFisico {
 
 export interface InventarioFisicoCreate {
   empresa_id: string;
-  numero_inventario?: string | null;
   fecha_inventario: string;
   almacen_id: string;
   tipo_inventario: string;
@@ -588,6 +606,7 @@ export interface InventarioFisicoCreate {
   observaciones?: string | null;
 }
 
+/** BR-IMM: `numero_inventario` está ausente del contrato PUT. */
 export interface InventarioFisicoUpdate extends Partial<InventarioFisicoCreate> {}
 
 // ─── Inventario Físico Detalle (línea) ─────────────────────────────────────
@@ -645,7 +664,6 @@ export interface InventarioFisicoConDetalle extends InventarioFisico {
 /** POST /api/v1/inv/inventario-fisico/con-detalle */
 export interface InventarioFisicoConDetalleCreate {
   empresa_id: string;
-  numero_inventario: string;
   fecha_inventario: string;
   almacen_id: string;
   tipo_inventario: string;
@@ -665,7 +683,6 @@ export interface InventarioFisicoConDetalleCreate {
 
 /** PUT /api/v1/inv/inventario-fisico/{id}/con-detalle */
 export interface InventarioFisicoConDetalleUpdate {
-  numero_inventario?: string | null;
   fecha_inventario?: string | null;
   almacen_id?: string | null;
   tipo_inventario?: string | null;

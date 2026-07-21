@@ -11,6 +11,7 @@ import { accountRoutes } from '@/features/account/routes';
 const AutorizacionRouter = lazy(() => import('@/features/hcm/asistencia/autorizacion/routes'));
 const ReportesHCMRouter = lazy(() => import('@/features/hcm/reportes/routes'));
 const OrgRouter = lazy(() => import('@/features/org/routes'));
+const CfgRouter = lazy(() => import('@/features/cfg/routes'));
 const InvRouter = lazy(() => import('@/features/inv/routes'));
 const PurRouter = lazy(() => import('@/features/pur/routes'));
 const SlsRouter = lazy(() => import('@/features/sls/routes'));
@@ -71,6 +72,16 @@ export const appRouteChildren: RouteObject[] = [
       <PermissionGuard module="org" action="ver">
         <Suspense fallback={<LoadingSpinner message="Cargando módulo Organización..." />}>
           <OrgRouter />
+        </Suspense>
+      </PermissionGuard>
+    ),
+  },
+  {
+    path: 'cfg/*',
+    element: (
+      <PermissionGuard module="cfg" action="ver">
+        <Suspense fallback={<LoadingSpinner message="Cargando módulo CFG..." />}>
+          <CfgRouter />
         </Suspense>
       </PermissionGuard>
     ),

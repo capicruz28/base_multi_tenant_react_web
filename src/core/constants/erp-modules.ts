@@ -1,7 +1,7 @@
 /**
  * Contrato de códigos de módulos ERP
  *
- * Fuente única de verdad para los 27 módulos definidos en:
+ * Fuente única de verdad para los módulos ERP definidos en:
  * - docs/CATALOGO_MODULOS.md
  * - docs/MENU_NAVEGACION.md
  * - docs/TABLAS_BD_ERP_COMPLETO.sql
@@ -27,11 +27,17 @@ export interface ERPModuleConfig {
 }
 
 /**
- * Lista de los 27 módulos ERP.
+ * Lista de módulos ERP (incl. CFG administrador de secuencias).
  * Al añadir una ruta en app/router.tsx, usar el permissionModule y routePrefix de aquí.
  */
 export const ERP_MODULES: ERPModuleConfig[] = [
   { codigo: 'ORG', routePrefix: 'org', permissionModule: 'org', descripcion: 'Organización' },
+  {
+    codigo: 'CFG',
+    routePrefix: 'cfg',
+    permissionModule: 'cfg',
+    descripcion: 'Administrador de secuencias de código',
+  },
   { codigo: 'INV', routePrefix: 'inv', permissionModule: 'inv', descripcion: 'Inventarios' },
   { codigo: 'WMS', routePrefix: 'wms', permissionModule: 'wms', descripcion: 'Gestión de almacenes' },
   { codigo: 'QMS', routePrefix: 'qms', permissionModule: 'qms', descripcion: 'Control de calidad' },

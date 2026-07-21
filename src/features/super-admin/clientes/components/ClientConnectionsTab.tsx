@@ -18,11 +18,22 @@ import {
   Server
 } from 'lucide-react';
 import { conexionService } from '../services/conexion.service';
+import { clienteService } from '../services/cliente.service';
 import { Conexion } from '../types/conexion.types';
 import type { Cliente } from '../types/cliente.types';
+import type { ProvisioningState } from '../types/provisioning.types';
 import { getErrorMessage } from '@/core/services/error.service';
 import CreateConnectionModal from './CreateConnectionModal';
 import EditConnectionModal from './EditConnectionModal';
+import {
+  DEDICATED_CONNECTION_PROVISIONING_EMPTY_HINT,
+  DEDICATED_PROVISIONING_CONNECTION_BANNER,
+  resolveConnectionCreateMode,
+  shouldShowDedicatedConnectionRepairAction,
+  shouldShowDedicatedProvisioningConnectionBanner,
+  shouldShowStandardCreateConnectionAction,
+  usesDedicatedConnectionF4Governance,
+} from '../utils/cliente-connection-governance.utils';
 
 interface ClientConnectionsTabProps {
   clienteId: string;
@@ -34,6 +45,9 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({
   tipoInstalacion,
 }) => {
   const [conexiones, setConexiones] = useState<Conexion[]>([]);
+  const [provisioningState, setProvisioningState] = useState<
+    ProvisioningState | null | undefined
+  >(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -43,12 +57,42 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [selectedConexion, setSelectedConexion] = useState<Conexion | null>(null);
 
+  const usesF4Governance = usesDedicatedConnectionF4Governance(tipoInstalacion);
+  const showStandardCreate = shouldShowStandardCreateConnectionAction(tipoInstalacion);
+  const showProvisioningBanner = shouldShowDedicatedProvisioningConnectionBanner(tipoInstalacion);
+  const showRepairAction = shouldShowDedicatedConnectionRepairAction(
+    tipoInstalacion,
+    provisioningState,
+    conexiones,
+  );
+  const connectionModalMode = resolveConnectionCreateMode(tipoInstalacion);
+
   const fetchConexiones = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await conexionService.getConexiones(clienteId);
+      const requests: [
+        Promise<Conexion[]>,
+        Promise<ProvisioningState | null | undefined> | null,
+      ] = [
+        conexionService.getConexiones(clienteId),
+        usesF4Governance
+          ? clienteService
+              .getClienteById(clienteId)
+              .then((cliente) => cliente.provisioning_state)
+              .catch(() => undefined)
+          : null,
+      ];
+
+      const [data, nextProvisioningState] = await Promise.all([
+        requests[0],
+        requests[1] ?? Promise.resolve(undefined),
+      ]);
+
       setConexiones(data);
+      if (usesF4Governance) {
+        setProvisioningState(nextProvisioningState);
+      }
     } catch (err) {
       console.error('Error fetching client connections:', err);
       const errorData = getErrorMessage(err);
@@ -57,7 +101,7 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [clienteId]);
+  }, [clienteId, usesF4Governance]);
 
   useEffect(() => {
     fetchConexiones();
@@ -163,6 +207,18 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({
 
   return (
     <div className="space-y-6">
+      {showProvisioningBanner ? (
+        <div
+          className="rounded-lg border border-info/30 bg-info/10 p-4 text-sm text-text-base"
+          role="status"
+        >
+          <div className="flex gap-3">
+            <AlertTriangle className="h-5 w-5 text-info shrink-0" aria-hidden />
+            <p>{DEDICATED_PROVISIONING_CONNECTION_BANNER}</p>
+          </div>
+        </div>
+      ) : null}
+
       {/* Estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-surface rounded-lg shadow-sm border border-border-base p-4">
@@ -225,13 +281,24 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({
             >
               <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-surface transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Nueva Conexión
-            </button>
+            {showStandardCreate ? (
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-surface transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Nueva Conexión
+              </button>
+            ) : null}
+            {showRepairAction ? (
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 border border-warning text-warning rounded-lg hover:bg-warning/10 focus:ring-2 focus:ring-warning focus:ring-offset-2 focus:ring-offset-surface transition-colors"
+              >
+                <AlertTriangle className="h-4 w-4" />
+                Reparar conexión
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -338,12 +405,25 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({
                       <p className="mt-1">Intenta ajustar los términos de búsqueda</p>
                     )}
                     {!searchTerm && (
-                      <button
-                        onClick={() => setIsCreateModalOpen(true)}
-                        className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors"
-                      >
-                        Crear primera conexión
-                      </button>
+                      showStandardCreate ? (
+                        <button
+                          onClick={() => setIsCreateModalOpen(true)}
+                          className="mt-4 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover transition-colors"
+                        >
+                          Crear primera conexión
+                        </button>
+                      ) : showRepairAction ? (
+                        <button
+                          onClick={() => setIsCreateModalOpen(true)}
+                          className="mt-4 px-4 py-2 border border-warning text-warning rounded-lg hover:bg-warning/10 transition-colors"
+                        >
+                          Reparar conexión principal
+                        </button>
+                      ) : provisioningState === 'provisioning' ? (
+                        <p className="mt-4 text-sm text-text-soft">
+                          {DEDICATED_CONNECTION_PROVISIONING_EMPTY_HINT}
+                        </p>
+                      ) : null
                     )}
                   </td>
                 </tr>
@@ -361,6 +441,7 @@ const ClientConnectionsTab: React.FC<ClientConnectionsTabProps> = ({
           onSuccess={handleCreateSuccess}
           clienteId={clienteId}
           tipoInstalacion={tipoInstalacion}
+          mode={connectionModalMode}
         />
       )}
 

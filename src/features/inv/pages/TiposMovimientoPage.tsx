@@ -1,11 +1,14 @@
 /**
  * Tipos de Movimiento — Listado y gestión. GET/POST /api/v1/inv/tipos-movimiento
+ * Consumidor Engine INV Wave 1 (patrón Golden Reference Categoría).
  */
 import React, { useState, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { ArrowLeftRight, Plus, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import { IamTableEmptyState } from '@/features/admin/components/iam';
 import { useDebouncedSearch } from '@/core/list';
+import { useCodigoFieldController } from '@/core/codigo';
+import { CodigoField, CodigoFieldReadOnly } from '@/shared/components/codigo';
 import { ErpPagination, ErpSortableHeader } from '@/shared/components/erp-list';
 import { OrgCompanyToolbar } from '@/features/org/components/OrgCompanyToolbar';
 import { OrgToolbarSearch } from '@/features/org/components/OrgToolbarSearch';
@@ -34,7 +37,6 @@ import {
 } from '../hooks/tipos-movimiento.hooks';
 import { useInvSessionScope, useInvScopeEmpresaReset } from '../hooks/useInvSessionScope';
 import { OrgSessionEmpresaField } from '@/features/org/components/OrgSessionEmpresaField';
-import { assertBodyEmpresaMatchesSession } from '@/features/org/utils/org-body-scope';
 import { OrgDiscardConfirmDialog } from '@/features/org/components/OrgDiscardConfirmDialog';
 import type { OrgDiscardPending } from '@/features/org/types/org-discard.types';
 import { createOrgDiscardHandlers } from '@/features/org/utils/org-discard-handlers';
@@ -45,12 +47,18 @@ import {
   isEditTipoMovimientoDirty,
   type EditTipoMovimientoFormSnapshot,
 } from '../utils/form-dirty/tipo-movimiento-form-dirty';
+import {
+  buildTipoMovimientoCreateBasePayload,
+  buildTipoMovimientoUpdatePayload,
+  INV_CODIGO_SEQUENCE_KEYS,
+  mutateInvCreateWithCodigo,
+} from '../codigo';
 
 const CLASES_MOVIMIENTO = ['ENTRADA', 'SALIDA', 'TRANSFERENCIA', 'AJUSTE'] as const;
 
+/** CREATE sin `codigo` — el Motor lo aporta el Engine. */
 const DEFAULT: TipoMovimientoCreate = {
   empresa_id: '',
-  codigo: '',
   nombre: '',
   clase_movimiento: 'ENTRADA',
   afecta_costo: true,
@@ -104,7 +112,16 @@ export default function TiposMovimientoPage() {
     createMutation.isPending || updateMutation.isPending || deleteMutation.isPending || reactivarMutation.isPending;
   const formSubmitting = createMutation.isPending || updateMutation.isPending;
 
-  const isCreateDialogDirty = useMemo(() => isCreateTipoMovimientoDirty(form), [form]);
+  const codigo = useCodigoFieldController({
+    sequenceKey: INV_CODIGO_SEQUENCE_KEYS.tipoMovimiento,
+    mode: 'create',
+    disabled: formSubmitting,
+  });
+
+  const isCreateDialogDirty = useMemo(
+    () => isCreateTipoMovimientoDirty(form) || codigo.isDirty,
+    [form, codigo.isDirty],
+  );
   const isEditDialogDirty = useMemo(
     () => isEditTipoMovimientoDirty(editForm, editFormSnapshot),
     [editForm, editFormSnapshot],
@@ -112,11 +129,12 @@ export default function TiposMovimientoPage() {
 
   const closeCreate = useCallback(() => {
     if (!formSubmitting) {
+      codigo.actions.reset();
       setCreateOpen(false);
       setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
       setDiscardPending((pending) => (pending === 'create' ? null : pending));
     }
-  }, [formSubmitting, scopeEmpresaId]);
+  }, [formSubmitting, scopeEmpresaId, codigo.actions]);
 
   const closeEdit = useCallback(() => {
     if (!formSubmitting) {
@@ -161,6 +179,7 @@ export default function TiposMovimientoPage() {
 
   const openCreate = () => {
     setDiscardPending(null);
+    codigo.actions.reset();
     setForm({ ...DEFAULT, empresa_id: scopeEmpresaId ?? '' });
     setCreateOpen(true);
   };
@@ -168,7 +187,6 @@ export default function TiposMovimientoPage() {
     setDiscardPending(null);
     setEditing(row);
     const nextEditForm: TipoMovimientoUpdate = {
-      codigo: row.codigo,
       nombre: row.nombre,
       descripcion: row.descripcion ?? undefined,
       clase_movimiento: row.clase_movimiento,
@@ -188,17 +206,20 @@ export default function TiposMovimientoPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!scopeEmpresaId || !form.codigo.trim() || !form.nombre.trim() || !form.clase_movimiento) {
-      toast.error('Empresa activa, código, nombre y clase son requeridos.');
+    if (!scopeEmpresaId || !form.nombre.trim() || !form.clase_movimiento) {
+      toast.error('El nombre y la clase son requeridos.');
       return;
     }
     try {
-      await createMutation.mutateAsync(
-        assertBodyEmpresaMatchesSession({ ...form }, scopeEmpresaId),
+      const basePayload = buildTipoMovimientoCreateBasePayload(form, scopeEmpresaId);
+      await mutateInvCreateWithCodigo(
+        codigo,
+        basePayload as TipoMovimientoCreate & Record<string, unknown>,
+        createMutation.mutateAsync,
       );
       closeCreate();
     } catch {
-      /* error vía useCreateTipoMovimiento.onError */
+      /* error vía useCreateTipoMovimiento.onError / Engine applyApiError */
     }
   };
 
@@ -206,7 +227,8 @@ export default function TiposMovimientoPage() {
     e.preventDefault();
     if (!editing) return;
     try {
-      await updateMutation.mutateAsync({ tipoMovimientoId: editing.tipo_movimiento_id, payload: editForm });
+      const payload = buildTipoMovimientoUpdatePayload(editForm);
+      await updateMutation.mutateAsync({ tipoMovimientoId: editing.tipo_movimiento_id, payload });
       closeEdit();
     } catch {
       /* error vía useUpdateTipoMovimiento.onError */
@@ -432,7 +454,11 @@ export default function TiposMovimientoPage() {
           <DialogHeader><DialogTitle>Crear tipo de movimiento</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <OrgSessionEmpresaField />
-            <div><Label>Código *</Label><input type="text" value={form.codigo} onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase" required /></div>
+            <CodigoField
+              sequenceKey={INV_CODIGO_SEQUENCE_KEYS.tipoMovimiento}
+              mode="create"
+              controller={codigo}
+            />
             <div><Label>Nombre *</Label><input type="text" value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm" required /></div>
             <div><Label>Clase *</Label><select value={form.clase_movimiento} onChange={(e) => setForm((p) => ({ ...p, clase_movimiento: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm">{CLASES_MOVIMIENTO.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
             <div className="flex items-center gap-2"><input type="checkbox" checked={form.afecta_costo ?? true} onChange={(e) => setForm((p) => ({ ...p, afecta_costo: e.target.checked }))} /><Label>Afecta costo</Label></div>
@@ -505,7 +531,11 @@ export default function TiposMovimientoPage() {
         <DialogContent className="max-w-lg" {...orgDialogGuardProps}>
           <DialogHeader><DialogTitle>Editar tipo de movimiento</DialogTitle></DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-4">
-            <div><Label>Código *</Label><input type="text" value={editForm.codigo ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, codigo: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm uppercase" required /></div>
+            <CodigoFieldReadOnly
+              label="Código"
+              value={editing?.codigo ?? ''}
+              inputId="edit-tipo-movimiento-codigo"
+            />
             <div><Label>Nombre *</Label><input type="text" value={editForm.nombre ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, nombre: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm" required /></div>
             <div><Label>Clase *</Label><select value={editForm.clase_movimiento ?? ''} onChange={(e) => setEditForm((p) => ({ ...p, clase_movimiento: e.target.value }))} className="mt-1 w-full px-3 py-2 border border-border-base rounded-md focus:ring-2 focus:ring-brand-primary dark:bg-subtle dark:text-text-base text-sm">{CLASES_MOVIMIENTO.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
             <div className="flex items-center gap-2"><input type="checkbox" checked={editForm.afecta_costo ?? true} onChange={(e) => setEditForm((p) => ({ ...p, afecta_costo: e.target.checked }))} /><Label>Afecta costo</Label></div>

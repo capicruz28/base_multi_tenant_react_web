@@ -2,16 +2,15 @@ import type { UnidadMedidaCreate, UnidadMedidaUpdate } from '../../types/inv.typ
 import { bool, str } from './inv-form-dirty.helpers';
 
 export interface EditUnidadMedidaFormSnapshot {
-  codigo: string;
   nombre: string;
   simbolo: string;
   tipo_unidad: string;
   es_unidad_base: boolean;
 }
 
+/** Create dirty — sin `codigo` (lo posee el Engine / CodigoField). */
 function normalizeCreateFields(form: UnidadMedidaCreate) {
   return {
-    codigo: str(form.codigo),
     nombre: str(form.nombre),
     simbolo: str(form.simbolo),
     tipo_unidad: str(form.tipo_unidad) || 'cantidad',
@@ -21,7 +20,6 @@ function normalizeCreateFields(form: UnidadMedidaCreate) {
 
 const CREATE_BASELINE = normalizeCreateFields({
   empresa_id: '',
-  codigo: '',
   nombre: '',
   tipo_unidad: 'cantidad',
   es_unidad_base: false,
@@ -35,7 +33,6 @@ export function isCreateUnidadMedidaDirty(form: UnidadMedidaCreate): boolean {
 
 export function buildEditUnidadMedidaFormSnapshot(form: UnidadMedidaUpdate): EditUnidadMedidaFormSnapshot {
   return {
-    codigo: str(form.codigo),
     nombre: str(form.nombre),
     simbolo: str(form.simbolo),
     tipo_unidad: str(form.tipo_unidad),

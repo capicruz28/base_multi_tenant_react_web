@@ -11,6 +11,10 @@ import {
   getValidationErrors,
 } from '@/core/services/error.service';
 import { TooltipLabel, Tooltip } from '@/shared/components/ui/Tooltip';
+import {
+  DEDICATED_CONNECTION_REPAIR_WARNING,
+  type ConnectionCreateMode,
+} from '../utils/cliente-connection-governance.utils';
 
 const SERVIDOR_MAX_LENGTH = 255;
 const NOMBRE_BD_MAX_LENGTH = 100;
@@ -79,6 +83,7 @@ interface CreateConnectionModalProps {
   onSuccess: () => void;
   clienteId: string;
   tipoInstalacion: Cliente['tipo_instalacion'];
+  mode?: ConnectionCreateMode;
 }
 
 /**
@@ -96,7 +101,9 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
   onSuccess,
   clienteId,
   tipoInstalacion,
+  mode = 'standard',
 }) => {
+  const isRepairMode = mode === 'repair';
   const [loading, setLoading] = useState<boolean>(false);
   const [testing, setTesting] = useState<boolean>(false);
   const [isAdvancedMode, setIsAdvancedMode] = useState<boolean>(false);
@@ -333,7 +340,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
           <div className="flex items-center gap-3">
             <Database className="h-6 w-6 text-brand-primary" />
             <h2 className="text-xl font-semibold text-text-base">
-              Crear Nueva Conexión
+              {isRepairMode ? 'Reparar conexión principal' : 'Crear Nueva Conexión'}
             </h2>
           </div>
           <button
@@ -347,6 +354,15 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {isRepairMode ? (
+            <div
+              className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-text-base"
+              role="alert"
+            >
+              {DEDICATED_CONNECTION_REPAIR_WARNING}
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Información del Servidor */}
             <div>
@@ -640,7 +656,7 @@ const CreateConnectionModal: React.FC<CreateConnectionModalProps> = ({
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-primary border border-transparent rounded-lg hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-brand-primary disabled:opacity-50"
               >
                 {loading && <Loader className="h-4 w-4 animate-spin" />}
-                {loading ? 'Creando...' : 'Crear Conexión'}
+                {loading ? 'Creando...' : isRepairMode ? 'Registrar conexión (repair)' : 'Crear Conexión'}
               </button>
             </div>
           </div>

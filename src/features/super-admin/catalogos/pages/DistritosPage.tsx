@@ -1,6 +1,6 @@
 /**
  * Distritos — Catálogo global (Super Admin). FA-001 WP-10.
- * FK: provincia_id → cat_provincia; cascada toolbar País → Departamento → Provincia.
+ * FK: provincia_id → cat_provincia; cascada toolbar País → Departamento → Provincia; create PlatformCatalogFkSelect; edit solo lectura.
  */
 import React, { useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
@@ -34,14 +34,19 @@ import {
 } from '../components/PlatformCatalogToolbar';
 import { PlatformCatalogTable } from '../components/PlatformCatalogTable';
 import { PlatformCatalogFkSelect } from '../components/PlatformCatalogFkSelect';
+import { getFkLabel } from '../utils/platform-catalog-fk-label-cache';
 import { PlatformCatalogErrorState } from '../components/PlatformCatalogErrorState';
 import { useStablePlatformCatalogListView } from '../utils/useStablePlatformCatalogListView';
+import { CatalogSyncDialog } from '../components/CatalogSyncDialog';
+import { CatalogSyncResultDialog } from '../components/CatalogSyncResultDialog';
+import { usePlatformCatalogSyncFlow } from '../hooks/usePlatformCatalogSyncFlow';
 
 const ENTITY_ID = 'distrito' as const;
 
 const DistritosPage: React.FC = () => {
   const { isSuperAdmin } = useAuth();
   const config = getPlatformCatalogEntityConfig(ENTITY_ID);
+  const syncFlow = usePlatformCatalogSyncFlow(ENTITY_ID);
 
   const {
     items,
@@ -229,9 +234,11 @@ const DistritosPage: React.FC = () => {
         ubigeo={null}
         onUbigeoChange={() => {}}
         onRefresh={() => void refetch()}
+        onSyncDedicated={syncFlow.openSyncDialog}
         onCreate={openCreate}
         isFetching={isFetching}
         disabled={uiDisabled}
+        syncDisabled={syncFlow.isSyncing}
       />
 
       {errorMessage && !isLoading ? (
@@ -362,20 +369,10 @@ const DistritosPage: React.FC = () => {
             <DialogBody className="px-6 pb-2">
               <div className="space-y-4">
                 <div>
-                  <Label>Provincia *</Label>
-                  <div className="mt-1 max-w-none [&>div]:max-w-none">
-                    <PlatformCatalogFkSelect
-                      entityId="provincia"
-                      value={editForm.provincia_id ?? null}
-                      onChange={(value) =>
-                        setEditForm((p) => ({ ...p, provincia_id: value ?? '' }))
-                      }
-                      scope={formProvinciaScope}
-                      placeholder="Seleccionar provincia"
-                      disabled={updateMutation.isPending}
-                      allowClear={false}
-                    />
-                  </div>
+                  <Label>Provincia</Label>
+                  <p className="mt-1 px-3 py-2 rounded-md border border-border-base bg-subtle text-text-base text-sm">
+                    {getFkLabel('provincia', editForm.provincia_id)}
+                  </p>
                 </div>
                 <div>
                   <Label>Código *</Label>
@@ -457,6 +454,9 @@ const DistritosPage: React.FC = () => {
         variant="info"
         loading={reactivateMutation.isPending}
       />
+
+      <CatalogSyncDialog {...syncFlow.syncDialogProps} />
+      <CatalogSyncResultDialog {...syncFlow.resultDialogProps} />
     </div>
   );
 };

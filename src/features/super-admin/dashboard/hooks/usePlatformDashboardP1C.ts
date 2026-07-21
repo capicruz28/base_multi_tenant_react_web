@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { PLATFORM_SUPERADMIN_CLIENTE_ID } from '@/core/auth/utils/auth-session-snapshot';
 import { superadminAuditoriaService } from '@/services/superadmin-auditoria.service';
 import { superadminUsuarioService } from '@/services/superadmin-usuario.service';
+import { superadminUsuarioStatsService } from '@/services/superadmin-usuario-stats.service';
 import type { SyncAuditLog } from '@/types/superadmin-auditoria.types';
 import type { SuperadminUsuario } from '@/types/superadmin-usuario.types';
 import {
@@ -15,7 +16,6 @@ import {
   type DashboardAlertItem,
 } from '../utils/dashboard-alert.rules';
 
-const BLOCKED_USERS_SCAN_LIMIT = 100;
 const PLATFORM_OPERATORS_LIMIT = 50;
 const SYNC_FEED_LIMIT = 10;
 const RECENT_CLIENTES_LIMIT = 5;
@@ -34,10 +34,6 @@ export type PlatformDashboardP1CData = {
   operatorAlerts: DashboardAlertItem[];
   alertsLoading: boolean;
 };
-
-function countBlockedUsers(usuarios: SuperadminUsuario[]): number {
-  return usuarios.filter((u) => u.fecha_bloqueo != null).length;
-}
 
 export function usePlatformDashboardP1C(enabled: boolean): PlatformDashboardP1CData {
   const syncQuery = useQuery({
@@ -69,13 +65,9 @@ export function usePlatformDashboardP1C(enabled: boolean): PlatformDashboardP1CD
     staleTime: 60_000,
   });
 
-  const blockedUsersQuery = useQuery({
-    queryKey: ['platform-dashboard', 'blocked-users-scan', BLOCKED_USERS_SCAN_LIMIT],
-    queryFn: () =>
-      superadminUsuarioService.getUsuariosGlobales({
-        page: 1,
-        limit: BLOCKED_USERS_SCAN_LIMIT,
-      }),
+  const usuariosStatsQuery = useQuery({
+    queryKey: ['platform-dashboard', 'usuarios-stats'],
+    queryFn: () => superadminUsuarioStatsService.getUsuariosStats(),
     enabled,
     staleTime: 120_000,
   });
@@ -96,9 +88,9 @@ export function usePlatformDashboardP1C(enabled: boolean): PlatformDashboardP1CD
   }, [recentClientesQuery.data, recentClientesQuery.isError]);
 
   const blockedCount = useMemo(() => {
-    if (!blockedUsersQuery.data || blockedUsersQuery.isError) return 0;
-    return countBlockedUsers(blockedUsersQuery.data.usuarios ?? []);
-  }, [blockedUsersQuery.data, blockedUsersQuery.isError]);
+    if (!usuariosStatsQuery.data || usuariosStatsQuery.isError) return 0;
+    return usuariosStatsQuery.data.usuarios_bloqueados;
+  }, [usuariosStatsQuery.data, usuariosStatsQuery.isError]);
 
   const operatorAlerts = useMemo(
     () =>
@@ -106,13 +98,13 @@ export function usePlatformDashboardP1C(enabled: boolean): PlatformDashboardP1CD
         operatorsQuery.data?.usuarios,
         blockedCount,
         operatorsQuery.isLoading,
-        blockedUsersQuery.isLoading,
+        usuariosStatsQuery.isLoading,
       ),
     [
       operatorsQuery.data?.usuarios,
       blockedCount,
       operatorsQuery.isLoading,
-      blockedUsersQuery.isLoading,
+      usuariosStatsQuery.isLoading,
     ],
   );
 
@@ -128,6 +120,6 @@ export function usePlatformDashboardP1C(enabled: boolean): PlatformDashboardP1CD
     recentClientesError: recentClientesQuery.isError,
     isPartialRecentClientes: recentClientesQuery.data?.isPartial ?? false,
     operatorAlerts,
-    alertsLoading: operatorsQuery.isLoading || blockedUsersQuery.isLoading,
+    alertsLoading: operatorsQuery.isLoading || usuariosStatsQuery.isLoading,
   };
 }

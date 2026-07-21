@@ -6,7 +6,7 @@ import { usePlatformDashboardP0 } from '../usePlatformDashboardP0';
 import { clienteService } from '@/features/super-admin/clientes/services/cliente.service';
 import { moduloV2Service } from '@/features/modulos/services/modulo-v2.service';
 import { superadminAuditoriaService } from '@/services/superadmin-auditoria.service';
-import { superadminUsuarioService } from '@/services/superadmin-usuario.service';
+import { superadminUsuarioStatsService } from '@/services/superadmin-usuario-stats.service';
 
 vi.mock('@/features/super-admin/clientes/services/cliente.service', () => ({
   clienteService: {
@@ -26,9 +26,9 @@ vi.mock('@/services/superadmin-auditoria.service', () => ({
   },
 }));
 
-vi.mock('@/services/superadmin-usuario.service', () => ({
-  superadminUsuarioService: {
-    getUsuariosGlobales: vi.fn(),
+vi.mock('@/services/superadmin-usuario-stats.service', () => ({
+  superadminUsuarioStatsService: {
+    getUsuariosStats: vi.fn(),
   },
 }));
 
@@ -52,11 +52,11 @@ describe('usePlatformDashboardP0', () => {
       items_por_pagina: 1,
     }));
 
-    vi.mocked(superadminUsuarioService.getUsuariosGlobales).mockResolvedValue({
-      usuarios: [],
+    vi.mocked(superadminUsuarioStatsService.getUsuariosStats).mockResolvedValue({
       total_usuarios: 120,
-      pagina_actual: 1,
-      total_paginas: 1,
+      usuarios_activos: 100,
+      usuarios_inactivos: 20,
+      usuarios_bloqueados: 3,
     });
 
     vi.mocked(moduloV2Service.getModulos).mockResolvedValue({
@@ -108,10 +108,7 @@ describe('usePlatformDashboardP0', () => {
 
     expect(clienteService.getClientes).toHaveBeenCalledWith(1, 1, { activeFilter: 'active' });
     expect(clienteService.getClientes).toHaveBeenCalledWith(1, 1, { activeFilter: 'all' });
-    expect(superadminUsuarioService.getUsuariosGlobales).toHaveBeenCalledWith({
-      page: 1,
-      limit: 1,
-    });
+    expect(superadminUsuarioStatsService.getUsuariosStats).toHaveBeenCalledWith();
     expect(moduloV2Service.getModulos).toHaveBeenCalledWith({ skip: 0, limit: 1 });
     expect(superadminAuditoriaService.getAuthLogsByCliente).toHaveBeenCalledWith({
       page: 1,
@@ -125,7 +122,7 @@ describe('usePlatformDashboardP0', () => {
     renderHook(() => usePlatformDashboardP0(false), { wrapper: createWrapper() });
 
     expect(clienteService.getClientes).not.toHaveBeenCalled();
-    expect(superadminUsuarioService.getUsuariosGlobales).not.toHaveBeenCalled();
+    expect(superadminUsuarioStatsService.getUsuariosStats).not.toHaveBeenCalled();
     expect(moduloV2Service.getModulos).not.toHaveBeenCalled();
     expect(superadminAuditoriaService.getAuthLogsByCliente).not.toHaveBeenCalled();
   });
