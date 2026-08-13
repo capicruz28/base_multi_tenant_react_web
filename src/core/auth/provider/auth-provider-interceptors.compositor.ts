@@ -311,6 +311,20 @@ export function useAuthProviderResponseInterceptorEffect(
 
 					// Control de concurrencia
 					if (getRefreshingPromise()) {
+						// Anti-deadlock: el Refresh Leader puede llamar GET /auth/me dentro de
+						// runPostRefreshSession → hydrateSessionCore → fetchMe mientras su propia
+						// promise sigue activa. Encolar ese /auth/me esperaría al mismo leader.
+						const pendingUrl = (originalRequest.url || '').toLowerCase();
+						if (pendingUrl.includes('/auth/me')) {
+							runLegacySessionDevLog(() => {
+								console.warn(
+									'⚠️ [Response Interceptor] 401 en /auth/me durante refresh leader — reject sin encolar (anti-deadlock)',
+									originalRequest.url,
+								);
+							});
+							return Promise.reject(error);
+						}
+
 						console.log('🔄 [Response Interceptor] Refresh en curso, encolando...');
 						return new Promise<string>((resolve, reject) => {
 							failedQueueRef.current.push({ resolve, reject });

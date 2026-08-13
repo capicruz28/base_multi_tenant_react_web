@@ -274,6 +274,23 @@ describe('IAM-FE-PHASE-03 Paso 10 — Regresión Fase 1 (V1.x)', () => {
     expect(fetchMe).not.toHaveBeenCalled();
   });
 
+  it('anti-deadlock — 401 /auth/me durante refresh leader no se encola (interceptor)', () => {
+    const interceptors = readSource(
+      'src/core/auth/provider/auth-provider-interceptors.compositor.ts',
+    );
+    const enqueueBlockStart = interceptors.indexOf('if (getRefreshingPromise())');
+    expect(enqueueBlockStart).toBeGreaterThan(-1);
+    const enqueueBlock = interceptors.slice(
+      enqueueBlockStart,
+      enqueueBlockStart + 900,
+    );
+    expect(enqueueBlock).toContain("pendingUrl.includes('/auth/me')");
+    expect(enqueueBlock).toContain('return Promise.reject(error)');
+    expect(enqueueBlock.indexOf("pendingUrl.includes('/auth/me')")).toBeLessThan(
+      enqueueBlock.indexOf('failedQueueRef.current.push'),
+    );
+  });
+
   it('V1.4 — bootstrap hydrateSessionCore conserva contrato', async () => {
     const token = createMockAccessToken({
       ...BASE_PAYLOAD,
